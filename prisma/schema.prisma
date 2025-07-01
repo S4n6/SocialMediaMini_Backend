@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(uuid()) @map("UserId")
+  username     String?  @unique
+  email        String   @unique
+  password     String
+  fullname     String?
+  profilePicture String?
+  gender       String?
+  birthDate    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  posts        Post[]
+  comments     Comment[]
+  reactions    Reaction[]
+  sentMessages Message[] @relation("SenderMessages")
+  receivedMessages Message[] @relation("ReceiverMessages")
+
+  friendsA     Friend[] @relation("UserFriendA")
+  friendsB     Friend[] @relation("UserFriendB")
+}
+
+
+model Post {
+  id           String      @id @default(uuid()) @map("PostId")
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  author       User     @relation(fields: [authorId], references: [id])
+  authorId     String      @map("UserId")
+
+  postMedia    PostMedia[]
+  reactions    Reaction[]
+  comments     Comment[]
+}
+
+
+model PostMedia {
+  id           String      @id @default(uuid()) @map("MediaId")
+  mediaUrl     String   @map("MediaUrl")
+  mediaType    String?
+  createdAt    DateTime @default(now())
+
+  post         Post     @relation(fields: [postId], references: [id])
+  postId       String      @map("PostId")
+}
+
+
+model Comment {
+  id           String      @id @default(uuid()) @map("CommentId")
+  content      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  author       User     @relation(fields: [authorId], references: [id])
+  authorId     String      @map("UserId")
+
+  post         Post     @relation(fields: [postId], references: [id])
+  postId       String      @map("PostId")
+
+  reactions    Reaction[]
+}
+
+
+model Reaction {
+  id           String      @id @default(uuid()) @map("ReactionId")
+  reactionType String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  reactor      User     @relation(fields: [reactorId], references: [id])
+  reactorId    String      @map("UserId")
+
+  post         Post?    @relation(fields: [postId], references: [id])
+  postId       String?     @map("PostId")
+
+  comment      Comment? @relation(fields: [commentId], references: [id])
+  commentId    String?     @map("CommentId")
+
+  @@unique([reactorId, postId])
+  @@unique([reactorId, commentId])
+}
+
+
+
+model Message {
+  id           String      @id @default(uuid()) @map("MessageId")
+  content      String
+  createdAt    DateTime @default(now())
+  read         Boolean  @default(false)
+
+  sender       User     @relation("SenderMessages", fields: [senderId], references: [id])
+  senderId     String      @map("SenderId")
+
+  receiver     User     @relation("ReceiverMessages", fields: [receiverId], references: [id])
+  receiverId   String      @map("ReceiverId")
+}
+
+
+model Friend {
+  userAId    String      @map("UserId")
+  userBId    String      @map("FriendId") 
+
+  createdAt  DateTime @default(now())
+
+  userA      User     @relation("UserFriendA", fields: [userAId], references: [id])
+
+  userB      User     @relation("UserFriendB", fields: [userBId], references: [id])
+
+  @@id([userAId, userBId])
+}
