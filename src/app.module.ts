@@ -8,7 +8,15 @@ import { FriendsModule } from './modules/friends/friends.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, CommentsModule, AuthModule, PostMediasModule, FriendsModule, ReactionsModule],
+  imports: [
+    PrismaModule,
+    UsersModule,
+    CommentsModule,
+    AuthModule,
+    PostMediasModule,
+    FriendsModule,
+    ReactionsModule,
+  ],
   controllers: [],
   providers: [],
 })

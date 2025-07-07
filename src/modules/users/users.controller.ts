@@ -11,24 +11,33 @@ import {
   ValidationPipe,
   HttpCode,
   HttpStatus,
-  ParseUUIDPipe
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto, UserResponse } from './users.interfaces';
+import { RolesGuard } from 'src/guards/roles.guard';
+
+import { SkipGuards } from 'src/decorators/skipGuard.decorator';
+import { JwtAuthGuard } from 'src/guards/jwt.guard';
+import { Roles } from 'src/decorators/roles.decorator';
+import { Role } from 'src/constants/roles';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @SkipGuards()
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @Body(ValidationPipe) createUserDto: CreateUserDto
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
   ): Promise<UserResponse> {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
+  @Roles(Role.ADMIN)
   async findAll(): Promise<UserResponse[]> {
     return this.usersService.findAll();
   }
@@ -39,22 +48,20 @@ export class UsersController {
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id', ParseUUIDPipe) id: string
-  ): Promise<UserResponse> {
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponse> {
     return this.usersService.findOne(id);
   }
 
   @Get(':id/friends')
   async getUserFriends(
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<UserResponse[]> {
     return this.usersService.getUserFriends(id);
   }
 
   @Get('username/:username')
   async findByUsername(
-    @Param('username') username: string
+    @Param('username') username: string,
   ): Promise<UserResponse | null> {
     return this.usersService.findByUsername(username);
   }
@@ -62,7 +69,7 @@ export class UsersController {
   @Patch(':id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(ValidationPipe) updateUserDto: UpdateUserDto
+    @Body(ValidationPipe) updateUserDto: UpdateUserDto,
   ): Promise<UserResponse> {
     return this.usersService.update(id, updateUserDto);
   }
@@ -70,7 +77,7 @@ export class UsersController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
-    @Param('id', ParseUUIDPipe) id: string
+    @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ message: string }> {
     return this.usersService.remove(id);
   }
@@ -79,7 +86,7 @@ export class UsersController {
   @HttpCode(HttpStatus.CREATED)
   async addFriend(
     @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string
+    @Param('friendId', ParseUUIDPipe) friendId: string,
   ): Promise<{ message: string }> {
     return this.usersService.addFriend(userId, friendId);
   }
@@ -88,7 +95,7 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async removeFriend(
     @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string
+    @Param('friendId', ParseUUIDPipe) friendId: string,
   ): Promise<{ message: string }> {
     return this.usersService.removeFriend(userId, friendId);
   }

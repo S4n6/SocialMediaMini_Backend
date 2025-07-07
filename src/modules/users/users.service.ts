@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto, UpdateUserDto, UserResponse } from './users.interfaces';
+import { Role } from 'src/constants/roles';
 
 @Injectable()
 export class UsersService {
@@ -41,6 +42,7 @@ export class UsersService {
         password: hashedPassword,
         birthDate: processedBirthDate,
         ...userData,
+        role: Role.USER,
       },
     });
 

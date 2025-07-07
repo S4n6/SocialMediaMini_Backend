@@ -10,6 +10,7 @@ import {
   Matches,
   IsNotEmpty,
 } from 'class-validator';
+import { Role } from 'src/constants/roles';
 
 export class CreateUserDto {
   @IsOptional()
@@ -87,6 +88,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsDateString({}, { message: 'Birth date must be a valid date' })
   birthDate?: Date;
+
+  @IsString()
+  @IsOptional()
+  @IsIn([Role.USER, Role.ADMIN, Role.MODERATOR, Role.SUPER_ADMIN], {
+    message: 'Role must be one of: user, admin, moderator, super_admin',
+  })
+  role?: Role;
 }
 
 export interface UserResponse {
@@ -99,4 +107,5 @@ export interface UserResponse {
   birthDate?: Date;
   createdAt: Date;
   updatedAt: Date;
+  role: string;
 }

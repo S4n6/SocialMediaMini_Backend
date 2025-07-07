@@ -7,6 +7,7 @@ CREATE TABLE "User" (
     "fullname" TEXT,
     "profilePicture" TEXT,
     "gender" TEXT,
+    "role" TEXT NOT NULL,
     "birthDate" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

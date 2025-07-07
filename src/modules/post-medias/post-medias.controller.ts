@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import { PostMediasService } from './post-medias.service';
 import { CreatePostMediaDto } from './dto/create-post-media.dto';
 import { UpdatePostMediaDto } from './dto/update-post-media.dto';
@@ -8,6 +18,7 @@ export class PostMediasController {
   constructor(private readonly postMediasService: PostMediasService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   create(@Body() createPostMediaDto: CreatePostMediaDto) {
     return this.postMediasService.create(createPostMediaDto);
   }
@@ -19,16 +30,28 @@ export class PostMediasController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.postMediasService.findOne(+id);
+    return this.postMediasService.findOne(id);
+  }
+
+  @Get('post/:postId')
+  findByPost(@Param('postId') postId: string) {
+    return this.postMediasService.findByPost(postId);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updatePostMediaDto: UpdatePostMediaDto) {
-    return this.postMediasService.update(+id, updatePostMediaDto);
+    return this.postMediasService.update(id, updatePostMediaDto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
-    return this.postMediasService.remove(+id);
+    return this.postMediasService.remove(id);
+  }
+
+  @Delete('post/:postId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeByPost(@Param('postId') postId: string) {
+    return this.postMediasService.removeByPost(postId);
   }
 }
