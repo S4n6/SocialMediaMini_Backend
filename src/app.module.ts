@@ -3,7 +3,7 @@ import { PrismaModule } from './database/prisma.module';
 import { UsersModule } from './modules/users/users.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { PostMediasModule } from './modules/post-medias/post-medias.module';
+import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { FriendsModule } from './modules/friends/friends.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 

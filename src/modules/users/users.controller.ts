@@ -14,13 +14,14 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, UserResponse } from './users.interfaces';
 import { RolesGuard } from 'src/guards/roles.guard';
-
 import { SkipGuards } from 'src/decorators/skipGuard.decorator';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
 import { Roles } from 'src/decorators/roles.decorator';
 import { Role } from 'src/constants/roles';
+import { UserResponse } from './dto/responseUser.dto';
+import { UpdateUserDto } from './dto/updateUser.dto';
+import { CreateUserDto } from './dto/createUser.dto';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)

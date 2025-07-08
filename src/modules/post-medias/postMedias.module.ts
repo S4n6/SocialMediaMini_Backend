@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { PostMediasService } from './post-medias.service';
-import { PostMediasController } from './post-medias.controller';
+import { PostMediasService } from './postMedias.service';
+import { PostMediasController } from './postMedias.controller';
 
 @Module({
   controllers: [PostMediasController],

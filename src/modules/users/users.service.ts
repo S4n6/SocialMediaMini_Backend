@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { CreateUserDto, UpdateUserDto, UserResponse } from './users.interfaces';
 import { Role } from 'src/constants/roles';
+import { CreateUserDto } from './dto/createUser.dto';
+import { UserResponse } from './dto/responseUser.dto';
+import { UpdateUserDto } from './dto/updateUser.dto';
 
 @Injectable()
 export class UsersService {

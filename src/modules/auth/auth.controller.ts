@@ -9,9 +9,9 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateUserDto } from '../users/users.interfaces';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
+import { CreateUserDto } from '../users/dto/createUser.dto';
 
 @Controller('auth')
 export class AuthController {

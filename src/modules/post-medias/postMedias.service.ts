@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { CreatePostMediaDto } from './dto/create-post-media.dto';
-import { UpdatePostMediaDto } from './dto/update-post-media.dto';
+import { CreatePostMediaDto } from './dto/createPostMedia.dto';
+import { UpdatePostMediaDto } from './dto/updatePostMedia.dto';
 
 @Injectable()
 export class PostMediasService {
@@ -173,9 +177,9 @@ export class PostMediasService {
       where: { postId },
     });
 
-    return { 
-      message: 'Post media deleted successfully', 
-      deletedCount: deleteResult.count 
+    return {
+      message: 'Post media deleted successfully',
+      deletedCount: deleteResult.count,
     };
   }
 }

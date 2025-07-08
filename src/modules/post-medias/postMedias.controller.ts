@@ -9,9 +9,9 @@ import {
   HttpStatus,
   HttpCode,
 } from '@nestjs/common';
-import { PostMediasService } from './post-medias.service';
-import { CreatePostMediaDto } from './dto/create-post-media.dto';
-import { UpdatePostMediaDto } from './dto/update-post-media.dto';
+import { PostMediasService } from './postMedias.service';
+import { CreatePostMediaDto } from './dto/createPostMedia.dto';
+import { UpdatePostMediaDto } from './dto/updatePostMedia.dto';
 
 @Controller('post-medias')
 export class PostMediasController {
@@ -39,7 +39,10 @@ export class PostMediasController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePostMediaDto: UpdatePostMediaDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updatePostMediaDto: UpdatePostMediaDto,
+  ) {
     return this.postMediasService.update(id, updatePostMediaDto);
   }
 
