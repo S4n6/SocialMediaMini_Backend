@@ -199,108 +199,108 @@ export class UsersService {
     return users.map((user) => this.excludePassword(user));
   }
 
-  async getUserFriends(userId: string): Promise<UserResponse[]> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        friendsA: {
-          include: {
-            userB: true,
-          },
-        },
-        friendsB: {
-          include: {
-            userA: true,
-          },
-        },
-      },
-    });
+  // async getUserFriends(userId: string): Promise<UserResponse[]> {
+  //   const user = await this.prisma.user.findUnique({
+  //     where: { id: userId },
+  //     include: {
+  //       friendsA: {
+  //         include: {
+  //           userB: true,
+  //         },
+  //       },
+  //       friendsB: {
+  //         include: {
+  //           userA: true,
+  //         },
+  //       },
+  //     },
+  //   });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+  //   if (!user) {
+  //     throw new NotFoundException('User not found');
+  //   }
 
-    const friends: any[] = [
-      ...user.friendsA.map((friendship) => friendship.userB),
-      ...user.friendsB.map((friendship) => friendship.userA),
-    ];
+  //   const friends: any[] = [
+  //     ...user.friendsA.map((friendship) => friendship.userB),
+  //     ...user.friendsB.map((friendship) => friendship.userA),
+  //   ];
 
-    return friends.map((friend) => this.excludePassword(friend));
-  }
+  //   return friends.map((friend) => this.excludePassword(friend));
+  // }
 
-  async addFriend(
-    userId: string,
-    friendId: string,
-  ): Promise<{ message: string }> {
-    if (userId === friendId) {
-      throw new BadRequestException('Cannot add yourself as a friend');
-    }
+  // async addFriend(
+  //   userId: string,
+  //   friendId: string,
+  // ): Promise<{ message: string }> {
+  //   if (userId === friendId) {
+  //     throw new BadRequestException('Cannot add yourself as a friend');
+  //   }
 
-    // Check if both users exist
-    const [user, friend] = await Promise.all([
-      this.prisma.user.findUnique({ where: { id: userId } }),
-      this.prisma.user.findUnique({ where: { id: friendId } }),
-    ]);
+  //   // Check if both users exist
+  //   const [user, friend] = await Promise.all([
+  //     this.prisma.user.findUnique({ where: { id: userId } }),
+  //     this.prisma.user.findUnique({ where: { id: friendId } }),
+  //   ]);
 
-    if (!user || !friend) {
-      throw new NotFoundException('User not found');
-    }
+  //   if (!user || !friend) {
+  //     throw new NotFoundException('User not found');
+  //   }
 
-    // Check if friendship already exists
-    const existingFriendship = await this.prisma.friend.findFirst({
-      where: {
-        OR: [
-          { userAId: userId, userBId: friendId },
-          { userAId: friendId, userBId: userId },
-        ],
-      },
-    });
+  //   // Check if friendship already exists
+  //   const existingFriendship = await this.prisma.friend.findFirst({
+  //     where: {
+  //       OR: [
+  //         { userAId: userId, userBId: friendId },
+  //         { userAId: friendId, userBId: userId },
+  //       ],
+  //     },
+  //   });
 
-    if (existingFriendship) {
-      throw new ConflictException('Friendship already exists');
-    }
+  //   if (existingFriendship) {
+  //     throw new ConflictException('Friendship already exists');
+  //   }
 
-    // Create friendship (always put smaller ID first for consistency)
-    const [userAId, userBId] = [userId, friendId].sort();
+  //   // Create friendship (always put smaller ID first for consistency)
+  //   const [userAId, userBId] = [userId, friendId].sort();
 
-    await this.prisma.friend.create({
-      data: {
-        userAId,
-        userBId,
-      },
-    });
+  //   await this.prisma.friend.create({
+  //     data: {
+  //       userAId,
+  //       userBId,
+  //     },
+  //   });
 
-    return { message: 'Friend added successfully' };
-  }
+  //   return { message: 'Friend added successfully' };
+  // }
 
-  async removeFriend(
-    userId: string,
-    friendId: string,
-  ): Promise<{ message: string }> {
-    const friendship = await this.prisma.friend.findFirst({
-      where: {
-        OR: [
-          { userAId: userId, userBId: friendId },
-          { userAId: friendId, userBId: userId },
-        ],
-      },
-    });
+  // async removeFriend(
+  //   userId: string,
+  //   friendId: string,
+  // ): Promise<{ message: string }> {
+  //   const friendship = await this.prisma.friend.findFirst({
+  //     where: {
+  //       OR: [
+  //         { userAId: userId, userBId: friendId },
+  //         { userAId: friendId, userBId: userId },
+  //       ],
+  //     },
+  //   });
 
-    if (!friendship) {
-      throw new NotFoundException('Friendship not found');
-    }
+  //   if (!friendship) {
+  //     throw new NotFoundException('Friendship not found');
+  //   }
 
-    await this.prisma.friend.delete({
-      where: {
-        userAId_userBId: {
-          userAId: friendship.userAId,
-          userBId: friendship.userBId,
-        },
-      },
-    });
+  //   await this.prisma.friend.delete({
+  //     where: {
+  //       userAId_userBId: {
+  //         userAId: friendship.userAId,
+  //         userBId: friendship.userBId,
+  //       },
+  //     },
+  //   });
 
-    return { message: 'Friend removed successfully' };
-  }
+  //   return { message: 'Friend removed successfully' };
+  // }
 
   private excludePassword(user: any): UserResponse {
     const { password, ...userWithoutPassword } = user;

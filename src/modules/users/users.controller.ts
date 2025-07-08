@@ -53,12 +53,12 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Get(':id/friends')
-  async getUserFriends(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<UserResponse[]> {
-    return this.usersService.getUserFriends(id);
-  }
+  // @Get(':id/friends')
+  // async getUserFriends(
+  //   @Param('id', ParseUUIDPipe) id: string,
+  // ): Promise<UserResponse[]> {
+  //   return this.usersService.getUserFriends(id);
+  // }
 
   @Get('username/:username')
   async findByUsername(
@@ -83,21 +83,21 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-  @Post(':id/friends/:friendId')
-  @HttpCode(HttpStatus.CREATED)
-  async addFriend(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string,
-  ): Promise<{ message: string }> {
-    return this.usersService.addFriend(userId, friendId);
-  }
+  // @Post(':id/friends/:friendId')
+  // @HttpCode(HttpStatus.CREATED)
+  // async addFriend(
+  //   @Param('id', ParseUUIDPipe) userId: string,
+  //   @Param('friendId', ParseUUIDPipe) friendId: string,
+  // ): Promise<{ message: string }> {
+  //   return this.usersService.addFriend(userId, friendId);
+  // }
 
-  @Delete(':id/friends/:friendId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async removeFriend(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string,
-  ): Promise<{ message: string }> {
-    return this.usersService.removeFriend(userId, friendId);
-  }
+  // @Delete(':id/friends/:friendId')
+  // @HttpCode(HttpStatus.NO_CONTENT)
+  // async removeFriend(
+  //   @Param('id', ParseUUIDPipe) userId: string,
+  //   @Param('friendId', ParseUUIDPipe) friendId: string,
+  // ): Promise<{ message: string }> {
+  //   return this.usersService.removeFriend(userId, friendId);
+  // }
 }
