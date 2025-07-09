@@ -11,10 +11,12 @@ export class CreatePostMediaDto {
 
   @IsOptional()
   @IsString()
+  publicId?: string;
+
+  @IsOptional()
+  @IsString()
   @IsIn(['image', 'video', 'audio', 'document'], {
     message: 'Media type must be one of: image, video, audio, document',
   })
   mediaType?: string;
 }
-
-

@@ -57,6 +57,7 @@ model PostMedia {
   id           String      @id @default(uuid()) @map("MediaId")
   mediaUrl     String   @map("MediaUrl")
   mediaType    String?
+  publicId     String?
   createdAt    DateTime @default(now())
 
   post         Post     @relation(fields: [postId], references: [id])
