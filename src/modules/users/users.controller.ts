@@ -18,7 +18,7 @@ import { RolesGuard } from 'src/guards/roles.guard';
 import { SkipGuards } from 'src/decorators/skipGuard.decorator';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
 import { Roles } from 'src/decorators/roles.decorator';
-import { Role } from 'src/constants/roles';
+import { Role } from 'src/constants/roles.constant';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { CreateUserDto } from './dto/createUser.dto';
@@ -53,13 +53,6 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @Get(':id/friends')
-  async getUserFriends(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<UserResponse[]> {
-    return this.usersService.getUserFriends(id);
-  }
-
   @Get('username/:username')
   async findByUsername(
     @Param('username') username: string,
@@ -72,6 +65,7 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
   ): Promise<UserResponse> {
+    console.log('Update User DTO:', updateUserDto);
     return this.usersService.update(id, updateUserDto);
   }
 
@@ -81,23 +75,5 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ message: string }> {
     return this.usersService.remove(id);
-  }
-
-  @Post(':id/friends/:friendId')
-  @HttpCode(HttpStatus.CREATED)
-  async addFriend(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string,
-  ): Promise<{ message: string }> {
-    return this.usersService.addFriend(userId, friendId);
-  }
-
-  @Delete(':id/friends/:friendId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async removeFriend(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Param('friendId', ParseUUIDPipe) friendId: string,
-  ): Promise<{ message: string }> {
-    return this.usersService.removeFriend(userId, friendId);
   }
 }

@@ -41,7 +41,7 @@ export class PostMediasController {
         }
       },
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB
+        fileSize: 50 * 1024 * 1024,
       },
     }),
   )
@@ -88,7 +88,7 @@ export class PostMediasController {
         }
       },
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB per file
+        fileSize: 50 * 1024 * 1024,
       },
     }),
   )

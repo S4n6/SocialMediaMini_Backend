@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsUUID, MaxLength } from 'class-validator';
+// src/modules/comments/dto/createComment.dto.ts
+import {
+  IsString,
+  IsNotEmpty,
+  IsUUID,
+  MaxLength,
+  IsOptional,
+} from 'class-validator';
 
 export class CreateCommentDto {
   @IsString()
@@ -9,4 +16,8 @@ export class CreateCommentDto {
   @IsUUID('4', { message: 'Post ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Post ID is required' })
   postId: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'Parent comment ID must be a valid UUID' })
+  parentId?: string;
 }

@@ -8,6 +8,7 @@ import { FriendsModule } from './modules/friends/friends.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { MailerModule } from './modules/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PostsModule } from './modules/posts/posts.module';
     ReactionsModule,
     CloudinaryModule,
     PostsModule,
+    MailerModule,
   ],
   controllers: [],
   providers: [],

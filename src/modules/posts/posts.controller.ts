@@ -19,7 +19,7 @@ import { AddReactionDto } from './dto/addReaction.dto';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles';
+import { Role } from '../../constants/roles.constant';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
 
 @Controller('posts')
@@ -28,11 +28,11 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
-  async create(@Body() createPostDto: CreatePostDto & { userId: string }) {
-    const result = await this.postsService.create(
-      createPostDto,
-      createPostDto.userId,
-    );
+  async create(
+    @Body() createPostDto: CreatePostDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.postsService.create(createPostDto, userId);
 
     return {
       message: 'Post created successfully',
@@ -67,6 +67,8 @@ export class PostsController {
         pagination: null,
       };
     }
+
+    console.log(`Searching posts with query: "${query}"`);
 
     const result = await this.postsService.searchPosts(
       query.trim(),
@@ -163,78 +165,5 @@ export class PostsController {
     const result = await this.postsService.remove(id, userId);
 
     return result;
-  }
-
-  // Reactions endpoints
-  @Post(':id/reactions')
-  async addReaction(
-    @Param('id') postId: string,
-    @Body() addReactionDto: AddReactionDto,
-    @CurrentUser('id') userId: string,
-  ) {
-    const result = await this.postsService.addReaction(
-      postId,
-      userId,
-      addReactionDto.reactionType,
-    );
-
-    return {
-      message: 'Reaction added successfully',
-      data: result,
-    };
-  }
-
-  @Delete(':id/reactions')
-  async removeReaction(
-    @Param('id') postId: string,
-    @CurrentUser('id') userId: string,
-  ) {
-    const result = await this.postsService.removeReaction(postId, userId);
-
-    return result;
-  }
-
-  @Get(':id/reactions')
-  async getPostReactions(@Param('id') postId: string) {
-    const result = await this.postsService.getPostReactions(postId);
-
-    return {
-      message: 'Post reactions retrieved successfully',
-      data: result,
-    };
-  }
-
-  // Comments endpoints
-  @Post(':id/comments')
-  async addComment(
-    @Param('id') postId: string,
-    @Body() addCommentDto: AddCommentDto,
-    @CurrentUser('id') userId: string,
-  ) {
-    const result = await this.postsService.addComment(
-      postId,
-      userId,
-      addCommentDto.content,
-    );
-
-    return {
-      message: 'Comment added successfully',
-      data: result,
-    };
-  }
-
-  @Get(':id/comments')
-  async getPostComments(
-    @Param('id') postId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-  ) {
-    const result = await this.postsService.getPostComments(postId, page, limit);
-
-    return {
-      message: 'Post comments retrieved successfully',
-      data: result.comments,
-      pagination: result.pagination,
-    };
   }
 }

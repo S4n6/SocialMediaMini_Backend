@@ -5,16 +5,18 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/Jwt.strategy';
-
+import { JWT } from 'src/constants/jwt.constant';
+import { MailerModule } from '../mailer/mailer.module';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
-      signOptions: { expiresIn: '24h' },
+      secret: JWT.SECRET,
+      signOptions: { expiresIn: JWT.EXPIRES_IN },
     }),
+    MailerModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

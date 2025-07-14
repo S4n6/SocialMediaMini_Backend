@@ -424,113 +424,6 @@ export class PostsService {
     return { message: 'Post deleted successfully' };
   }
 
-  async addReaction(postId: string, userId: string, reactionType: string) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-    });
-
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    // Check if user already reacted to this post
-    const existingReaction = await this.prisma.reaction.findUnique({
-      where: {
-        reactorId_postId: {
-          reactorId: userId,
-          postId: postId,
-        },
-      },
-    });
-
-    if (existingReaction) {
-      // Update existing reaction
-      const updatedReaction = await this.prisma.reaction.update({
-        where: { id: existingReaction.id },
-        data: { reactionType },
-        include: {
-          reactor: {
-            select: {
-              id: true,
-              username: true,
-              fullname: true,
-            },
-          },
-        },
-      });
-      return updatedReaction;
-    } else {
-      // Create new reaction
-      const newReaction = await this.prisma.reaction.create({
-        data: {
-          reactionType,
-          reactorId: userId,
-          postId: postId,
-        },
-        include: {
-          reactor: {
-            select: {
-              id: true,
-              username: true,
-              fullname: true,
-            },
-          },
-        },
-      });
-      return newReaction;
-    }
-  }
-
-  async removeReaction(postId: string, userId: string) {
-    const reaction = await this.prisma.reaction.findUnique({
-      where: {
-        reactorId_postId: {
-          reactorId: userId,
-          postId: postId,
-        },
-      },
-    });
-
-    if (!reaction) {
-      throw new NotFoundException('Reaction not found');
-    }
-
-    await this.prisma.reaction.delete({
-      where: { id: reaction.id },
-    });
-
-    return { message: 'Reaction removed successfully' };
-  }
-
-  async getPostReactions(postId: string) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-    });
-
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    const reactions = await this.prisma.reaction.findMany({
-      where: { postId },
-      include: {
-        reactor: {
-          select: {
-            id: true,
-            username: true,
-            fullname: true,
-            profilePicture: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    return reactions;
-  }
-
   async searchPosts(query: string, page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
@@ -589,115 +482,17 @@ export class PostsService {
     };
   }
 
-  async addComment(postId: string, userId: string, content: string) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-    });
-
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    const comment = await this.prisma.comment.create({
-      data: {
-        content,
-        authorId: userId,
-        postId: postId,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            fullname: true,
-            profilePicture: true,
-          },
-        },
-        reactions: {
-          include: {
-            reactor: {
-              select: {
-                id: true,
-                username: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return comment;
-  }
-
-  async getPostComments(postId: string, page: number = 1, limit: number = 10) {
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-    });
-
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    const skip = (page - 1) * limit;
-
-    const [comments, totalCount] = await Promise.all([
-      this.prisma.comment.findMany({
-        where: { postId },
-        skip,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              username: true,
-              fullname: true,
-              profilePicture: true,
-            },
-          },
-          reactions: {
-            include: {
-              reactor: {
-                select: {
-                  id: true,
-                  username: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          createdAt: 'asc',
-        },
-      }),
-      this.prisma.comment.count({
-        where: { postId },
-      }),
-    ]);
-
-    return {
-      comments,
-      pagination: {
-        page,
-        limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        hasNext: page < Math.ceil(totalCount / limit),
-        hasPrev: page > 1,
-      },
-    };
-  }
-
   // Get posts statistics
   async getPostStats(userId?: string) {
     const whereClause = userId ? { authorId: userId } : {};
 
     const [totalPosts, totalReactions, totalComments] = await Promise.all([
       this.prisma.post.count({ where: whereClause }),
-      this.prisma.reaction.count({ 
-        where: { post: whereClause } 
+      this.prisma.reaction.count({
+        where: { post: whereClause },
       }),
-      this.prisma.comment.count({ 
-        where: { post: whereClause } 
+      this.prisma.comment.count({
+        where: { post: whereClause },
       }),
     ]);
 

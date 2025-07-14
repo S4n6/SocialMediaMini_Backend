@@ -6,11 +6,10 @@ import {
   MaxLength,
   IsUrl,
   IsIn,
-  IsDateString,
   Matches,
-  IsNotEmpty,
+  IsDate,
 } from 'class-validator';
-import { Role } from 'src/constants/roles';
+import { Role } from 'src/constants/roles.constant';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -40,7 +39,9 @@ export class UpdateUserDto {
   gender?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Birth date must be a valid date' })
+  @IsDate({
+    message: 'Birth date must be a valid date',
+  })
   birthDate?: Date;
 
   @IsString()

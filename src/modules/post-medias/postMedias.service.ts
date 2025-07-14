@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { UpdatePostMediaDto } from './dto/updatePostMedia.dto';
+import { CLOUDINARY } from 'src/constants/cloudinary.constant';
 
 @Injectable()
 export class PostMediasService {
@@ -94,7 +95,7 @@ export class PostMediasService {
       // Upload to Cloudinary
       const uploadedFile = await this.cloudinaryService.uploadFile(
         file,
-        `posts/${postId}`,
+        `${CLOUDINARY.FOLDER}/posts/${postId}`,
       );
 
       // Save to database

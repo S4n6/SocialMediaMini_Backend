@@ -23,27 +23,33 @@ export class CloudinaryController {
   @UseInterceptors(
     FileInterceptor('file', {
       fileFilter: (req, file, callback) => {
-        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+        if (
+          file.mimetype.startsWith('image/') ||
+          file.mimetype.startsWith('video/')
+        ) {
           callback(null, true);
         } else {
-          callback(new BadRequestException('Only images and videos are allowed'), false);
+          callback(
+            new BadRequestException('Only images and videos are allowed'),
+            false,
+          );
         }
       },
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB limit
+        fileSize: 50 * 1024 * 1024,
       },
-    })
+    }),
   )
   async uploadSingle(
     @UploadedFile() file: Express.Multer.File,
-    @Body('folder') folder?: string
+    @Body('folder') folder?: string,
   ) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
 
     const result = await this.cloudinaryService.uploadFile(file, folder);
-    
+
     return {
       message: 'File uploaded successfully',
       data: {
@@ -63,30 +69,38 @@ export class CloudinaryController {
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       fileFilter: (req, file, callback) => {
-        if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
+        if (
+          file.mimetype.startsWith('image/') ||
+          file.mimetype.startsWith('video/')
+        ) {
           callback(null, true);
         } else {
-          callback(new BadRequestException('Only images and videos are allowed'), false);
+          callback(
+            new BadRequestException('Only images and videos are allowed'),
+            false,
+          );
         }
       },
       limits: {
         fileSize: 50 * 1024 * 1024, // 50MB per file
       },
-    })
+    }),
   )
   async uploadMultiple(
     @UploadedFiles() files: Express.Multer.File[],
-    @Body('folder') folder?: string
+    @Body('folder') folder?: string,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('At least one file is required');
     }
+    const results = await this.cloudinaryService.uploadMultipleFiles(
+      files,
+      folder,
+    );
 
-    const results = await this.cloudinaryService.uploadMultipleFiles(files, folder);
-    
     return {
       message: 'Files uploaded successfully',
-      data: results.map(result => ({
+      data: results.map((result) => ({
         publicId: result.public_id,
         url: result.secure_url,
         format: result.format,
@@ -112,18 +126,18 @@ export class CloudinaryController {
       limits: {
         fileSize: 10 * 1024 * 1024, // 10MB for images
       },
-    })
+    }),
   )
   async uploadImage(
     @UploadedFile() file: Express.Multer.File,
-    @Body('folder') folder?: string
+    @Body('folder') folder?: string,
   ) {
     if (!file) {
       throw new BadRequestException('Image file is required');
     }
 
     const result = await this.cloudinaryService.uploadImage(file, folder);
-    
+
     return {
       message: 'Image uploaded successfully',
       data: {
@@ -151,18 +165,18 @@ export class CloudinaryController {
       limits: {
         fileSize: 100 * 1024 * 1024, // 100MB for videos
       },
-    })
+    }),
   )
   async uploadVideo(
     @UploadedFile() file: Express.Multer.File,
-    @Body('folder') folder?: string
+    @Body('folder') folder?: string,
   ) {
     if (!file) {
       throw new BadRequestException('Video file is required');
     }
 
     const result = await this.cloudinaryService.uploadVideo(file, folder);
-    
+
     return {
       message: 'Video uploaded successfully',
       data: {
@@ -179,7 +193,7 @@ export class CloudinaryController {
   @Delete(':publicId')
   async deleteFile(@Param('publicId') publicId: string) {
     const result = await this.cloudinaryService.deleteFile(publicId);
-    
+
     return {
       message: 'File deleted successfully',
       data: result,

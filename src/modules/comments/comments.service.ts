@@ -13,7 +13,7 @@ export class CommentsService {
   constructor(private prisma: PrismaService) {}
 
   async create(createCommentDto: CreateCommentDto, authorId: string) {
-    const { content, postId } = createCommentDto;
+    const { content, postId, parentId } = createCommentDto;
 
     // Check if user exists
     const user = await this.prisma.user.findUnique({
@@ -33,12 +33,29 @@ export class CommentsService {
       throw new NotFoundException('Post not found');
     }
 
-    // Create comment
+    // If it's a reply, check if parent comment exists and belongs to the same post
+    if (parentId) {
+      const parentComment = await this.prisma.comment.findUnique({
+        where: { id: parentId },
+      });
+
+      if (!parentComment) {
+        throw new NotFoundException('Parent comment not found');
+      }
+
+      if (parentComment.postId !== postId) {
+        throw new BadRequestException(
+          'Parent comment must belong to the same post',
+        );
+      }
+    }
+
     const comment = await this.prisma.comment.create({
       data: {
         content,
         authorId,
         postId,
+        parentId,
       },
       include: {
         author: {
@@ -49,10 +66,8 @@ export class CommentsService {
             profilePicture: true,
           },
         },
-        post: {
-          select: {
-            id: true,
-            content: true,
+        parent: {
+          include: {
             author: {
               select: {
                 id: true,
@@ -62,20 +77,31 @@ export class CommentsService {
             },
           },
         },
-        reactions: {
+        replies: {
           include: {
-            reactor: {
+            author: {
               select: {
                 id: true,
                 username: true,
                 fullname: true,
+                profilePicture: true,
               },
             },
+            _count: {
+              select: {
+                reactions: true,
+                replies: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
           },
         },
         _count: {
           select: {
             reactions: true,
+            replies: true,
           },
         },
       },
@@ -202,7 +228,6 @@ export class CommentsService {
   }
 
   async findByPost(postId: string, page: number = 1, limit: number = 20) {
-    // Check if post exists
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
     });
@@ -213,9 +238,13 @@ export class CommentsService {
 
     const skip = (page - 1) * limit;
 
+    // Get only top-level comments (no parent)
     const [comments, totalCount] = await Promise.all([
       this.prisma.comment.findMany({
-        where: { postId },
+        where: {
+          postId,
+          parentId: null, // ← Only top-level comments
+        },
         skip,
         take: limit,
         include: {
@@ -227,20 +256,51 @@ export class CommentsService {
               profilePicture: true,
             },
           },
-          reactions: {
+          replies: {
             include: {
-              reactor: {
+              author: {
                 select: {
                   id: true,
                   username: true,
                   fullname: true,
+                  profilePicture: true,
                 },
               },
+              replies: {
+                include: {
+                  author: {
+                    select: {
+                      id: true,
+                      username: true,
+                      fullname: true,
+                      profilePicture: true,
+                    },
+                  },
+                  _count: {
+                    select: {
+                      reactions: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: 'asc',
+                },
+              },
+              _count: {
+                select: {
+                  reactions: true,
+                  replies: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'asc',
             },
           },
           _count: {
             select: {
               reactions: true,
+              replies: true,
             },
           },
         },
@@ -249,12 +309,69 @@ export class CommentsService {
         },
       }),
       this.prisma.comment.count({
-        where: { postId },
+        where: {
+          postId,
+          parentId: null,
+        },
       }),
     ]);
 
     return {
       comments,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async getReplies(commentId: string, page: number = 1, limit: number = 10) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [replies, totalCount] = await Promise.all([
+      this.prisma.comment.findMany({
+        where: { parentId: commentId },
+        skip,
+        take: limit,
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              fullname: true,
+              profilePicture: true,
+            },
+          },
+          _count: {
+            select: {
+              reactions: true,
+              replies: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }),
+      this.prisma.comment.count({
+        where: { parentId: commentId },
+      }),
+    ]);
+
+    return {
+      replies,
       pagination: {
         page,
         limit,
@@ -473,7 +590,6 @@ export class CommentsService {
     });
 
     if (existingReaction) {
-      // Update existing reaction
       const updatedReaction = await this.prisma.reaction.update({
         where: { id: existingReaction.id },
         data: { reactionType },
@@ -489,7 +605,6 @@ export class CommentsService {
       });
       return updatedReaction;
     } else {
-      // Create new reaction
       const newReaction = await this.prisma.reaction.create({
         data: {
           reactionType,
@@ -629,7 +744,6 @@ export class CommentsService {
     };
   }
 
-  // Get comments statistics
   async getCommentStats(userId?: string, postId?: string) {
     const whereClause: any = {};
 
@@ -651,7 +765,6 @@ export class CommentsService {
     };
   }
 
-  // Remove all comments by post (for admin/post deletion)
   async removeAllByPost(postId: string, userId: string) {
     // Check if post exists and user has permission
     const post = await this.prisma.post.findUnique({
@@ -700,7 +813,6 @@ export class CommentsService {
     return { message: 'All post comments deleted successfully' };
   }
 
-  // Get recent comments for a user
   async getRecentComments(userId: string, limit: number = 5) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -741,7 +853,6 @@ export class CommentsService {
     return comments;
   }
 
-  // Get trending comments (most reacted in last 24 hours)
   async getTrendingComments(limit: number = 10) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);

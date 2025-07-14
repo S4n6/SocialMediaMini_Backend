@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsString,
@@ -9,7 +11,9 @@ import {
   IsDateString,
   Matches,
   IsNotEmpty,
+  IsDate,
 } from 'class-validator';
+import { isValid, parse } from 'date-fns';
 
 export class CreateUserDto {
   @IsOptional()
@@ -53,6 +57,8 @@ export class CreateUserDto {
   gender?: string;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Birth date must be a valid date' })
+  @IsDate({
+    message: 'Birth date must be a valid date',
+  })
   birthDate?: Date;
 }

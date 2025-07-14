@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import { CloudinaryResponse } from './dto/cloudinary.response';
+import { CLOUDINARY } from 'src/constants/cloudinary.constant';
 
 @Injectable()
 export class CloudinaryService {
@@ -15,7 +16,7 @@ export class CloudinaryService {
 
   async uploadImage(
     file: Express.Multer.File,
-    folder: string = 'social-media'
+    folder: string = CLOUDINARY.FOLDER,
   ): Promise<CloudinaryResponse> {
     try {
       return new Promise((resolve, reject) => {
@@ -26,7 +27,7 @@ export class CloudinaryService {
             transformation: [
               { width: 1000, height: 1000, crop: 'limit', quality: 'auto' },
             ],
-            format: 'webp', // Convert to WebP for better compression
+            format: 'webp',
           },
           (error, result) => {
             if (error) {
@@ -34,7 +35,7 @@ export class CloudinaryService {
             } else {
               resolve(result as unknown as CloudinaryResponse);
             }
-          }
+          },
         );
 
         const bufferStream = new Readable();
@@ -49,7 +50,7 @@ export class CloudinaryService {
 
   async uploadVideo(
     file: Express.Multer.File,
-    folder: string = 'social-media/videos'
+    folder: string = 'social-media/videos',
   ): Promise<CloudinaryResponse> {
     try {
       return new Promise((resolve, reject) => {
@@ -68,7 +69,7 @@ export class CloudinaryService {
             } else {
               resolve(result as unknown as CloudinaryResponse);
             }
-          }
+          },
         );
 
         const bufferStream = new Readable();
@@ -83,7 +84,7 @@ export class CloudinaryService {
 
   async uploadFile(
     file: Express.Multer.File,
-    folder: string = 'social-media'
+    folder: string = CLOUDINARY.FOLDER,
   ): Promise<CloudinaryResponse> {
     const isImage = file.mimetype.startsWith('image/');
     const isVideo = file.mimetype.startsWith('video/');
@@ -99,9 +100,10 @@ export class CloudinaryService {
 
   async uploadMultipleFiles(
     files: Express.Multer.File[],
-    folder: string = 'social-media'
+    folder: string = CLOUDINARY.FOLDER,
   ): Promise<CloudinaryResponse[]> {
-    const uploadPromises = files.map(file => this.uploadFile(file, folder));
+    console.log('Service received files:', files.length);
+    const uploadPromises = files.map((file) => this.uploadFile(file, folder));
     return Promise.all(uploadPromises);
   }
 
@@ -129,7 +131,7 @@ export class CloudinaryService {
       height?: number;
       quality?: string;
       format?: string;
-    } = {}
+    } = {},
   ): string {
     return cloudinary.url(publicId, {
       width: options.width || 'auto',
@@ -139,7 +141,6 @@ export class CloudinaryService {
       format: options.format || 'auto',
     });
   }
-
 
   getThumbnail(publicId: string, size: number = 150): string {
     return cloudinary.url(publicId, {

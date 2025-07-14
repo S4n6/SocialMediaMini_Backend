@@ -15,7 +15,7 @@ import { ReactionsService } from './reactions.service';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles';
+import { Role } from '../../constants/roles.constant';
 import { CreateReactionDto } from './dto/createReaction.dto';
 import { UpdateReactionDto } from './dto/updateReaction.dto';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
@@ -39,6 +39,7 @@ export class ReactionsController {
       message: 'Reaction added successfully',
       data: result,
     };
+    
   }
 
   @Get()

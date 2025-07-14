@@ -26,6 +26,7 @@ model User {
   birthDate    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  emailVerified         Boolean     @default(false)
 
   posts        Post[]
   comments     Comment[]
@@ -77,6 +78,10 @@ model Comment {
   post         Post     @relation(fields: [postId], references: [id])
   postId       String      @map("PostId")
 
+  parent       Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  parentId     String?     @map("ParentCommentId")
+  replies      Comment[] @relation("CommentReplies")
+
   reactions    Reaction[]
 }
 
@@ -119,12 +124,12 @@ model Message {
 model Friend {
   userAId    String      @map("UserId")
   userBId    String      @map("FriendId") 
+  status     String      @default("pending") // pending, accepted, blocked
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
-  createdAt  DateTime @default(now())
-
-  userA      User     @relation("UserFriendA", fields: [userAId], references: [id])
-
-  userB      User     @relation("UserFriendB", fields: [userBId], references: [id])
+  userA      User        @relation("UserFriendA", fields: [userAId], references: [id])
+  userB      User        @relation("UserFriendB", fields: [userBId], references: [id])
 
   @@id([userAId, userBId])
 }
