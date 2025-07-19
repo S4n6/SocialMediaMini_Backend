@@ -238,7 +238,7 @@ export class MailerService {
     username: string,
     verificationToken: string,
   ) {
-    const verificationUrl = `${BACK_URL.BACK_END_API}/verify-email/${verificationToken}`;
+    const verificationUrl = `${BACK_URL.BACK_END_API}/auth/verify-email/${verificationToken}`;
 
     const html = `
       <!DOCTYPE html>
