@@ -50,6 +50,7 @@ export class UsersController {
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponse> {
+    console.log('Finding user with ID:', id);
     return this.usersService.findOne(id);
   }
 
