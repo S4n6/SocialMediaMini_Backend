@@ -45,7 +45,9 @@ export class AuthController {
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
   async resendVerificationEmail(@Body() resendDto: ResendVerificationDto) {
-    const result = await this.authService.resendVerificationEmail(resendDto.email);
+    const result = await this.authService.resendVerificationEmail(
+      resendDto.email,
+    );
     return {
       success: true,
       message: 'Verification email sent successfully',

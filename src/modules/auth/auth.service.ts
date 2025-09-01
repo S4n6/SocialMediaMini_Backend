@@ -27,7 +27,9 @@ export class AuthService {
       where: {
         OR: [
           { email: createUserDto.email },
-          { username: createUserDto.username },
+          ...(createUserDto['userName']
+            ? [{ userName: createUserDto['userName'] }]
+            : []),
         ],
       },
     });
@@ -36,7 +38,10 @@ export class AuthService {
       if (existingUser.email === createUserDto.email) {
         throw new ConflictException('Email already registered');
       }
-      if (existingUser.username === createUserDto.username) {
+      if (
+        createUserDto['userName'] &&
+        existingUser.userName === createUserDto['userName']
+      ) {
         throw new ConflictException('Username already taken');
       }
     }
@@ -45,26 +50,39 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
     // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationToken = this.jwtService.sign(
+      { sub: createUserDto.userName, email: createUserDto.email },
+      { expiresIn: '1d' },
+    );
+
+    // Compose fullName and userName
+    const fullName = createUserDto.fullName?.trim();
+    const baseUsername = fullName || createUserDto.email.split('@')[0];
 
     // Create user
     const user = await this.prisma.user.create({
       data: {
-        ...createUserDto,
+        fullName,
+        userName: baseUsername,
+        email: createUserDto.email,
         password: hashedPassword,
+        dateOfBirth: createUserDto.dateOfBirth,
+        phoneNumber: createUserDto.phoneNumber,
+        avatar: createUserDto.avatar,
+        bio: createUserDto.bio,
+        location: createUserDto.location,
         role: 'USER',
-        emailVerified: false,
       },
       select: {
         id: true,
-        username: true,
+        userName: true,
         email: true,
-        fullname: true,
-        profilePicture: true,
-        gender: true,
+        fullName: true,
+        avatar: true,
         role: true,
-        birthDate: true,
-        emailVerified: true,
+        dateOfBirth: true,
+        isEmailVerified: true,
+        emailVerifiedAt: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -73,7 +91,7 @@ export class AuthService {
     // Send verification email
     await this.mailerService.sendEmailVerification(
       user.email,
-      user.username || 'User',
+      user.userName || 'User',
       verificationToken,
     );
 
@@ -110,28 +128,27 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.emailVerified) {
+    if (user.isEmailVerified) {
       return {
         message: 'Email is already verified',
         user: {
           id: user.id,
           email: user.email,
-          emailVerified: true,
+          isEmailVerified: true,
         },
       };
     }
 
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
-      data: {
-        emailVerified: true,
-      },
+      data: { isEmailVerified: true, emailVerifiedAt: new Date() },
       select: {
         id: true,
-        username: true,
+        userName: true,
         email: true,
-        fullname: true,
-        emailVerified: true,
+        fullName: true,
+        isEmailVerified: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
     });
@@ -149,7 +166,10 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findFirst({
       where: {
-        OR: [{ email: loginDto.email }, { username: loginDto.userName }],
+        OR: [
+          { email: loginDto.email },
+          ...(loginDto.userName ? [{ userName: loginDto.userName }] : []),
+        ],
       },
     });
 
@@ -157,7 +177,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    if (!user.emailVerified) {
+    if (!user.isEmailVerified) {
       return {
         success: false,
         message: 'Please verify your email before logging in',
@@ -175,12 +195,12 @@ export class AuthService {
       accessToken,
       user: {
         id: user.id,
-        username: user.username,
+        userName: user.userName,
         email: user.email,
-        fullname: user.fullname,
-        profilePicture: user.profilePicture,
+        fullName: user.fullName,
+        avatar: user.avatar,
         role: user.role,
-        emailVerified: user.emailVerified,
+        isEmailVerified: user.isEmailVerified,
       },
     };
   }
@@ -198,13 +218,13 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.emailVerified) {
+    if (user.isEmailVerified) {
       return {
         message: 'Email is already verified',
         user: {
           id: user.id,
           email: user.email,
-          emailVerified: true,
+          isEmailVerified: true,
         },
       };
     }
@@ -213,7 +233,7 @@ export class AuthService {
 
     await this.mailerService.sendEmailVerification(
       user.email,
-      user.username || 'User',
+      user.userName || 'User',
       verificationToken,
     );
 
@@ -233,9 +253,9 @@ export class AuthService {
       select: {
         id: true,
         email: true,
-        username: true,
+        userName: true,
         role: true,
-        fullname: true,
+        fullName: true,
       },
     });
 

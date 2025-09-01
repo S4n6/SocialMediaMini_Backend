@@ -12,66 +12,22 @@ import {
   UploadedFiles,
   BadRequestException,
   Query,
+  UseFilters,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { PostMediasService } from './postMedias.service';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { UpdatePostMediaDto } from './dto/updatePostMedia.dto';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
+import { MulterExceptionFilter } from '../../filters/multer-exception.filter';
 
 @Controller('post-medias')
 @UseGuards(JwtAuthGuard)
 export class PostMediasController {
   constructor(private readonly postMediasService: PostMediasService) {}
 
-  @Post('upload/single/:postId')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      fileFilter: (req, file, callback) => {
-        if (
-          file.mimetype.startsWith('image/') ||
-          file.mimetype.startsWith('video/')
-        ) {
-          callback(null, true);
-        } else {
-          callback(
-            new BadRequestException('Only images and videos are allowed'),
-            false,
-          );
-        }
-      },
-      limits: {
-        fileSize: 50 * 1024 * 1024,
-      },
-    }),
-  )
-  async uploadSingle(
-    @UploadedFile() file: Express.Multer.File,
-    @Param('postId') postId: string,
-    @CurrentUser('id') userId: string,
-  ) {
-    if (!file) {
-      throw new BadRequestException('File is required');
-    }
-
-    const result = await this.postMediasService.uploadSingle(
-      file,
-      postId,
-      userId,
-    );
-
-    return {
-      message: 'Media uploaded successfully',
-      data: {
-        ...result,
-        thumbnail: result.publicId
-          ? this.postMediasService.getThumbnail(result.publicId)
-          : null,
-      },
-    };
-  }
-
-  @Post('upload/multiple/:postId')
+  @Post('upload/:postId')
+  @UseFilters(MulterExceptionFilter)
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       fileFilter: (req, file, callback) => {
@@ -97,6 +53,7 @@ export class PostMediasController {
     @Param('postId') postId: string,
     @CurrentUser('id') userId: string,
   ) {
+    console.log(files);
     if (!files || files.length === 0) {
       throw new BadRequestException('At least one file is required');
     }
@@ -107,14 +64,20 @@ export class PostMediasController {
       userId,
     );
 
+    const data = await Promise.all(
+      results.map(async (result) => {
+        const identifier =
+          (result as any).publicId ?? (result as any).url ?? null;
+        const thumbnail = identifier
+          ? await this.postMediasService.getThumbnail(identifier)
+          : null;
+        return { ...result, thumbnail };
+      }),
+    );
+
     return {
       message: 'Media uploaded successfully',
-      data: results.map((result) => ({
-        ...result,
-        thumbnail: result.publicId
-          ? this.postMediasService.getThumbnail(result.publicId)
-          : null,
-      })),
+      data: data,
     };
   }
 
@@ -123,12 +86,7 @@ export class PostMediasController {
     const medias = await this.postMediasService.findAll();
 
     return {
-      data: medias.medias.map((media) => ({
-        ...media,
-        thumbnail: media.publicId
-          ? this.postMediasService.getThumbnail(media.publicId)
-          : null,
-      })),
+      data: medias.medias.map((media) => ({ ...media, thumbnail: null })),
       pagination: medias.pagination,
     };
   }
@@ -137,14 +95,7 @@ export class PostMediasController {
   async findByPost(@Param('postId') postId: string) {
     const medias = await this.postMediasService.findByPost(postId);
 
-    return {
-      data: medias.map((media) => ({
-        ...media,
-        thumbnail: media.publicId
-          ? this.postMediasService.getThumbnail(media.publicId)
-          : null,
-      })),
-    };
+    return { data: medias.map((media) => ({ ...media, thumbnail: null })) };
   }
 
   @Get(':id')
@@ -154,26 +105,8 @@ export class PostMediasController {
     return {
       data: {
         ...media,
-        thumbnail: media.publicId
-          ? this.postMediasService.getThumbnail(media.publicId)
-          : null,
-        optimizedUrls: {
-          small: media.publicId
-            ? this.postMediasService.getOptimizedMediaUrl(media.publicId, {
-                width: 400,
-              })
-            : null,
-          medium: media.publicId
-            ? this.postMediasService.getOptimizedMediaUrl(media.publicId, {
-                width: 800,
-              })
-            : null,
-          large: media.publicId
-            ? this.postMediasService.getOptimizedMediaUrl(media.publicId, {
-                width: 1200,
-              })
-            : null,
-        },
+        thumbnail: null,
+        optimizedUrls: null,
       },
     };
   }

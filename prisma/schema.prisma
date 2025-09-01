@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -14,122 +11,254 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========== CORE MODELS ==========
+
 model User {
-  id           String      @id @default(uuid()) @map("UserId")
-  username     String?  @unique
-  email        String   @unique
-  password     String
-  fullname     String?
-  profilePicture String?
-  gender       String?
-  role         String
-  birthDate    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  emailVerified         Boolean     @default(false)
+  id                String    @id @default(uuid()) @map("UserId")
+  fullName          String    @map("FullName")
+  userName          String    @unique @map("UserName")
+  email             String    @unique @map("Email")
+  password          String    @map("Password")
+  dateOfBirth       DateTime  @map("DateOfBirth")
+  phoneNumber       String?   @map("PhoneNumber")
+  avatar            String?   @map("Avatar")
+  bio               String?   @map("Bio")
+  location          String?   @map("Location")
+  gender            String?   @map("Gender")
+  role              String    @default("USER") @map("Role")
+  isEmailVerified   Boolean   @default(false) @map("IsEmailVerified")
+  emailVerifiedAt   DateTime? @map("EmailVerifiedAt")
+  createdAt         DateTime  @default(now()) @map("CreatedAt")
+  updatedAt         DateTime  @updatedAt @map("UpdatedAt")
 
-  posts        Post[]
-  comments     Comment[]
-  reactions    Reaction[]
-  sentMessages Message[] @relation("SenderMessages")
-  receivedMessages Message[] @relation("ReceiverMessages")
+  // Core relationships
+  posts             Post[]
+  reactions         Reaction[]
+  comments          Comment[]
+  following         Follow[]  @relation("UserFollowing")
+  followers         Follow[]  @relation("UserFollowers")
 
-  friendsA     Friend[] @relation("UserFriendA")
-  friendsB     Friend[] @relation("UserFriendB")
+  // Advanced relationships
+  conversations     UserConversation[]
+  sentMessages      Message[]
+  stories           Story[]
+  reportsSubmitted  Report[]  @relation("ReportSubmitter")
+  reportsReceived   Report[]  @relation("ReportTarget")
+  notifications     Notification[]
+
+  @@map("Users")
 }
-
 
 model Post {
-  id           String      @id @default(uuid()) @map("PostId")
-  content      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String       @id @default(uuid()) @map("PostId")
+  content         String?      @map("Content")
+  privacy         String       @default("public") @map("Privacy") // public, followers, private
+  createdAt       DateTime     @default(now()) @map("CreatedAt")
+  updatedAt       DateTime     @updatedAt @map("UpdatedAt")
 
-  author       User     @relation(fields: [authorId], references: [id])
-  authorId     String      @map("UserId")
+  authorId        String       @map("AuthorId")
+  author          User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  postMedia    PostMedia[]
-  reactions    Reaction[]
-  comments     Comment[]
+  // Core relationships
+  reactions       Reaction[]
+  comments        Comment[]
+  postMedia       PostMedia[]
+
+  // Advanced relationships
+  hashtags        PostHashtag[]
+  reports         Report[]
+
+  @@map("Posts")
 }
-
-
-model PostMedia {
-  id           String      @id @default(uuid()) @map("MediaId")
-  mediaUrl     String   @map("MediaUrl")
-  mediaType    String?
-  publicId     String?
-  createdAt    DateTime @default(now())
-
-  post         Post     @relation(fields: [postId], references: [id])
-  postId       String      @map("PostId")
-}
-
-
-model Comment {
-  id           String      @id @default(uuid()) @map("CommentId")
-  content      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  author       User     @relation(fields: [authorId], references: [id])
-  authorId     String      @map("UserId")
-
-  post         Post     @relation(fields: [postId], references: [id])
-  postId       String      @map("PostId")
-
-  parent       Comment? @relation("CommentReplies", fields: [parentId], references: [id])
-  parentId     String?     @map("ParentCommentId")
-  replies      Comment[] @relation("CommentReplies")
-
-  reactions    Reaction[]
-}
-
 
 model Reaction {
-  id           String      @id @default(uuid()) @map("ReactionId")
-  reactionType String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String       @id @default(uuid()) @map("ReactionId")
+  type      String       @map("Type")
+  createdAt  DateTime     @default(now()) @map("CreatedAt")
 
-  reactor      User     @relation(fields: [reactorId], references: [id])
-  reactorId    String      @map("UserId")
+  reactorId  String       @map("ReactorId")
+  reactor    User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
 
-  post         Post?    @relation(fields: [postId], references: [id])
-  postId       String?     @map("PostId")
+  postId     String?      @map("PostId")
+  post       Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  comment      Comment? @relation(fields: [commentId], references: [id])
-  commentId    String?     @map("CommentId")
+  commentId  String?      @map("CommentId")
+  comment    Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@unique([reactorId, postId])
   @@unique([reactorId, commentId])
+  @@map("Reactions")
 }
 
+model Comment {
+  id        String    @id @default(uuid()) @map("CommentId")
+  content   String    @map("Content")
+  createdAt DateTime  @default(now()) @map("CreatedAt")
+  updatedAt DateTime  @updatedAt @map("UpdatedAt")
 
+  authorId  String    @map("AuthorId")
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  postId    String    @map("PostId")
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  // Self-referencing for replies
+  parentId  String?   @map("ParentId")
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  reactions Reaction[]
+
+  @@map("Comments")
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @map("FollowId")
+  createdAt   DateTime @default(now()) @map("CreatedAt")
+
+  followerId  String   @map("FollowerId")
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+
+  followingId String   @map("FollowingId")
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("Follows")
+}
+
+// ========== ADVANCED MODELS ==========
+
+model Conversation {
+  id           String    @id @default(uuid()) @map("ConversationId")
+  name         String?   @map("Name") // For group conversations
+  isGroup      Boolean   @default(false) @map("IsGroup")
+  createdAt    DateTime  @default(now()) @map("CreatedAt")
+  updatedAt    DateTime  @updatedAt @map("UpdatedAt")
+
+  participants UserConversation[]
+  messages     Message[]
+
+  @@map("Conversations")
+}
 
 model Message {
-  id           String      @id @default(uuid()) @map("MessageId")
-  content      String
-  createdAt    DateTime @default(now())
-  read         Boolean  @default(false)
+  id             String       @id @default(uuid()) @map("MessageId")
+  content        String       @map("Content")
+  messageType    String       @default("text") @map("MessageType") // text, image, file
+  isRead         Boolean      @default(false) @map("IsRead")
+  createdAt      DateTime     @default(now()) @map("CreatedAt")
 
-  sender       User     @relation("SenderMessages", fields: [senderId], references: [id])
-  senderId     String      @map("SenderId")
+  senderId       String       @map("SenderId")
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
-  receiver     User     @relation("ReceiverMessages", fields: [receiverId], references: [id])
-  receiverId   String      @map("ReceiverId")
+  conversationId String       @map("ConversationId")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("Messages")
 }
 
+model UserConversation {
+  id               String       @id @default(uuid()) @map("UserConversationId")
+  role             String       @default("member") @map("Role") // admin, member
+  joinedAt         DateTime     @default(now()) @map("JoinedAt")
+  lastReadAt       DateTime?    @map("LastReadAt")
 
-model Friend {
-  userAId    String      @map("UserId")
-  userBId    String      @map("FriendId") 
-  status     String      @default("pending") // pending, accepted, blocked
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  userId           String       @map("UserId")
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  userA      User        @relation("UserFriendA", fields: [userAId], references: [id])
-  userB      User        @relation("UserFriendB", fields: [userBId], references: [id])
+  conversationId   String       @map("ConversationId")
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  @@id([userAId, userBId])
+  @@unique([userId, conversationId])
+  @@map("UserConversations")
 }
+
+model Story {
+  id          String   @id @default(uuid()) @map("StoryId")
+  content     String?  @map("Content")
+  mediaUrl    String   @map("MediaUrl")
+  mediaType   String   @map("MediaType") // image, video
+  expiresAt   DateTime @map("ExpiresAt")
+  createdAt   DateTime @default(now()) @map("CreatedAt")
+
+  authorId    String   @map("AuthorId")
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("Stories")
+}
+
+model Report {
+  id          String   @id @default(uuid()) @map("ReportId")
+  reason      String   @map("Reason")
+  description String?  @map("Description")
+  status      String   @default("pending") @map("Status") // pending, reviewed, resolved
+  createdAt   DateTime @default(now()) @map("CreatedAt")
+  resolvedAt  DateTime? @map("ResolvedAt")
+
+  reporterId  String   @map("ReporterId")
+  reporter    User     @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  // Can report either user or post
+  targetUserId String? @map("TargetUserId")
+  targetUser   User?   @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  targetPostId String? @map("TargetPostId")
+  targetPost   Post?   @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+
+  @@map("Reports")
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @map("NotificationId")
+  type      String   @map("Type") // like, comment, follow, message
+  title     String   @map("Title")
+  content   String   @map("Content")
+  isRead    Boolean  @default(false) @map("IsRead")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+
+  userId    String   @map("UserId")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Optional references to related entities
+  entityId  String?  @map("EntityId") // ID of the related post, user, etc.
+  entityType String? @map("EntityType") // post, user, comment, etc.
+
+  @@map("Notifications")
+}
+
+model Hashtag {
+  id        String   @id @default(uuid()) @map("HashtagId")
+  name      String   @unique @map("Name")
+  usageCount Int     @default(0) @map("UsageCount")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+
+  posts     PostHashtag[]
+
+  @@map("Hashtags")
+}
+
+model PostHashtag {
+  id        String  @id @default(uuid()) @map("PostHashtagId")
+
+  postId    String  @map("PostId")
+  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  hashtagId String  @map("HashtagId")
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, hashtagId])
+  @@map("PostHashtags")
+}
+
+model PostMedia {
+  id        String    @id @default(uuid()) @map("PostMediaId")
+  url       String    @map("Url")
+  type      String    @map("Type")
+  order     Int?      @map("Order")
+  createdAt DateTime  @default(now()) @map("CreatedAt")
+
+  postId    String    @map("PostId")
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("PostMedias")
+}
+

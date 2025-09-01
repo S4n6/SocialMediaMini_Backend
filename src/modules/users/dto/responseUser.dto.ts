@@ -1,11 +1,13 @@
 export interface UserResponse {
   id: string;
-  username?: string;
   email: string;
-  fullname?: string;
-  profilePicture?: string;
-  gender?: string;
-  birthDate?: Date;
+  fullName: string;
+  avatar?: string | null;
+  dateOfBirth: Date;
+  phoneNumber?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  isEmailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
   role: string;

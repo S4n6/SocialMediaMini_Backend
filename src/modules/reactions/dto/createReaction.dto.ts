@@ -1,18 +1,17 @@
-import { IsString, IsNotEmpty, IsOptional, IsUUID, IsIn } from 'class-validator';
+import { IsOptional, IsString, IsUUID, IsIn } from 'class-validator';
+
+const allowedTypes = ['like', 'love', 'haha', 'wow', 'sad', 'angry'];
 
 export class CreateReactionDto {
-  @IsString()
-  @IsNotEmpty({ message: 'Reaction type is required' })
-  @IsIn(['like', 'love', 'haha', 'wow', 'sad', 'angry'], {
-    message: 'Reaction type must be one of: like, love, haha, wow, sad, angry',
-  })
-  reactionType: string;
-
   @IsOptional()
-  @IsUUID('4', { message: 'Post ID must be a valid UUID' })
+  @IsUUID()
   postId?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'Comment ID must be a valid UUID' })
+  @IsUUID()
   commentId?: string;
+
+  @IsString()
+  @IsIn(allowedTypes)
+  type: string;
 }

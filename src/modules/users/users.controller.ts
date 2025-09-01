@@ -48,17 +48,17 @@ export class UsersController {
     return this.usersService.searchUsers(query);
   }
 
-  @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponse> {
-    console.log('Finding user with ID:', id);
-    return this.usersService.findOne(id);
-  }
-
   @Get('username/:username')
   async findByUsername(
     @Param('username') username: string,
   ): Promise<UserResponse | null> {
     return this.usersService.findByUsername(username);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<UserResponse> {
+    console.log('Finding user with ID:', id);
+    return this.usersService.findOne(id);
   }
 
   @Patch(':id')

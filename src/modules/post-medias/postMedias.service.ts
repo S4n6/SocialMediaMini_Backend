@@ -43,72 +43,24 @@ export class PostMediasService {
       // Upload files to Cloudinary
       const uploadedFiles = await this.cloudinaryService.uploadMultipleFiles(
         files,
-        `posts/${postId}`,
+        `${CLOUDINARY.FOLDER}/posts/${postId}`,
       );
 
-      // Save media info to database
+      // Save media info to database (Prisma PostMedia has `url` and `type`)
       const mediaData = uploadedFiles.map((file) => ({
-        mediaUrl: file.secure_url,
-        mediaType: file.resource_type,
-        publicId: file.public_id,
+        url: file.secure_url,
+        type: file.resource_type,
         postId: postId,
       }));
 
-      await this.prisma.postMedia.createMany({
-        data: mediaData,
-      });
+      await this.prisma.postMedia.createMany({ data: mediaData });
 
       // Return the created media with full details
       return this.prisma.postMedia.findMany({
         where: { postId },
         orderBy: { createdAt: 'desc' },
-        take: files.length, // Only return newly created media
+        take: files.length,
       });
-    } catch (error) {
-      throw new BadRequestException('Failed to upload and save media');
-    }
-  }
-
-  async uploadSingle(
-    file: Express.Multer.File,
-    postId: string,
-    userId: string,
-  ) {
-    // Validate file
-    if (!file) {
-      throw new BadRequestException('File is required');
-    }
-
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-    });
-
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    if (post.authorId !== userId) {
-      throw new ForbiddenException('You can only add media to your own posts');
-    }
-
-    try {
-      // Upload to Cloudinary
-      const uploadedFile = await this.cloudinaryService.uploadFile(
-        file,
-        `${CLOUDINARY.FOLDER}/posts/${postId}`,
-      );
-
-      // Save to database
-      const savedMedia = await this.prisma.postMedia.create({
-        data: {
-          mediaUrl: uploadedFile.secure_url,
-          mediaType: uploadedFile.resource_type,
-          publicId: uploadedFile.public_id,
-          postId: postId,
-        },
-      });
-
-      return savedMedia;
     } catch (error) {
       throw new BadRequestException('Failed to upload and save media');
     }
@@ -127,9 +79,9 @@ export class PostMediasService {
               author: {
                 select: {
                   id: true,
-                  username: true,
-                  fullname: true,
-                  profilePicture: true,
+                  userName: true,
+                  fullName: true,
+                  avatar: true,
                 },
               },
             },
@@ -177,9 +129,9 @@ export class PostMediasService {
             author: {
               select: {
                 id: true,
-                username: true,
-                fullname: true,
-                profilePicture: true,
+                userName: true,
+                fullName: true,
+                avatar: true,
               },
             },
           },
@@ -191,20 +143,9 @@ export class PostMediasService {
       throw new NotFoundException('Media not found');
     }
 
-    // Add optimized URLs to response
-    const optimizedMedia = {
-      ...media,
-      thumbnailUrl: media.publicId ? this.getThumbnail(media.publicId) : null,
-      optimizedUrls: media.publicId
-        ? {
-            small: this.getOptimizedMediaUrl(media.publicId, { width: 400 }),
-            medium: this.getOptimizedMediaUrl(media.publicId, { width: 800 }),
-            large: this.getOptimizedMediaUrl(media.publicId, { width: 1200 }),
-          }
-        : null,
-    };
-
-    return optimizedMedia;
+    // Currently PostMedia stores `url` and `type` (no Cloudinary publicId in schema).
+    // Return the media record as-is.
+    return media;
   }
 
   async update(
@@ -250,16 +191,8 @@ export class PostMediasService {
     }
 
     try {
-      // Delete from Cloudinary first
-      if (media.publicId) {
-        await this.cloudinaryService.deleteFile(media.publicId);
-      }
-
-      // Then delete from database
-      await this.prisma.postMedia.delete({
-        where: { id },
-      });
-
+      // Schema does not persist Cloudinary publicId, so only delete DB record here.
+      await this.prisma.postMedia.delete({ where: { id } });
       return { message: 'Media deleted successfully' };
     } catch (error) {
       throw new BadRequestException('Failed to delete media');
@@ -269,8 +202,9 @@ export class PostMediasService {
   async removeByPost(postId: string, userId: string) {
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: {
-        postMedia: true,
+      select: {
+        id: true,
+        authorId: true,
       },
     });
 
@@ -285,20 +219,22 @@ export class PostMediasService {
     }
 
     try {
-      // Delete from Cloudinary
-      const publicIds = post.postMedia
-        .filter((media) => media.publicId)
-        .map((media) => media.publicId!);
+      // Fetch post medias to determine any cleanup (publicId not stored in schema)
+      const medias = await this.prisma.postMedia.findMany({
+        where: { postId },
+      });
+
+      // If there were any Cloudinary publicIds stored previously, delete them.
+      const publicIds = medias
+        .filter((m: any) => (m as any).publicId)
+        .map((m: any) => (m as any).publicId as string);
 
       if (publicIds.length > 0) {
         await this.cloudinaryService.deleteMultipleFiles(publicIds);
       }
 
-      // Delete from database
-      await this.prisma.postMedia.deleteMany({
-        where: { postId },
-      });
-
+      // Delete DB records
+      await this.prisma.postMedia.deleteMany({ where: { postId } });
       return { message: 'All post media deleted successfully' };
     } catch (error) {
       throw new BadRequestException('Failed to delete post media');
@@ -319,10 +255,10 @@ export class PostMediasService {
     const [totalCount, imageCount, videoCount] = await Promise.all([
       this.prisma.postMedia.count({ where: whereClause }),
       this.prisma.postMedia.count({
-        where: { ...whereClause, mediaType: 'image' },
+        where: { ...whereClause, type: 'image' },
       }),
       this.prisma.postMedia.count({
-        where: { ...whereClause, mediaType: 'video' },
+        where: { ...whereClause, type: 'video' },
       }),
     ]);
 

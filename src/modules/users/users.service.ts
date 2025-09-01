@@ -15,48 +15,78 @@ import { UpdateUserDto } from './dto/updateUser.dto';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto): Promise<UserResponse> {
-    const { email, username, password, birthDate, ...userData } = createUserDto;
+  // Generate a simple unique username based on provided base (email local part or name)
+  private async generateUniqueUsername(base: string): Promise<string> {
+    const cleaned = (base || 'user').replace(/\s+/g, '').toLowerCase();
+    let candidate = cleaned;
+    let counter = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const exists = await this.prisma.user.findUnique({
+        where: { userName: candidate },
+      });
+      if (!exists) return candidate;
+      counter += 1;
+      candidate = `${cleaned}${counter}`;
+    }
+  }
 
-    const existingUser = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ email }, ...(username ? [{ username }] : [])],
-      },
+  async create(createUserDto: CreateUserDto): Promise<UserResponse> {
+    const { email, password, dateOfBirth, fullName, ...rest } = createUserDto;
+
+    // Check if email already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
     });
 
     if (existingUser) {
-      if (existingUser.email === email) {
-        throw new ConflictException('Email already exists');
-      }
-      if (existingUser.username === username) {
-        throw new ConflictException('Username already exists');
-      }
+      throw new ConflictException('Email already exists');
     }
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-    const processedBirthDate = birthDate ? new Date(birthDate) : undefined;
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    // derive a username from first/last name or email local-part and ensure uniqueness
+    const baseUsername = fullName || email.split('@')[0];
+    const userName = await this.generateUniqueUsername(baseUsername);
 
     const user = await this.prisma.user.create({
       data: {
+        fullName,
+        userName,
+        ...rest,
         email,
-        username,
         password: hashedPassword,
-        birthDate: processedBirthDate,
-        ...userData,
+        dateOfBirth: new Date(dateOfBirth),
         role: Role.USER,
       },
     });
 
-    return this.excludePassword(user);
+    // Return user without password
+    const { password: _, ...userResponse } = user;
+    return userResponse;
   }
 
   async findAll(): Promise<UserResponse[]> {
     const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            posts: true,
+            comments: true,
+            reactions: true,
+            followers: true,
+            following: true,
+          },
+        },
+      },
     });
 
-    return users.map((user) => this.excludePassword(user));
+    return users.map((user) => {
+      const { password, ...userResponse } = user;
+      return userResponse as UserResponse;
+    });
   }
 
   async findOne(id: string): Promise<UserResponse> {
@@ -68,8 +98,8 @@ export class UsersService {
             posts: true,
             comments: true,
             reactions: true,
-            friendsA: true,
-            friendsB: true,
+            followers: true,
+            following: true,
           },
         },
       },
@@ -79,29 +109,23 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return this.excludePassword(user);
+    const { password, ...userResponse } = user;
+    return userResponse as UserResponse;
   }
 
   async findByEmail(email: string) {
-    return await this.prisma.user.findUnique({
+    return this.prisma.user.findUnique({
       where: { email },
     });
-  }
-
-  async findByUsername(username: string): Promise<UserResponse | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-    });
-
-    return user ? this.excludePassword(user) : null;
   }
 
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
   ): Promise<UserResponse> {
-    const { username, ...updateData } = updateUserDto;
+    const { email, password, dateOfBirth, fullName, ...rest } = updateUserDto;
 
+    // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -110,28 +134,40 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (username && username !== existingUser.username) {
-      const userWithUsername = await this.prisma.user.findUnique({
-        where: { username },
+    // Check email uniqueness if email is being updated
+    if (email && email !== existingUser.email) {
+      const emailExists = await this.prisma.user.findUnique({
+        where: { email },
       });
-
-      if (userWithUsername && userWithUsername.id !== id) {
-        throw new ConflictException('Username already exists');
+      if (emailExists) {
+        throw new ConflictException('Email already exists');
       }
     }
 
+    // Hash password if being updated
+    let hashedPassword;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    // Update user
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: {
-        username,
-        ...updateData,
+        ...(fullName && { fullName }),
+        ...rest,
+        ...(email && { email }),
+        ...(hashedPassword && { password: hashedPassword }),
+        ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
       },
     });
 
-    return this.excludePassword(updatedUser);
+    const { password: _, ...userResponse } = updatedUser;
+    return userResponse as UserResponse;
   }
 
   async remove(id: string): Promise<{ message: string }> {
+    // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -140,6 +176,7 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    // Delete user (cascading will handle related records)
     await this.prisma.user.delete({
       where: { id },
     });
@@ -156,13 +193,7 @@ export class UsersService {
       where: {
         OR: [
           {
-            username: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-          {
-            fullname: {
+            fullName: {
               contains: query,
               mode: 'insensitive',
             },
@@ -175,14 +206,129 @@ export class UsersService {
           },
         ],
       },
-      take: 20, // Limit results
+      include: {
+        _count: {
+          select: {
+            posts: true,
+            followers: true,
+            following: true,
+          },
+        },
+      },
+      take: 20, // Limit search results
     });
 
-    return users.map((user) => this.excludePassword(user));
+    return users.map((user) => {
+      const { password, ...userResponse } = user;
+      return userResponse as UserResponse;
+    });
   }
 
-  private excludePassword(user: any): UserResponse {
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+  async getUserProfile(id: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        posts: {
+          include: {
+            reactions: {
+              include: {
+                reactor: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    avatar: true,
+                  },
+                },
+              },
+            },
+            comments: {
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    avatar: true,
+                  },
+                },
+              },
+              take: 3,
+            },
+            _count: {
+              select: {
+                reactions: true,
+                comments: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+        followers: {
+          include: {
+            follower: {
+              select: {
+                id: true,
+                fullName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        following: {
+          include: {
+            following: {
+              select: {
+                id: true,
+                fullName: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            posts: true,
+            followers: true,
+            following: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const { password, ...userProfile } = user;
+    return userProfile as UserResponse;
+  }
+
+  // Find a user by userName (unique) or fallback to fullName/email.
+  async findByUsername(username: string): Promise<UserResponse | null> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { userName: username },
+          { email: username },
+          { fullName: username },
+        ],
+      },
+      include: {
+        _count: {
+          select: {
+            posts: true,
+            comments: true,
+            reactions: true,
+            followers: true,
+            following: true,
+          },
+        },
+      },
+    });
+
+    if (!user) return null;
+    const { password, ...userResponse } = user;
+    return userResponse as UserResponse;
   }
 }
