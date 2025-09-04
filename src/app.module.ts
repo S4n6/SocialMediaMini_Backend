@@ -4,11 +4,12 @@ import { UsersModule } from './modules/users/users.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PostMediasModule } from './modules/post-medias/postMedias.module';
-import { FriendsModule } from './modules/friends/friends.module';
+import { FriendsModule } from './modules/follow/follow.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { MailerModule } from './modules/mailer/mailer.module';
+import { RedisCacheModule } from './modules/cache/cache.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { MailerModule } from './modules/mailer/mailer.module';
     CloudinaryModule,
     PostsModule,
     MailerModule,
+    RedisCacheModule,
   ],
   controllers: [],
   providers: [],

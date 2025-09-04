@@ -7,7 +7,7 @@ import {
   Delete,
   UseGuards,
 } from '@nestjs/common';
-import { FriendsService } from './friends.service';
+import { FriendsService } from './follow.service';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
@@ -25,7 +25,10 @@ export class FriendsController {
     @Body() createFriendDto: CreateFriendDto,
     @CurrentUser('id') userId: string,
   ) {
-    const result = await this.friendsService.followUser(createFriendDto, userId);
+    const result = await this.friendsService.followUser(
+      createFriendDto,
+      userId,
+    );
 
     return {
       message: 'User followed successfully',
@@ -91,7 +94,10 @@ export class FriendsController {
     @Param('targetUserId') targetUserId: string,
     @CurrentUser('id') userId: string,
   ) {
-    const result = await this.friendsService.checkFollowStatus(userId, targetUserId);
+    const result = await this.friendsService.checkFollowStatus(
+      userId,
+      targetUserId,
+    );
 
     return {
       message: 'Follow status retrieved successfully',

@@ -5,4 +5,4 @@ export const JWT = {
   REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   ACCESS_TOKEN_PREFIX: 'Bearer ',
   REFRESH_TOKEN_PREFIX: 'Bearer ',
-};
+} as const;

@@ -27,8 +27,8 @@ export class AuthService {
       where: {
         OR: [
           { email: createUserDto.email },
-          ...(createUserDto['userName']
-            ? [{ userName: createUserDto['userName'] }]
+          ...(createUserDto.userName
+            ? [{ userName: createUserDto.userName }]
             : []),
         ],
       },
@@ -39,8 +39,8 @@ export class AuthService {
         throw new ConflictException('Email already registered');
       }
       if (
-        createUserDto['userName'] &&
-        existingUser.userName === createUserDto['userName']
+        createUserDto.userName &&
+        existingUser.userName === createUserDto.userName
       ) {
         throw new ConflictException('Username already taken');
       }
@@ -57,13 +57,12 @@ export class AuthService {
 
     // Compose fullName and userName
     const fullName = createUserDto.fullName?.trim();
-    const baseUsername = fullName || createUserDto.email.split('@')[0];
 
     // Create user
     const user = await this.prisma.user.create({
       data: {
         fullName,
-        userName: baseUsername,
+        userName: createUserDto.userName as string,
         email: createUserDto.email,
         password: hashedPassword,
         dateOfBirth: createUserDto.dateOfBirth,

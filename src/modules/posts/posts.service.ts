@@ -2,15 +2,21 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Prisma } from 'generated/prisma';
 import { CreatePostDto } from './dto/createPost.dto';
 import { UpdatePostDto } from './dto/updatePost.dto';
+import { RedisCacheService } from '../cache/cache.service';
+import { REDIS } from 'src/constants/redis.constant';
 
 @Injectable()
 export class PostsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisCacheService: RedisCacheService,
+  ) {}
 
   async create(createPostDto: CreatePostDto, authorId: string) {
     const author = await this.prisma.user.findUnique({
@@ -316,6 +322,11 @@ export class PostsService {
   async getFeedPosts(reactorId: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
 
+    const cacheKey = `feed:${reactorId}:p:${page}:l:${limit}:v1`;
+    const cached = await this.redisCacheService.get(cacheKey);
+    console.log('Cached feed posts: ', cached);
+    if (cached) return cached as any;
+
     const following = await this.prisma.follow.findMany({
       where: { followerId: reactorId },
       select: { followingId: true },
@@ -366,9 +377,12 @@ export class PostsService {
       },
     });
 
-    return {
+    const result = {
       posts,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
+
+    await this.redisCacheService.set(cacheKey, result, REDIS.TTL_POSTS);
+    return result;
   }
 }

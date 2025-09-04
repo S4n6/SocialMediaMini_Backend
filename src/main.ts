@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { PrismaService } from './database/prisma.service';
 import { ValidationPipe } from '@nestjs/common';
+import { REDIS } from './constants/redis.constant';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

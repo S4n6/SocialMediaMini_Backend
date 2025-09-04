@@ -124,6 +124,18 @@ export class PostsController {
     };
   }
 
+  @Get('feed')
+  async getFeed(
+    @CurrentUser('id') userId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    console.log(
+      `Getting feed posts for user ${userId}, page ${page}, limit ${limit}`,
+    );
+    return this.postsService.getFeedPosts(userId, page, limit);
+  }
+
   @Get('stats/all')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN, Role.SUPER_ADMIN)

@@ -12,4 +12,4 @@ export const CLOUDINARY = {
   DEFAULT_AUDIO:
     process.env.CLOUDINARY_DEFAULT_AUDIO ||
     'https://res.cloudinary.com/your-cloud-name/audio/upload/v1616161616/default-audio.mp3',
-};
+} as const;
