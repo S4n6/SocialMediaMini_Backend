@@ -47,10 +47,11 @@ export class PostMediasService {
       );
 
       // Save media info to database (Prisma PostMedia has `url` and `type`)
-      const mediaData = uploadedFiles.map((file) => ({
+      const mediaData = uploadedFiles.map((file, index) => ({
         url: file.secure_url,
         type: file.resource_type,
         postId: postId,
+        order: index + 1,
       }));
 
       await this.prisma.postMedia.createMany({ data: mediaData });
@@ -63,6 +64,30 @@ export class PostMediasService {
       });
     } catch (error) {
       throw new BadRequestException('Failed to upload and save media');
+    }
+  }
+
+  async getSignature() {
+    try {
+      const folder = 'SocialMedia/posts';
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = await this.cloudinaryService.generateSignature({
+        timestamp,
+        folder,
+      });
+
+      return {
+        message: 'Signature generated successfully',
+        data: {
+          signature,
+          timestamp,
+          folder,
+          apiKey: CLOUDINARY.API_KEY || '',
+          cloudName: CLOUDINARY.CLOUD_NAME || '',
+        },
+      };
+    } catch (error) {
+      throw new BadRequestException('Failed to generate signature');
     }
   }
 

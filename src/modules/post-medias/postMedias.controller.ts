@@ -98,6 +98,11 @@ export class PostMediasController {
     return { data: medias.map((media) => ({ ...media, thumbnail: null })) };
   }
 
+  @Get('signature')
+  async getSignature() {
+    return this.postMediasService.getSignature();
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const media = await this.postMediasService.findOne(id);

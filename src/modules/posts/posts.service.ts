@@ -10,54 +10,43 @@ import { CreatePostDto } from './dto/createPost.dto';
 import { UpdatePostDto } from './dto/updatePost.dto';
 import { RedisCacheService } from '../cache/cache.service';
 import { REDIS } from 'src/constants/redis.constant';
+import { PostMediasService } from '../post-medias/postMedias.service';
 
 @Injectable()
 export class PostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisCacheService: RedisCacheService,
+    private readonly postMediasService: PostMediasService,
   ) {}
 
-  async create(createPostDto: CreatePostDto, authorId: string) {
+  async create(
+    createPostDto: CreatePostDto,
+    authorId: string,
+    media?: Express.Multer.File[],
+  ) {
     const author = await this.prisma.user.findUnique({
       where: { id: authorId },
     });
     if (!author) throw new NotFoundException('Author not found');
 
-    const post = await this.prisma.post.create({
-      data: {
-        content: createPostDto.content,
-        privacy: createPostDto.privacy || 'public',
-        authorId,
-      },
-      include: {
-        author: { select: { id: true, fullName: true, avatar: true } },
-        postMedia: {
-          select: {
-            id: true,
-            url: true,
-            type: true,
-            order: true,
-            createdAt: true,
-          },
-          orderBy: { order: 'asc' },
+    return this.prisma.$transaction(async (prisma) => {
+      // Create the post
+      const post = await prisma.post.create({
+        data: {
+          content: createPostDto.content,
+          privacy: createPostDto.privacy || 'public',
+          authorId,
         },
-        reactions: {
-          include: {
-            reactor: { select: { id: true, fullName: true, avatar: true } },
-          },
-        },
-        comments: {
-          include: {
-            author: { select: { id: true, fullName: true, avatar: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-        _count: { select: { reactions: true, comments: true } },
-      },
-    });
+      });
 
-    return post;
+      // If media is provided, upload and create media records
+      if (media && media.length > 0) {
+        await this.postMediasService.uploadAndCreate(media, post.id, authorId);
+      }
+
+      return post;
+    });
   }
 
   async findAll(page = 1, limit = 10) {
@@ -194,7 +183,15 @@ export class PostsService {
     if (post.authorId !== reactorId)
       throw new ForbiddenException('You can only delete your own posts');
 
-    await this.prisma.post.delete({ where: { id } });
+    // Use transaction to ensure atomicity
+    await this.prisma.$transaction(async (prisma) => {
+      // Delete related media using PostMediasService
+      await this.postMediasService.removeByPost(id, reactorId);
+
+      // Delete the post
+      await prisma.post.delete({ where: { id } });
+    });
+
     return { message: 'Post deleted successfully' };
   }
 

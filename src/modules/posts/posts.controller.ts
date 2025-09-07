@@ -10,6 +10,9 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  UseInterceptors,
+  UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/createPost.dto';
@@ -21,6 +24,7 @@ import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
 import { Role } from '../../constants/roles.constant';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
@@ -28,11 +32,13 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
+  @UseInterceptors(FilesInterceptor('media', 10))
   async create(
     @Body() createPostDto: CreatePostDto,
     @CurrentUser('id') userId: string,
+    @UploadedFiles() medias?: Express.Multer.File[],
   ) {
-    const result = await this.postsService.create(createPostDto, userId);
+    const result = await this.postsService.create(createPostDto, userId, medias);
 
     return {
       message: 'Post created successfully',

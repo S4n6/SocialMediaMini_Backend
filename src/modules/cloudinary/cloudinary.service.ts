@@ -3,15 +3,23 @@ import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import { CloudinaryResponse } from './dto/cloudinary.response';
 import { CLOUDINARY } from 'src/constants/cloudinary.constant';
+import { CloudinaryConfig } from 'src/config/cloudinary.config';
 
 @Injectable()
 export class CloudinaryService {
   constructor() {
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
+    cloudinary.config(CloudinaryConfig.useFactory());
+  }
+
+  async generateSignature(paramsToSign: Record<string, any>): Promise<string> {
+    try {
+      return cloudinary.utils.api_sign_request(
+        paramsToSign,
+        CLOUDINARY.API_SECRET || '',
+      );
+    } catch (error) {
+      throw new BadRequestException('Failed to generate signature');
+    }
   }
 
   async uploadImage(
