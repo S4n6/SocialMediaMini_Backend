@@ -14,11 +14,11 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { RolesGuard } from 'src/guards/roles.guard';
-import { SkipGuards } from 'src/decorators/skipGuard.decorator';
-import { JwtAuthGuard } from 'src/guards/jwt.guard';
-import { Roles } from 'src/decorators/roles.decorator';
-import { Role } from 'src/constants/roles.constant';
+import { RolesGuard } from '../../guards/roles.guard';
+import { SkipGuards } from '../../decorators/skipGuard.decorator';
+import { JwtAuthGuard } from '../../guards/jwt.guard';
+import { Roles } from '../../decorators/roles.decorator';
+import { Role } from '../../constants/roles.constant';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { CreateUserDto } from './dto/createUser.dto';

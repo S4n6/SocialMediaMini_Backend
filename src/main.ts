@@ -6,9 +6,6 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const prismaService = app.get(PrismaService);
-  await prismaService.enableShutdownHooks(app);
-
   app.enableCors({
     origin: ['http://localhost:3000', 'https://www.yourfrontend.com'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],

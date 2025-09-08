@@ -12,6 +12,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CreateUserDto } from '../users/dto/createUser.dto';
 import { LoginDto } from './dto/login.dto';
+import { mailQueue } from 'src/queues/mail.queue';
+import { NotificationGateway } from '../notification/notification.gateway';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailerService: MailerService,
+    private notificationGateway: NotificationGateway,
   ) {}
 
   async register(createUserDto: CreateUserDto) {
@@ -187,6 +190,11 @@ export class AuthService {
 
     const payload = { sub: user.id, email: user.email };
     const accessToken = this.jwtService.sign(payload);
+
+    this.notificationGateway.broadcast({
+      userId: user.id,
+      message: 'User logged in',
+    });
 
     return {
       success: true,

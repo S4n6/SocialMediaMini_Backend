@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Role } from 'src/constants/roles.constant';
+import { Role } from '../../constants/roles.constant';
 import { CreateUserDto } from './dto/createUser.dto';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';

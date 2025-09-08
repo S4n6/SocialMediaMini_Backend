@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateReactionDto } from './dto/createReaction.dto';
+import { NotificationService } from '../notification/notification.service';
+import { notificationQueue } from 'src/queues/notification.queue';
 
 @Injectable()
 export class ReactionsService {
@@ -52,8 +54,29 @@ export class ReactionsService {
       include: {
         reactor: { select: { id: true, fullName: true, avatar: true } },
         post: { select: { id: true, content: true, authorId: true } },
+        comment: { select: { id: true, content: true, authorId: true } },
       },
     });
+
+    // Create notification for the author of the post or comment
+    try {
+      const targetUserId = created.post?.authorId || created.comment?.authorId;
+      if (targetUserId && targetUserId !== userId) {
+        const content = created.post?.content || created.comment?.content || '';
+
+        await notificationQueue.add('create-notify', {
+          reactorId: userId,
+          targetUserId,
+          type: 'reaction',
+          content,
+          entityId: postId || commentId,
+          entityType: postId ? 'post' : 'comment',
+        });
+      }
+    } catch (err) {
+      // Don't block reaction creation on notification failure
+      console.error('Failed to create/emit notification for reaction', err);
+    }
 
     return { message: 'Reaction created', reacted: true, reaction: created };
   }

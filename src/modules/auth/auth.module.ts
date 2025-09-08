@@ -7,6 +7,7 @@ import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/Jwt.strategy';
 import { JWT } from 'src/constants/jwt.constant';
 import { MailerModule } from '../mailer/mailer.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MailerModule } from '../mailer/mailer.module';
       signOptions: { expiresIn: JWT.EXPIRES_IN },
     }),
     MailerModule,
+    NotificationModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

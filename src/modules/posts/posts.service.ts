@@ -4,13 +4,13 @@ import {
   ForbiddenException,
   Inject,
 } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
-import { Prisma } from 'generated/prisma';
 import { CreatePostDto } from './dto/createPost.dto';
 import { UpdatePostDto } from './dto/updatePost.dto';
 import { RedisCacheService } from '../cache/cache.service';
 import { REDIS } from 'src/constants/redis.constant';
 import { PostMediasService } from '../post-medias/postMedias.service';
+import { PrismaService } from 'src/database/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PostsService {

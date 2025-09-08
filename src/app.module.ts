@@ -10,10 +10,10 @@ import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
-    PrismaModule,
     UsersModule,
     CommentsModule,
     AuthModule,
@@ -24,6 +24,8 @@ import { RedisCacheModule } from './modules/cache/cache.module';
     PostsModule,
     MailerModule,
     RedisCacheModule,
+    NotificationModule,
+    PrismaModule,
   ],
   controllers: [],
   providers: [],
