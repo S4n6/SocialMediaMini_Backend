@@ -254,11 +254,10 @@ export class PostsService {
   async searchPosts(query: string, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
 
-    const where: Prisma.PostWhereInput = {
-      OR: [
-        { content: { contains: query, mode: Prisma.QueryMode.insensitive } },
-      ],
-    };
+    // use a plain object here to avoid generated Prisma type mismatches in some environments
+    const where = {
+      OR: [{ content: { contains: query, mode: 'insensitive' } }],
+    } as any;
 
     const posts = await this.prisma.post.findMany({
       where,
@@ -303,7 +302,8 @@ export class PostsService {
   }
 
   async getPostStats(userId?: string) {
-    const postWhere: Prisma.PostWhereInput = userId ? { authorId: userId } : {};
+    // avoid relying on generated Prisma.PostWhereInput type to prevent build-time type issues
+    const postWhere = (userId ? { authorId: userId } : {}) as any;
 
     const totalPosts = await this.prisma.post.count({ where: postWhere });
     const totalReactions = await this.prisma.reaction.count({
