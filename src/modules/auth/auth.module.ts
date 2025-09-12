@@ -5,7 +5,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/Jwt.strategy';
-import { JWT } from 'src/constants/jwt.constant';
+import { GoogleStrategy } from './strategies/google.strategy';
+import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
 import { NotificationModule } from '../notification/notification.module';
 
@@ -21,7 +22,7 @@ import { NotificationModule } from '../notification/notification.module';
     NotificationModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

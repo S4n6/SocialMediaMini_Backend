@@ -14,15 +14,22 @@ import { CreateUserDto } from '../users/dto/createUser.dto';
 import { LoginDto } from './dto/login.dto';
 import { mailQueue } from 'src/queues/mail.queue';
 import { NotificationGateway } from '../notification/notification.gateway';
+import { GoogleUserDto } from './dto/google-auth.dto';
+import { OAuth2Client } from 'google-auth-library';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private mailerService: MailerService,
     private notificationGateway: NotificationGateway,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  }
 
   async register(createUserDto: CreateUserDto) {
     // Check if user already exists
@@ -73,7 +80,7 @@ export class AuthService {
         avatar: createUserDto.avatar,
         bio: createUserDto.bio,
         location: createUserDto.location,
-        role: 'USER',
+        role: ROLES.USER,
       },
       select: {
         id: true,
@@ -93,7 +100,7 @@ export class AuthService {
     // Send verification email
     await this.mailerService.sendEmailVerification(
       user.email,
-      user.userName || 'User',
+      user.userName,
       verificationToken,
     );
 
@@ -175,7 +182,11 @@ export class AuthService {
       },
     });
 
-    if (!user || !(await bcrypt.compare(loginDto.password, user.password))) {
+    if (
+      !user ||
+      !user.password ||
+      !(await bcrypt.compare(loginDto.password, user.password))
+    ) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -271,5 +282,149 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async googleLogin(googleUser: GoogleUserDto) {
+    try {
+      // Tìm user đã tồn tại với Google ID
+      let user = await this.prisma.user.findUnique({
+        where: { googleId: googleUser.googleId },
+        include: {
+          followers: true,
+          following: true,
+          posts: true,
+        },
+      });
+
+      // Nếu chưa có user với Google ID, tìm theo email
+      if (!user) {
+        user = await this.prisma.user.findUnique({
+          where: { email: googleUser.email },
+          include: {
+            followers: true,
+            following: true,
+            posts: true,
+          },
+        });
+
+        // Nếu tìm thấy user với email, cập nhật Google ID
+        if (user) {
+          user = await this.prisma.user.update({
+            where: { id: user.id },
+            data: {
+              googleId: googleUser.googleId,
+              avatar: googleUser.profilePicture || user.avatar,
+              isEmailVerified: true, // Auto verify for Google users
+              emailVerifiedAt: new Date(),
+            },
+            include: {
+              followers: true,
+              following: true,
+              posts: true,
+            },
+          });
+        }
+      }
+
+      // Nếu vẫn chưa có user, tạo mới
+      if (!user) {
+        // Tạo username unique từ email
+        const baseUsername = googleUser.email.split('@')[0];
+        let userName = baseUsername;
+        let counter = 1;
+
+        // Kiểm tra username đã tồn tại chưa
+        while (await this.prisma.user.findUnique({ where: { userName } })) {
+          userName = `${baseUsername}${counter}`;
+          counter++;
+        }
+
+        user = await this.prisma.user.create({
+          data: {
+            googleId: googleUser.googleId,
+            email: googleUser.email,
+            userName,
+            fullName: googleUser.fullName,
+            avatar: googleUser.profilePicture,
+            isEmailVerified: true, // Auto verify for Google users
+            emailVerifiedAt: new Date(),
+            // No password for Google users - it's optional now
+          },
+          include: {
+            followers: true,
+            following: true,
+            posts: true,
+          },
+        });
+
+        // Send welcome notification for new users
+        // Note: You may need to implement createNotification method in NotificationGateway
+        try {
+          // await this.notificationGateway.createNotification({...});
+        } catch (error) {
+          console.log('Failed to send welcome notification:', error);
+        }
+      }
+
+      // Tạo JWT token
+      const payload = {
+        sub: user.id,
+        email: user.email,
+        userName: user.userName,
+      };
+      const accessToken = this.jwtService.sign(payload);
+
+      // get relation counts using _count to avoid typing issues
+      const counts = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          _count: { select: { followers: true, following: true, posts: true } },
+        },
+      });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          userName: user.userName,
+          fullName: user.fullName,
+          avatar: user.avatar,
+          isEmailVerified: user.isEmailVerified,
+          followersCount: counts?._count?.followers || 0,
+          followingCount: counts?._count?.following || 0,
+          postsCount: counts?._count?.posts || 0,
+        },
+        accessToken,
+      };
+    } catch (error) {
+      throw new BadRequestException('Google authentication failed');
+    }
+  }
+
+  async verifyGoogleToken(idToken: string) {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+
+      const googleUser: GoogleUserDto = {
+        googleId: payload.sub,
+        email: payload.email!,
+        fullName: payload.name!,
+        firstName: payload.given_name!,
+        lastName: payload.family_name!,
+        profilePicture: payload.picture,
+      };
+
+      return this.googleLogin(googleUser);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid Google token');
+    }
   }
 }

@@ -9,7 +9,7 @@ import {
   SendFriendRequestDto,
 } from './dto/sendMail.dto';
 import { CreateMailerDto } from './dto/createMailer.dto';
-import { BACK_URL } from 'src/constants/backUrl.constant';
+import { URLS } from 'src/constants/urls.constant';
 
 @Injectable()
 export class MailerService {
@@ -117,7 +117,7 @@ export class MailerService {
                 <li>Join conversations</li>
                 <li>Discover new content</li>
               </ul>
-              <a href="${BACK_URL.FRONT_END_WEB}/login" class="button" style="color:white">Get Started</a>
+              <a href="${URLS.FRONT_END_WEB}/login" class="button" style="color:white">Get Started</a>
             </div>
             <div class="footer">
               <p>Thanks for joining Social Media Mini!</p>
@@ -238,7 +238,7 @@ export class MailerService {
     username: string,
     verificationToken: string,
   ) {
-    const verificationUrl = `${BACK_URL.BACK_END_API}/auth/verify-email/${verificationToken}`;
+    const verificationUrl = `${URLS.BACK_END_API}/auth/verify-email/${verificationToken}`;
 
     const html = `
       <!DOCTYPE html>

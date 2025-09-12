@@ -15,11 +15,11 @@ import { CommentsService } from './comments.service';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles.constant';
 import { CreateCommentDto } from './dto/createComment.dto';
 import { AddCommentReactionDto } from './dto/addCommentReaction.dto';
 import { UpdateCommentDto } from './dto/updateComment.dto';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Controller('comments')
 @UseGuards(JwtAuthGuard)
@@ -176,7 +176,7 @@ export class CommentsController {
 
   @Get('stats/all')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(ROLES.ADMIN, ROLES.SUPER_ADMIN)
   async getAllCommentStats() {
     const result = await this.commentsService.getCommentStats();
 
@@ -261,7 +261,7 @@ export class CommentsController {
 
   @Delete('post/:postId/all')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(ROLES.ADMIN, ROLES.SUPER_ADMIN)
   async removeAllByPost(
     @Param('postId') postId: string,
     @CurrentUser('id') userId: string,

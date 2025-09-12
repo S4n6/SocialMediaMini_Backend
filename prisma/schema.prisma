@@ -17,8 +17,9 @@ model User {
   fullName          String    @map("FullName")
   userName          String    @unique @map("UserName")
   email             String    @unique @map("Email")
-  password          String    @map("Password")
-  dateOfBirth       DateTime  @map("DateOfBirth")
+  password          String?   @map("Password") // Make optional for Google users
+  googleId          String?   @unique @map("GoogleId") // Add Google ID field
+  dateOfBirth       DateTime? @map("DateOfBirth") // Make optional for Google users
   phoneNumber       String?   @map("PhoneNumber")
   avatar            String?   @map("Avatar")
   bio               String?   @map("Bio")

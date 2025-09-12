@@ -4,7 +4,7 @@ import { RedisCacheService } from './cache.service';
 import Keyv from 'keyv';
 import { CacheableMemory } from 'cacheable';
 import { createKeyv } from '@keyv/redis';
-import { REDIS } from 'src/constants/redis.constant';
+import { REDIS } from 'src/config/redis.config';
 
 @Module({
   imports: [

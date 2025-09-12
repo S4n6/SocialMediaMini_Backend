@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT } from 'src/constants/jwt.constant';
+import { JWT } from 'src/config/jwt.config';
 import { SKIP_GUARDS_KEY } from 'src/decorators/skipGuard.decorator';
 
 @Injectable()

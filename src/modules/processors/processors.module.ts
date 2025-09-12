@@ -5,9 +5,9 @@ import { PrismaModule } from '../../database/prisma.module';
 import { NotificationProcessor } from '../notification/notify.processor';
 import { NotificationService } from '../notification/notification.service';
 import { JwtModule } from '@nestjs/jwt';
-import { JWT } from '../../constants/jwt.constant';
-import { REDIS } from '../../constants/redis.constant';
-import { QUEUE } from '../../constants/queue.constant';
+import { JWT } from '../../config/jwt.config';
+import { REDIS } from '../../config/redis.config';
+import { QUEUE } from '../../config/queue.config';
 
 @Module({
   imports: [

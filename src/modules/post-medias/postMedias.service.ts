@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { UpdatePostMediaDto } from './dto/updatePostMedia.dto';
-import { CLOUDINARY } from 'src/constants/cloudinary.constant';
+import { CLOUDINARY } from 'src/config/cloudinary.constant';
 
 @Injectable()
 export class PostMediasService {

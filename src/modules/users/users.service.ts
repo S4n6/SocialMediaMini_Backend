@@ -6,10 +6,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Role } from '../../constants/roles.constant';
 import { CreateUserDto } from './dto/createUser.dto';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Injectable()
 export class UsersService {
@@ -59,7 +59,7 @@ export class UsersService {
         email,
         password: hashedPassword,
         dateOfBirth: new Date(dateOfBirth),
-        role: Role.USER,
+        role: ROLES.USER,
       },
     });
 
