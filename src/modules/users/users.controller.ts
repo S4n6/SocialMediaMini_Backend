@@ -18,10 +18,10 @@ import { RolesGuard } from '../../guards/roles.guard';
 import { SkipGuards } from '../../decorators/skipGuard.decorator';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles.constant';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { CreateUserDto } from './dto/createUser.dto';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,7 +38,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(Role.ADMIN)
+  @Roles(ROLES.ADMIN)
   async findAll(): Promise<UserResponse[]> {
     return this.usersService.findAll();
   }

@@ -11,9 +11,9 @@ import { FriendsService } from './follow.service';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles.constant';
 import { CreateFriendDto } from './dto/createFriend.dto';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Controller('friends')
 @UseGuards(JwtAuthGuard)
@@ -128,7 +128,7 @@ export class FriendsController {
   // Admin routes
   @Get()
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(ROLES.ADMIN)
   async findAll() {
     const result = await this.friendsService.findAll();
 
@@ -140,7 +140,7 @@ export class FriendsController {
 
   @Get(':id')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(ROLES.ADMIN)
   async findOne(@Param('id') id: string) {
     const result = await this.friendsService.findOne(id);
 

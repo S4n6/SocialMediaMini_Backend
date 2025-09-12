@@ -22,9 +22,9 @@ import { AddReactionDto } from './dto/addReaction.dto';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
-import { Role } from '../../constants/roles.constant';
 import { CurrentUser } from 'src/decorators/currentUser.decorator';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { ROLES } from 'src/constants/roles.constant';
 
 @Controller('posts')
 @UseGuards(JwtAuthGuard)
@@ -144,7 +144,7 @@ export class PostsController {
 
   @Get('stats/all')
   @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.SUPER_ADMIN)
+  @Roles(ROLES.ADMIN, ROLES.SUPER_ADMIN)
   async getAllStats() {
     const result = await this.postsService.getPostStats();
 
