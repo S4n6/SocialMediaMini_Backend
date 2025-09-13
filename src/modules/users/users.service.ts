@@ -3,6 +3,8 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -10,10 +12,14 @@ import { CreateUserDto } from './dto/createUser.dto';
 import { UserResponse } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { ROLES } from 'src/constants/roles.constant';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {}
 
   // Generate a simple unique username based on provided base (email local part or name)
   private async generateUniqueUsername(base: string): Promise<string> {
@@ -175,6 +181,9 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    // Revoke all refresh tokens before deleting user for security
+    await this.authService.revokeAllUserRefreshTokens(id);
 
     // Delete user (cascading will handle related records)
     await this.prisma.user.delete({

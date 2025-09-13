@@ -45,6 +45,7 @@ model User {
   reportsSubmitted  Report[]  @relation("ReportSubmitter")
   reportsReceived   Report[]  @relation("ReportTarget")
   notifications     Notification[]
+  refreshTokens     RefreshToken[]
 
   @@map("Users")
 }
@@ -260,5 +261,18 @@ model PostMedia {
   post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("PostMedias")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @map("RefreshTokenId")
+  token     String   @unique @map("Token") // Hashed refresh token
+  expiresAt DateTime @map("ExpiresAt")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+  isRevoked Boolean  @default(false) @map("IsRevoked")
+
+  userId    String   @map("UserId")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("RefreshTokens")
 }
 

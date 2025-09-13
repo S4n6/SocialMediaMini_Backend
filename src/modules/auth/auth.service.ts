@@ -17,6 +17,7 @@ import { NotificationGateway } from '../notification/notification.gateway';
 import { GoogleUserDto } from './dto/google-auth.dto';
 import { OAuth2Client } from 'google-auth-library';
 import { ROLES } from 'src/constants/roles.constant';
+import { JWT } from 'src/config/jwt.config';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +31,180 @@ export class AuthService {
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
+
+  // ===== REFRESH TOKEN HELPERS =====
+
+  private generateRefreshToken(): string {
+    return crypto.randomBytes(64).toString('hex');
+  }
+
+  private async hashRefreshToken(token: string): Promise<string> {
+    return bcrypt.hash(token, 10);
+  }
+
+  private async createRefreshToken(userId: string): Promise<string> {
+    const refreshToken = this.generateRefreshToken();
+    const hashedToken = await this.hashRefreshToken(refreshToken);
+
+    // Calculate expiry date from JWT config
+    const expiresAt = new Date();
+    const expiryTime = JWT.REFRESH_EXPIRES_IN;
+
+    if (expiryTime.endsWith('d')) {
+      expiresAt.setDate(expiresAt.getDate() + parseInt(expiryTime));
+    } else if (expiryTime.endsWith('h')) {
+      expiresAt.setHours(expiresAt.getHours() + parseInt(expiryTime));
+    } else {
+      expiresAt.setDate(expiresAt.getDate() + 7);
+    }
+
+    await this.prisma.refreshToken.create({
+      data: {
+        token: hashedToken,
+        userId,
+        expiresAt,
+      },
+    });
+
+    return refreshToken;
+  }
+
+  private async createTokensForUser(
+    userId: string,
+    email: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const payload = { sub: userId, email };
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = await this.createRefreshToken(userId);
+
+    return { accessToken, refreshToken };
+  }
+
+  async verifyRefreshToken(
+    refreshToken: string,
+  ): Promise<{ userId: string; email: string }> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    // Find all non-revoked, non-expired refresh tokens
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
+      include: { user: true },
+    });
+
+    // Check if any stored token matches the provided one
+    for (const storedToken of refreshTokens) {
+      const isValid = await bcrypt.compare(refreshToken, storedToken.token);
+      if (isValid) {
+        // Check for suspicious activity
+        await this.detectSuspiciousActivity(storedToken.userId);
+
+        return {
+          userId: storedToken.userId,
+          email: storedToken.user.email,
+        };
+      }
+    }
+
+    // Token not found or expired - better error message
+    const expiredTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        isRevoked: false,
+        expiresAt: { lte: new Date() },
+      },
+    });
+
+    // Check if token exists but is expired
+    for (const expiredToken of expiredTokens) {
+      const isExpiredMatch = await bcrypt.compare(
+        refreshToken,
+        expiredToken.token,
+      );
+      if (isExpiredMatch) {
+        // Clean up expired token
+        await this.prisma.refreshToken.update({
+          where: { id: expiredToken.id },
+          data: { isRevoked: true },
+        });
+        throw new UnauthorizedException(
+          'Refresh token has expired. Please log in again.',
+        );
+      }
+    }
+
+    throw new UnauthorizedException(
+      'Invalid refresh token. Please log in again.',
+    );
+  }
+
+  async revokeRefreshToken(refreshToken: string): Promise<void> {
+    const refreshTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        isRevoked: false,
+      },
+    });
+
+    for (const storedToken of refreshTokens) {
+      const isValid = await bcrypt.compare(refreshToken, storedToken.token);
+      if (isValid) {
+        await this.prisma.refreshToken.update({
+          where: { id: storedToken.id },
+          data: { isRevoked: true },
+        });
+        break;
+      }
+    }
+  }
+
+  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, isRevoked: false },
+      data: { isRevoked: true },
+    });
+  }
+
+  // Cleanup expired and revoked refresh tokens
+  async cleanupExpiredTokens(): Promise<{ deletedCount: number }> {
+    const result = await this.prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: new Date() } }, // Expired tokens
+          { isRevoked: true }, // Revoked tokens
+        ],
+      },
+    });
+
+    return { deletedCount: result.count };
+  }
+
+  // Security: Detect and revoke suspicious token usage
+  async detectSuspiciousActivity(
+    userId: string,
+    ipAddress?: string,
+  ): Promise<void> {
+    const recentTokens = await this.prisma.refreshToken.findMany({
+      where: {
+        userId,
+        isRevoked: false,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Last 24 hours
+      },
+    });
+
+    // If too many active tokens, might be suspicious
+    if (recentTokens.length > 10) {
+      await this.revokeAllUserRefreshTokens(userId);
+      // TODO: Send security alert email
+      console.warn(
+        `Suspicious activity detected for user ${userId}. All tokens revoked.`,
+      );
+    }
+  }
+
+  // ===== AUTH METHODS =====
 
   async register(createUserDto: CreateUserDto) {
     // Check if user already exists
@@ -199,8 +374,7 @@ export class AuthService {
       };
     }
 
-    const payload = { sub: user.id, email: user.email };
-    const accessToken = this.jwtService.sign(payload);
+    const tokens = await this.createTokensForUser(user.id, user.email);
 
     this.notificationGateway.broadcast({
       userId: user.id,
@@ -210,7 +384,8 @@ export class AuthService {
     return {
       success: true,
       message: 'Login successful',
-      accessToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       user: {
         id: user.id,
         userName: user.userName,
@@ -282,6 +457,43 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    const tokenData = await this.verifyRefreshToken(refreshToken);
+
+    // Revoke the used refresh token (token rotation for security)
+    await this.revokeRefreshToken(refreshToken);
+
+    // Generate new tokens
+    const tokens = await this.createTokensForUser(
+      tokenData.userId,
+      tokenData.email,
+    );
+
+    // Get user data
+    const user = await this.prisma.user.findUnique({
+      where: { id: tokenData.userId },
+      select: {
+        id: true,
+        email: true,
+        userName: true,
+        fullName: true,
+        avatar: true,
+        role: true,
+        isEmailVerified: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken, // New refresh token
+      user,
+    };
   }
 
   async googleLogin(googleUser: GoogleUserDto) {
@@ -367,12 +579,7 @@ export class AuthService {
       }
 
       // Tạo JWT token
-      const payload = {
-        sub: user.id,
-        email: user.email,
-        userName: user.userName,
-      };
-      const accessToken = this.jwtService.sign(payload);
+      const tokens = await this.createTokensForUser(user.id, user.email);
 
       // get relation counts using _count to avoid typing issues
       const counts = await this.prisma.user.findUnique({
@@ -394,7 +601,8 @@ export class AuthService {
           followingCount: counts?._count?.following || 0,
           postsCount: counts?._count?.posts || 0,
         },
-        accessToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       };
     } catch (error) {
       throw new BadRequestException('Google authentication failed');
@@ -426,5 +634,88 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid Google token');
     }
+  }
+
+  // ===== PASSWORD RESET METHODS =====
+
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Don't reveal if email exists for security
+      return {
+        message:
+          'If an account with that email exists, a password reset link has been sent.',
+      };
+    }
+
+    // Generate password reset token (valid for 1 hour)
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email: user.email, type: 'password-reset' },
+      { expiresIn: '1h' },
+    );
+
+    // Send password reset email
+    await this.mailerService.sendPasswordResetEmail({
+      email: user.email,
+      username: user.userName || user.fullName || 'User',
+      resetToken,
+    });
+
+    return {
+      message:
+        'If an account with that email exists, a password reset link has been sent.',
+    };
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    confirmPassword: string,
+  ) {
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    // Verify reset token
+    let payload: any;
+    try {
+      payload = this.jwtService.verify(token);
+    } catch (err) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Check token type
+    if (payload.type !== 'password-reset') {
+      throw new BadRequestException('Invalid token type');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and revoke all refresh tokens for security
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Revoke all refresh tokens to force re-login
+    await this.revokeAllUserRefreshTokens(user.id);
+
+    return {
+      message:
+        'Password has been reset successfully. Please log in with your new password.',
+    };
   }
 }
