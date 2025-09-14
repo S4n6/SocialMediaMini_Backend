@@ -238,7 +238,7 @@ export class MailerService {
     username: string,
     verificationToken: string,
   ) {
-    const verificationUrl = `${URLS.BACK_END_API}/auth/verify-email/${verificationToken}`;
+    const verificationUrl = `${URLS.FRONT_END_WEB_PRODUCTION}/verify-email/${verificationToken}`;
 
     const html = `
       <!DOCTYPE html>
@@ -260,7 +260,7 @@ export class MailerService {
             <div class="content">
               <h2>Hello @${username}!</h2>
               <p>Please verify your email address to complete your Social Media Mini registration.</p>
-              <a href="${verificationUrl}" class="button">Verify Email Address</a>
+              <a href="${verificationUrl}" style="color: #ffffff;" class="button">Verify Email Address</a>
               <p>If the button doesn't work, copy and paste this link:</p>
               <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
               <p><em>This verification link will expire in 24 hours.</em></p>

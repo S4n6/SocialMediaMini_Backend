@@ -83,6 +83,7 @@ export class AuthController {
   @Get('verify-email/:token')
   @HttpCode(HttpStatus.OK)
   async verifyEmailByParam(@Param('token') token: string) {
+    console.log('Verifying email with token:', token);
     const result = await this.authService.verifyEmail(token);
     return {
       success: true,

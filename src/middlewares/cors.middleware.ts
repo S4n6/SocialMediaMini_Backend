@@ -7,7 +7,7 @@ export class CorsMiddleware implements NestMiddleware {
     const allowedOrigins = [
       'http://localhost:3000', // React dev server
       'http://localhost:3001', // Alternative port
-      'https://your-frontend-domain.com', // Production frontend
+      'https://social-media-mini-frontend-web.vercel.app', // Production frontend
       process.env.FRONTEND_URL, // From environment
     ].filter(Boolean);
 
