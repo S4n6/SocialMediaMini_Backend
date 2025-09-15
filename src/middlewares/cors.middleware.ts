@@ -26,7 +26,7 @@ export class CorsMiddleware implements NestMiddleware {
     );
     res.setHeader(
       'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie, x-skip-refresh, x-request-id',
     );
     res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
 
