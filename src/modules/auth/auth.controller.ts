@@ -15,8 +15,8 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
-import { CreateUserDto } from '../users/dto/createUser.dto';
-import { ResendVerificationDto } from './dto/verifyEmail.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResendVerificationDto, VerifyEmailDto } from './dto/verifyEmail.dto';
 import { GoogleAuthGuard } from 'src/guards/google.guard';
 import { GoogleLoginDto } from './dto/google-auth.dto';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
@@ -30,10 +30,15 @@ import { JWT } from 'src/config/jwt.config';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('test/redis')
+  async testRedis() {
+    return this.authService.testRedis();
+  }
+
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() createUserDto: CreateUserDto) {
-    return this.authService.register(createUserDto);
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Post('login')
@@ -80,15 +85,63 @@ export class AuthController {
     return result;
   }
 
-  @Get('verify-email/:token')
+  @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmailByParam(@Param('token') token: string) {
-    console.log('Verifying email with token:', token);
-    const result = await this.authService.verifyEmail(token);
+  async verifyEmail(
+    @Body() verifyDto: VerifyEmailDto,
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const clientType = (
+      req.headers['x-client-type'] ||
+      req.query.client ||
+      ''
+    ).toString();
+
+    const result = await this.authService.verifyEmail(
+      verifyDto.token,
+      verifyDto.password,
+    );
+
+    // If no tokens returned (already verified case), return simple response
+    if (!result.accessToken) {
+      return {
+        success: true,
+        message: result.message,
+        data: result,
+      };
+    }
+
+    // If web client, set HttpOnly cookies and return minimal body
+    const isWeb = clientType.toLowerCase() === 'web';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    if (isWeb) {
+      const accessMaxAge = parseExpiryToMs(JWT.EXPIRES_IN);
+      const refreshMaxAge = parseExpiryToMs(JWT.REFRESH_EXPIRES_IN);
+
+      if (result.refreshToken) {
+        res.cookie('refresh_token', result.refreshToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: refreshMaxAge,
+        });
+      }
+
+      return {
+        success: true,
+        message: result.message,
+        user: result.user,
+        accessToken: result.accessToken,
+        expiresIn: JWT.EXPIRES_IN,
+      };
+    }
+
+    // Default: return tokens in body (mobile clients)
     return {
       success: true,
-      message: 'Email verified successfully',
-      data: result,
+      ...result,
     };
   }
 

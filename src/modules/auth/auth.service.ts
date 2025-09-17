@@ -11,6 +11,7 @@ import { MailerService } from '../mailer/mailer.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CreateUserDto } from '../users/dto/createUser.dto';
+import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { mailQueue } from 'src/queues/mail.queue';
 import { NotificationGateway } from '../notification/notification.gateway';
@@ -18,6 +19,8 @@ import { GoogleUserDto } from './dto/google-auth.dto';
 import { OAuth2Client } from 'google-auth-library';
 import { ROLES } from 'src/constants/roles.constant';
 import { JWT } from 'src/config/jwt.config';
+import { RedisCacheService } from '../cache/cache.service';
+import { TIME_EXPIRE } from 'src/constants/time-expire.constant';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +31,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailerService: MailerService,
     private notificationGateway: NotificationGateway,
+    private cacheService: RedisCacheService,
   ) {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
@@ -206,55 +210,67 @@ export class AuthService {
 
   // ===== AUTH METHODS =====
 
-  async register(createUserDto: CreateUserDto) {
+  async register(registerDto: RegisterDto) {
     // Check if user already exists
     const existingUser = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { email: createUserDto.email },
-          ...(createUserDto.userName
-            ? [{ userName: createUserDto.userName }]
-            : []),
+          { email: registerDto.email },
+          ...(registerDto.userName ? [{ userName: registerDto.userName }] : []),
         ],
       },
     });
 
     if (existingUser) {
-      if (existingUser.email === createUserDto.email) {
+      if (existingUser.email === registerDto.email) {
+        // If the email exists but is not verified, instruct user to verify
+        if (!existingUser.isEmailVerified) {
+          throw new BadRequestException(
+            'Email already registered but not verified. Please verify your email or request a new verification email.',
+          );
+        }
         throw new ConflictException('Email already registered');
       }
       if (
-        createUserDto.userName &&
-        existingUser.userName === createUserDto.userName
+        registerDto.userName &&
+        existingUser.userName === registerDto.userName
       ) {
         throw new ConflictException('Username already taken');
       }
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-
-    // Generate email verification token
+    // Generate email verification token with shorter expiry
     const verificationToken = this.jwtService.sign(
-      { sub: createUserDto.userName, email: createUserDto.email },
-      { expiresIn: '1d' },
+      { sub: registerDto.userName, email: registerDto.email },
+      { expiresIn: '30m' },
+    );
+
+    // Store token in Redis with 30 minutes TTL
+    const tokenKey = `email_verification:${registerDto.email}`;
+    await this.cacheService.set(
+      tokenKey,
+      {
+        token: verificationToken,
+        isValid: true,
+      },
+      TIME_EXPIRE.EMAIL_VERIFICATION,
     );
 
     // Compose fullName and userName
-    const fullName = createUserDto.fullName?.trim();
+    const fullName = registerDto.fullName?.trim();
 
-    // Create user
+    // Create user WITHOUT password (will be set during email verification)
     const user = await this.prisma.user.create({
       data: {
         fullName,
-        userName: createUserDto.userName as string,
-        email: createUserDto.email,
-        password: hashedPassword,
-        dateOfBirth: createUserDto.dateOfBirth,
-        phoneNumber: createUserDto.phoneNumber,
-        avatar: createUserDto.avatar,
-        bio: createUserDto.bio,
-        location: createUserDto.location,
+        userName: registerDto.userName as string,
+        email: registerDto.email,
+        password: null, // No password initially
+        dateOfBirth: registerDto.dateOfBirth,
+        phoneNumber: registerDto.phoneNumber,
+        avatar: registerDto.avatar,
+        bio: registerDto.bio,
+        location: registerDto.location,
         role: ROLES.USER,
       },
       select: {
@@ -281,17 +297,19 @@ export class AuthService {
 
     return {
       message:
-        'User registered successfully. Please check your email to verify your account.',
+        'User registered successfully. Please check your email to verify your account and set your password.',
       user,
       requiresEmailVerification: true,
+      requiresPasswordSet: true,
     };
   }
 
-  async verifyEmail(token: string) {
+  async verifyEmail(token: string, password?: string) {
     if (!token) {
       throw new BadRequestException('Verification token is required');
     }
 
+    // Verify JWT token first to extract email
     let payload: any;
     try {
       payload = this.jwtService.verify(token);
@@ -304,6 +322,19 @@ export class AuthService {
       throw new BadRequestException('Invalid token payload');
     }
 
+    // Check token stored in Redis under the user's email and ensure it matches
+    const emailKey = `email_verification:${email}`;
+    const stored = await this.cacheService.get<{
+      token: string;
+      isValid: boolean;
+    }>(emailKey);
+
+    if (!stored || !stored.isValid || stored.token !== token) {
+      throw new BadRequestException(
+        'Token has expired or does not match the latest verification token. Please request a new verification email.',
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -313,6 +344,39 @@ export class AuthService {
     }
 
     if (user.isEmailVerified) {
+      // Remove token from Redis since it's already verified
+      await this.cacheService.del(emailKey);
+
+      // If user already verified but doesn't have password (edge case)
+      if (!user.password && password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const updatedUser = await this.prisma.user.update({
+          where: { id: user.id },
+          data: { password: hashedPassword },
+          select: {
+            id: true,
+            userName: true,
+            email: true,
+            fullName: true,
+            isEmailVerified: true,
+            emailVerifiedAt: true,
+            createdAt: true,
+          },
+        });
+
+        const { accessToken, refreshToken } = await this.createTokensForUser(
+          updatedUser.id,
+          updatedUser.email,
+        );
+
+        return {
+          message: 'Password set successfully. You are now logged in.',
+          user: updatedUser,
+          accessToken,
+          refreshToken,
+        };
+      }
+
       return {
         message: 'Email is already verified',
         user: {
@@ -323,6 +387,55 @@ export class AuthService {
       };
     }
 
+    // For new users (password is null)
+    if (user.password === null) {
+      if (!password) {
+        throw new BadRequestException(
+          'Password is required for new users to complete email verification',
+        );
+      }
+
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update user: verify email and set password
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          isEmailVerified: true,
+          emailVerifiedAt: new Date(),
+          password: hashedPassword,
+        },
+        select: {
+          id: true,
+          userName: true,
+          email: true,
+          fullName: true,
+          isEmailVerified: true,
+          emailVerifiedAt: true,
+          createdAt: true,
+        },
+      });
+
+      // Remove token from Redis after successful verification
+      await this.cacheService.del(emailKey);
+
+      // Create tokens for immediate login
+      const { accessToken, refreshToken } = await this.createTokensForUser(
+        updatedUser.id,
+        updatedUser.email,
+      );
+
+      return {
+        message:
+          'Email verified and password set successfully. You are now logged in.',
+        user: updatedUser,
+        accessToken,
+        refreshToken,
+      };
+    }
+
+    // For users who already have password (e.g., from Google auth)
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
       data: { isEmailVerified: true, emailVerifiedAt: new Date() },
@@ -337,13 +450,19 @@ export class AuthService {
       },
     });
 
-    const newPayload = { sub: updatedUser.id, email: updatedUser.email };
-    const accessToken = this.jwtService.sign(newPayload);
+    // Remove token from Redis after successful verification
+    await this.cacheService.del(emailKey);
+
+    const { accessToken, refreshToken } = await this.createTokensForUser(
+      updatedUser.id,
+      updatedUser.email,
+    );
 
     return {
-      message: 'Email verified successfully',
+      message: 'Email verified successfully. You are now logged in.',
       user: updatedUser,
       accessToken,
+      refreshToken,
     };
   }
 
@@ -422,7 +541,20 @@ export class AuthService {
       };
     }
 
-    const verificationToken = this.jwtService.sign({ email: user.email });
+    // Generate a new verification token (30 minutes)
+    const verificationToken = this.jwtService.sign(
+      { sub: user.userName, email: user.email },
+      { expiresIn: '30m' },
+    );
+
+    // Replace stored token in Redis for this email
+    const emailKey = `email_verification:${user.email}`;
+    await this.cacheService.del(emailKey);
+    await this.cacheService.set(
+      emailKey,
+      { token: verificationToken, isValid: true },
+      TIME_EXPIRE.EMAIL_VERIFICATION,
+    );
 
     await this.mailerService.sendEmailVerification(
       user.email,
@@ -717,5 +849,14 @@ export class AuthService {
       message:
         'Password has been reset successfully. Please log in with your new password.',
     };
+  }
+
+  // ===== TESTING / DEBUGGING =====
+
+  async testRedis() {
+    const testKey = 'test_key';
+    const testValue = 'Hello, Redis!';
+    await this.cacheService.set(testKey, testValue, 30000);
+    return await this.cacheService.get(testKey);
   }
 }

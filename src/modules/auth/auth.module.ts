@@ -9,6 +9,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
 import { NotificationModule } from '../notification/notification.module';
+import { RedisCacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationModule } from '../notification/notification.module';
     }),
     MailerModule,
     NotificationModule,
+    RedisCacheModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, GoogleStrategy],
