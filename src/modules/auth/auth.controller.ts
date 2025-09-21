@@ -13,6 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -28,11 +29,26 @@ import { JWT } from 'src/config/jwt.config';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   @Get('test/redis')
   async testRedis() {
     return this.authService.testRedis();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  async getCurrentUser(@CurrentUser('id') userId: string) {
+    const userProfile = await this.usersService.getUserProfile(userId);
+    return {
+      success: true,
+      message: 'User profile retrieved successfully',
+      data: userProfile,
+    };
   }
 
   @Post('register')
@@ -64,6 +80,16 @@ export class AuthController {
       const accessMaxAge = parseExpiryToMs(JWT.EXPIRES_IN);
       const refreshMaxAge = parseExpiryToMs(JWT.REFRESH_EXPIRES_IN);
 
+      // Set access token in HTTP-only cookie
+      if (result.accessToken) {
+        res.cookie('access_token', result.accessToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: accessMaxAge,
+        });
+      }
+
       if (result.refreshToken) {
         res.cookie('refresh_token', result.refreshToken, {
           httpOnly: true,
@@ -76,7 +102,6 @@ export class AuthController {
       return {
         message: 'Login successful',
         user: result.user,
-        accessToken: result.accessToken,
         expiresIn: JWT.EXPIRES_IN,
       };
     }
@@ -120,6 +145,16 @@ export class AuthController {
       const accessMaxAge = parseExpiryToMs(JWT.EXPIRES_IN);
       const refreshMaxAge = parseExpiryToMs(JWT.REFRESH_EXPIRES_IN);
 
+      // Set access token in HTTP-only cookie
+      if (result.accessToken) {
+        res.cookie('access_token', result.accessToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: accessMaxAge,
+        });
+      }
+
       if (result.refreshToken) {
         res.cookie('refresh_token', result.refreshToken, {
           httpOnly: true,
@@ -133,7 +168,6 @@ export class AuthController {
         success: true,
         message: result.message,
         user: result.user,
-        accessToken: result.accessToken,
         expiresIn: JWT.EXPIRES_IN,
       };
     }
@@ -219,6 +253,16 @@ export class AuthController {
       const accessMaxAge = parseExpiryToMs(JWT.EXPIRES_IN);
       const refreshMaxAge = parseExpiryToMs(JWT.REFRESH_EXPIRES_IN);
 
+      // Set access token in HTTP-only cookie
+      if (tokens.accessToken) {
+        res.cookie('access_token', tokens.accessToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: accessMaxAge,
+        });
+      }
+
       if (tokens.refreshToken) {
         res.cookie('refresh_token', tokens.refreshToken, {
           httpOnly: true,
@@ -231,7 +275,6 @@ export class AuthController {
       return {
         message: 'Token refreshed',
         user: tokens.user,
-        accessToken: tokens.accessToken,
         expiresIn: JWT.EXPIRES_IN,
       };
     }
