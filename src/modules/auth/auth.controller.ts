@@ -43,12 +43,7 @@ export class AuthController {
   @Get('me')
   @HttpCode(HttpStatus.OK)
   async getCurrentUser(@CurrentUser('id') userId: string) {
-    const userProfile = await this.usersService.getUserProfile(userId);
-    return {
-      success: true,
-      message: 'User profile retrieved successfully',
-      data: userProfile,
-    };
+    return this.usersService.getUserProfile(userId);
   }
 
   @Post('register')

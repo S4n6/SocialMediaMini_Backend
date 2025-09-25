@@ -7,12 +7,18 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/createUser.dto';
-import { UserResponse } from './dto/responseUser.dto';
+import { UserResponse, UserListItem } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { ROLES } from 'src/constants/roles.constant';
 import { AuthService } from '../auth/auth.service';
+import {
+  ApiResponse,
+  createSuccessResponse,
+  PaginationMeta,
+} from 'src/common/interfaces/api-response.interface';
 
 @Injectable()
 export class UsersService {
@@ -37,7 +43,9 @@ export class UsersService {
     }
   }
 
-  async create(createUserDto: CreateUserDto): Promise<UserResponse> {
+  async create(
+    createUserDto: CreateUserDto,
+  ): Promise<ApiResponse<UserResponse>> {
     const { email, password, dateOfBirth, fullName, ...rest } = createUserDto;
 
     // Check if email already exists
@@ -71,31 +79,59 @@ export class UsersService {
 
     // Return user without password
     const { password: _, ...userResponse } = user;
-    return userResponse;
+    return createSuccessResponse(
+      userResponse as UserResponse,
+      'User created successfully',
+      201,
+    );
   }
 
-  async findAll(): Promise<UserResponse[]> {
-    const users = await this.prisma.user.findMany({
-      include: {
-        _count: {
-          select: {
-            posts: true,
-            comments: true,
-            reactions: true,
-            followers: true,
-            following: true,
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<ApiResponse<UserResponse[]>> {
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        include: {
+          _count: {
+            select: {
+              posts: true,
+              comments: true,
+              reactions: true,
+              followers: true,
+              following: true,
+            },
           },
         },
-      },
-    });
+      }),
+      this.prisma.user.count(),
+    ]);
 
-    return users.map((user) => {
+    const usersResponse = users.map((user) => {
       const { password, ...userResponse } = user;
       return userResponse as UserResponse;
     });
+
+    const pagination: PaginationMeta = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return createSuccessResponse(
+      usersResponse,
+      'Users retrieved successfully',
+      200,
+      pagination,
+    );
   }
 
-  async findOne(id: string): Promise<UserResponse> {
+  async findOne(id: string): Promise<ApiResponse<UserResponse>> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -116,7 +152,10 @@ export class UsersService {
     }
 
     const { password, ...userResponse } = user;
-    return userResponse as UserResponse;
+    return createSuccessResponse(
+      userResponse as UserResponse,
+      'User retrieved successfully',
+    );
   }
 
   async findByEmail(email: string) {
@@ -128,7 +167,7 @@ export class UsersService {
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
-  ): Promise<UserResponse> {
+  ): Promise<ApiResponse<UserResponse>> {
     const { email, password, dateOfBirth, fullName, ...rest } = updateUserDto;
 
     // Check if user exists
@@ -169,10 +208,13 @@ export class UsersService {
     });
 
     const { password: _, ...userResponse } = updatedUser;
-    return userResponse as UserResponse;
+    return createSuccessResponse(
+      userResponse as UserResponse,
+      'User updated successfully',
+    );
   }
 
-  async remove(id: string): Promise<{ message: string }> {
+  async remove(id: string): Promise<ApiResponse<null>> {
     // Check if user exists
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -182,58 +224,79 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Revoke all refresh tokens before deleting user for security
-    await this.authService.revokeAllUserRefreshTokens(id);
+    // Revoke all sessions before deleting user for security
+    await this.authService.revokeAllUserSessions(id);
 
     // Delete user (cascading will handle related records)
     await this.prisma.user.delete({
       where: { id },
     });
 
-    return { message: 'User deleted successfully' };
+    return createSuccessResponse(null, 'User deleted successfully');
   }
 
-  async searchUsers(query: string): Promise<UserResponse[]> {
+  async searchUsers(
+    query: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<ApiResponse<UserListItem[]>> {
     if (!query || query.trim().length === 0) {
       throw new BadRequestException('Search query is required');
     }
 
-    const users = await this.prisma.user.findMany({
-      where: {
-        OR: [
-          {
-            fullName: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-          {
-            email: {
-              contains: query,
-              mode: 'insensitive',
-            },
-          },
-        ],
-      },
-      include: {
-        _count: {
-          select: {
-            posts: true,
-            followers: true,
-            following: true,
-          },
-        },
-      },
-      take: 20, // Limit search results
-    });
+    const skip = (page - 1) * limit;
 
-    return users.map((user) => {
-      const { password, ...userResponse } = user;
-      return userResponse as UserResponse;
-    });
+    const whereClause: Prisma.UserWhereInput = {
+      OR: [
+        { fullName: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        { email: { contains: query, mode: Prisma.QueryMode.insensitive } },
+        { userName: { contains: query, mode: Prisma.QueryMode.insensitive } },
+      ],
+    };
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        skip,
+        take: limit,
+        where: whereClause,
+        select: {
+          id: true,
+          userName: true,
+          fullName: true,
+          avatar: true,
+          bio: true,
+          websiteUrl: true,
+        },
+      }),
+      this.prisma.user.count({ where: whereClause }),
+    ]);
+
+    // users already contain only the selected fields, map to UserListItem explicitly
+    const usersResponse: UserListItem[] = users.map((u) => ({
+      id: u.id,
+      userName: u.userName,
+      fullName: u.fullName,
+      avatar: u.avatar,
+      bio: u.bio,
+      websiteUrl: u.websiteUrl,
+    }));
+
+    const pagination: PaginationMeta = {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    return createSuccessResponse(
+      usersResponse,
+      `Found ${total} users matching "${query}"`,
+      200,
+      pagination,
+    );
   }
 
-  async getUserProfile(id: string): Promise<any> {
+  async getUserProfile(id: string): Promise<ApiResponse<any>> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -310,11 +373,16 @@ export class UsersService {
     }
 
     const { password, ...userProfile } = user;
-    return userProfile as UserResponse;
+    return createSuccessResponse(
+      userProfile,
+      'User profile retrieved successfully',
+    );
   }
 
   // Find a user by userName (unique) or fallback to fullName/email.
-  async findByUsername(username: string): Promise<UserResponse | null> {
+  async findByUsername(
+    username: string,
+  ): Promise<ApiResponse<UserResponse> | null> {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -338,6 +406,9 @@ export class UsersService {
 
     if (!user) return null;
     const { password, ...userResponse } = user;
-    return userResponse as UserResponse;
+    return createSuccessResponse(
+      userResponse as UserResponse,
+      'User found by username',
+    );
   }
 }

@@ -83,4 +83,9 @@ export class RegisterDto {
   @IsString()
   @MaxLength(100, { message: 'Location must not exceed 100 characters' })
   location?: string;
+
+  @IsOptional()
+  @IsUrl({}, { message: 'Website URL must be a valid URL' })
+  @MaxLength(200, { message: 'Website URL must not exceed 200 characters' })
+  websiteUrl?: string;
 }

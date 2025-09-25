@@ -93,4 +93,16 @@ export class CreateUserDto {
   @IsString()
   @MaxLength(100, { message: 'Location must not exceed 100 characters' })
   location?: string;
+
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const v = value.trim();
+      return v === '' ? undefined : v;
+    }
+    return value;
+  })
+  @IsOptional()
+  @IsUrl({}, { message: 'Website URL must be a valid URL' })
+  @MaxLength(200, { message: 'Website URL must not exceed 200 characters' })
+  websiteUrl?: string;
 }

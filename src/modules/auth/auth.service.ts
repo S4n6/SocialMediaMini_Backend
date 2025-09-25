@@ -36,19 +36,24 @@ export class AuthService {
     this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   }
 
-  // ===== REFRESH TOKEN HELPERS =====
+  // ===== SESSION HELPERS =====
 
-  private generateRefreshToken(): string {
-    return crypto.randomBytes(64).toString('hex');
+  private generateSessionId(): string {
+    return crypto.randomBytes(32).toString('hex');
   }
 
-  private async hashRefreshToken(token: string): Promise<string> {
-    return bcrypt.hash(token, 10);
+  private generateRefreshToken(sessionId: string): string {
+    // Include session ID in refresh token payload
+    const payload = { sessionId, timestamp: Date.now() };
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
   }
 
-  private async createRefreshToken(userId: string): Promise<string> {
-    const refreshToken = this.generateRefreshToken();
-    const hashedToken = await this.hashRefreshToken(refreshToken);
+  private async createSession(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<string> {
+    const sessionId = this.generateSessionId();
 
     // Calculate expiry date from JWT config
     const expiresAt = new Date();
@@ -62,24 +67,28 @@ export class AuthService {
       expiresAt.setDate(expiresAt.getDate() + 7);
     }
 
-    await this.prisma.refreshToken.create({
+    await this.prisma.session.create({
       data: {
-        token: hashedToken,
+        sessionId,
         userId,
         expiresAt,
+        userAgent,
+        ipAddress,
       },
     });
 
-    return refreshToken;
+    return this.generateRefreshToken(sessionId);
   }
 
   private async createTokensForUser(
     userId: string,
     email: string,
+    userAgent?: string,
+    ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = { sub: userId, email };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = await this.createRefreshToken(userId);
+    const refreshToken = await this.createSession(userId, userAgent, ipAddress);
 
     return { accessToken, refreshToken };
   }
@@ -91,93 +100,110 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is required');
     }
 
-    // Find all non-revoked, non-expired refresh tokens
-    const refreshTokens = await this.prisma.refreshToken.findMany({
-      where: {
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      include: { user: true },
-    });
-
-    // Check if any stored token matches the provided one
-    for (const storedToken of refreshTokens) {
-      const isValid = await bcrypt.compare(refreshToken, storedToken.token);
-      if (isValid) {
-        // Check for suspicious activity
-        await this.detectSuspiciousActivity(storedToken.userId);
-
-        return {
-          userId: storedToken.userId,
-          email: storedToken.user.email,
-        };
-      }
-    }
-
-    // Token not found or expired - better error message
-    const expiredTokens = await this.prisma.refreshToken.findMany({
-      where: {
-        isRevoked: false,
-        expiresAt: { lte: new Date() },
-      },
-    });
-
-    // Check if token exists but is expired
-    for (const expiredToken of expiredTokens) {
-      const isExpiredMatch = await bcrypt.compare(
-        refreshToken,
-        expiredToken.token,
+    try {
+      // Decode the refresh token to get session ID
+      const tokenPayload = JSON.parse(
+        Buffer.from(refreshToken, 'base64').toString(),
       );
-      if (isExpiredMatch) {
-        // Clean up expired token
-        await this.prisma.refreshToken.update({
-          where: { id: expiredToken.id },
+      const { sessionId } = tokenPayload;
+
+      if (!sessionId) {
+        throw new UnauthorizedException('Invalid refresh token format');
+      }
+
+      // Find the session in database
+      const session = await this.prisma.session.findUnique({
+        where: {
+          sessionId,
+        },
+        include: { user: true },
+      });
+
+      if (!session) {
+        throw new UnauthorizedException(
+          'Session not found. Please log in again.',
+        );
+      }
+
+      // Check if session is revoked
+      if (session.isRevoked) {
+        throw new UnauthorizedException(
+          'Session has been revoked. Please log in again.',
+        );
+      }
+
+      // Check if session is expired
+      if (session.expiresAt < new Date()) {
+        // Clean up expired session
+        await this.prisma.session.update({
+          where: { id: session.id },
           data: { isRevoked: true },
         });
         throw new UnauthorizedException(
-          'Refresh token has expired. Please log in again.',
+          'Session has expired. Please log in again.',
         );
       }
-    }
 
-    throw new UnauthorizedException(
-      'Invalid refresh token. Please log in again.',
-    );
+      // Update last used timestamp
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { lastUsedAt: new Date() },
+      });
+
+      // Check for suspicious activity
+      await this.detectSuspiciousActivity(session.userId);
+
+      return {
+        userId: session.userId,
+        email: session.user.email,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException(
+        'Invalid refresh token. Please log in again.',
+      );
+    }
   }
 
   async revokeRefreshToken(refreshToken: string): Promise<void> {
-    const refreshTokens = await this.prisma.refreshToken.findMany({
-      where: {
-        isRevoked: false,
-      },
-    });
+    try {
+      // Decode the refresh token to get session ID
+      const tokenPayload = JSON.parse(
+        Buffer.from(refreshToken, 'base64').toString(),
+      );
+      const { sessionId } = tokenPayload;
 
-    for (const storedToken of refreshTokens) {
-      const isValid = await bcrypt.compare(refreshToken, storedToken.token);
-      if (isValid) {
-        await this.prisma.refreshToken.update({
-          where: { id: storedToken.id },
+      if (sessionId) {
+        await this.prisma.session.updateMany({
+          where: {
+            sessionId,
+            isRevoked: false,
+          },
           data: { isRevoked: true },
         });
-        break;
       }
+    } catch (error) {
+      // Silently ignore invalid refresh tokens
+      console.warn('Failed to revoke refresh token:', error.message);
     }
   }
 
-  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
-    await this.prisma.refreshToken.updateMany({
+  async revokeAllUserSessions(userId: string): Promise<void> {
+    await this.prisma.session.updateMany({
       where: { userId, isRevoked: false },
       data: { isRevoked: true },
     });
   }
 
-  // Cleanup expired and revoked refresh tokens
+  // Cleanup expired and revoked sessions
   async cleanupExpiredTokens(): Promise<{ deletedCount: number }> {
-    const result = await this.prisma.refreshToken.deleteMany({
+    const result = await this.prisma.session.deleteMany({
       where: {
         OR: [
-          { expiresAt: { lt: new Date() } }, // Expired tokens
-          { isRevoked: true }, // Revoked tokens
+          { expiresAt: { lt: new Date() } }, // Expired sessions
+          { isRevoked: true }, // Revoked sessions
         ],
       },
     });
@@ -185,12 +211,12 @@ export class AuthService {
     return { deletedCount: result.count };
   }
 
-  // Security: Detect and revoke suspicious token usage
+  // Security: Detect and revoke suspicious session usage
   async detectSuspiciousActivity(
     userId: string,
     ipAddress?: string,
   ): Promise<void> {
-    const recentTokens = await this.prisma.refreshToken.findMany({
+    const recentSessions = await this.prisma.session.findMany({
       where: {
         userId,
         isRevoked: false,
@@ -198,12 +224,12 @@ export class AuthService {
       },
     });
 
-    // If too many active tokens, might be suspicious
-    if (recentTokens.length > 10) {
-      await this.revokeAllUserRefreshTokens(userId);
+    // If too many active sessions, might be suspicious
+    if (recentSessions.length > 10) {
+      await this.revokeAllUserSessions(userId);
       // TODO: Send security alert email
       console.warn(
-        `Suspicious activity detected for user ${userId}. All tokens revoked.`,
+        `Suspicious activity detected for user ${userId}. All sessions revoked.`,
       );
     }
   }
@@ -842,8 +868,8 @@ export class AuthService {
       data: { password: hashedPassword },
     });
 
-    // Revoke all refresh tokens to force re-login
-    await this.revokeAllUserRefreshTokens(user.id);
+    // Revoke all sessions to force re-login
+    await this.revokeAllUserSessions(user.id);
 
     return {
       message:

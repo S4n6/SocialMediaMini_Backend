@@ -25,6 +25,7 @@ model User {
   bio               String?   @map("Bio")
   location          String?   @map("Location")
   gender            String?   @map("Gender")
+  websiteUrl        String?   @map("WebsiteUrl") // New optional website URL field
   role              String    @default("USER") @map("Role")
   isEmailVerified   Boolean   @default(false) @map("IsEmailVerified")
   emailVerifiedAt   DateTime? @map("EmailVerifiedAt")
@@ -45,7 +46,7 @@ model User {
   reportsSubmitted  Report[]  @relation("ReportSubmitter")
   reportsReceived   Report[]  @relation("ReportTarget")
   notifications     Notification[]
-  refreshTokens     RefreshToken[]
+  sessions          Session[]
 
   @@map("Users")
 }
@@ -263,16 +264,19 @@ model PostMedia {
   @@map("PostMedias")
 }
 
-model RefreshToken {
-  id        String   @id @default(uuid()) @map("RefreshTokenId")
-  token     String   @unique @map("Token") // Hashed refresh token
-  expiresAt DateTime @map("ExpiresAt")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-  isRevoked Boolean  @default(false) @map("IsRevoked")
+model Session {
+  id          String   @id @default(uuid()) @map("SessionId")
+  sessionId   String   @unique @map("SessionIdentifier") // Unique session identifier
+  expiresAt   DateTime @map("ExpiresAt")
+  createdAt   DateTime @default(now()) @map("CreatedAt")
+  lastUsedAt  DateTime @default(now()) @map("LastUsedAt")
+  isRevoked   Boolean  @default(false) @map("IsRevoked")
+  userAgent   String?  @map("UserAgent") // Optional user agent for security
+  ipAddress   String?  @map("IpAddress")  // Optional IP address for security
 
-  userId    String   @map("UserId")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String   @map("UserId")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("RefreshTokens")
+  @@map("Sessions")
 }
 
