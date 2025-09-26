@@ -11,8 +11,8 @@ import {
   Res,
   Query,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
@@ -26,6 +26,7 @@ import { CurrentUser } from 'src/decorators/currentUser.decorator';
 import { Response } from 'express';
 import { URLS } from 'src/constants/urls.constant';
 import { JWT } from 'src/config/jwt.config';
+import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -33,11 +34,6 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
-
-  @Get('test/redis')
-  async testRedis() {
-    return this.authService.testRedis();
-  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
@@ -123,54 +119,11 @@ export class AuthController {
       verifyDto.password,
     );
 
-    // If no tokens returned (already verified case), return simple response
-    if (!result.accessToken) {
-      return {
-        success: true,
-        message: result.message,
-        data: result,
-      };
-    }
-
-    // If web client, set HttpOnly cookies and return minimal body
-    const isWeb = clientType.toLowerCase() === 'web';
-    const isProd = process.env.NODE_ENV === 'production';
-
-    if (isWeb) {
-      const accessMaxAge = parseExpiryToMs(JWT.EXPIRES_IN);
-      const refreshMaxAge = parseExpiryToMs(JWT.REFRESH_EXPIRES_IN);
-
-      // Set access token in HTTP-only cookie
-      if (result.accessToken) {
-        res.cookie('access_token', result.accessToken, {
-          httpOnly: true,
-          secure: isProd,
-          sameSite: isProd ? 'none' : 'lax',
-          maxAge: accessMaxAge,
-        });
-      }
-
-      if (result.refreshToken) {
-        res.cookie('refresh_token', result.refreshToken, {
-          httpOnly: true,
-          secure: isProd,
-          sameSite: isProd ? 'none' : 'lax',
-          maxAge: refreshMaxAge,
-        });
-      }
-
-      return {
-        success: true,
-        message: result.message,
-        user: result.user,
-        expiresIn: JWT.EXPIRES_IN,
-      };
-    }
-
-    // Default: return tokens in body (mobile clients)
+    // Email verification doesn't return tokens, just success message
     return {
       success: true,
-      ...result,
+      message: result.message,
+      data: result,
     };
   }
 
@@ -269,7 +222,6 @@ export class AuthController {
 
       return {
         message: 'Token refreshed',
-        user: tokens.user,
         expiresIn: JWT.EXPIRES_IN,
       };
     }
@@ -397,8 +349,99 @@ export class AuthController {
     const result = await this.authService.cleanupExpiredTokens();
     return {
       success: true,
-      message: `Cleaned up ${result.deletedCount} expired/revoked tokens`,
-      deletedCount: result.deletedCount,
+      message: `Cleaned up ${result.count} expired/revoked tokens`,
+      deletedCount: result.count,
+    };
+  }
+
+  // Get user's active sessions
+  @UseGuards(JwtAuthGuard)
+  @Get('sessions')
+  @HttpCode(HttpStatus.OK)
+  async getUserSessions(@CurrentUser('id') userId: string) {
+    const sessions = await this.authService.getUserSessions(userId);
+    return {
+      success: true,
+      data: sessions,
+      message: `Found ${sessions.total} active sessions`,
+    };
+  }
+
+  // Cleanup zombie sessions (inactive for specified days)
+  @UseGuards(JwtAuthGuard)
+  @Post('cleanup-zombie-sessions')
+  @HttpCode(HttpStatus.OK)
+  async cleanupZombieSessions(
+    @CurrentUser('id') userId: string,
+    @Body() body: { inactiveDays?: number } = {},
+  ) {
+    const inactiveDays = body.inactiveDays || 30; // Default 30 days
+    const result = await this.authService.cleanupZombieSessions(userId);
+
+    return {
+      success: true,
+      message: `Cleaned up ${result.cleaned} zombie sessions (inactive for ${inactiveDays}+ days)`,
+      deletedCount: result.cleaned,
+    };
+  }
+
+  // Admin: Cleanup all zombie sessions globally
+  @Post('admin/cleanup-all-zombie-sessions')
+  @HttpCode(HttpStatus.OK)
+  // @UseGuards(JwtAuthGuard)
+  async adminCleanupZombieSessions(
+    @CurrentUser('role') userRole: string,
+    @Body() body: { inactiveDays?: number } = {},
+  ) {
+    // if (userRole !== 'ADMIN') {
+    //   throw new UnauthorizedException('Admin access required');
+    // }
+
+    const inactiveDays = body.inactiveDays || 7;
+    const result =
+      await this.authService.cleanupAllZombieSessions(inactiveDays);
+
+    return {
+      success: true,
+      message: `Globally cleaned up ${result.cleaned} zombie sessions across all users`,
+      deletedCount: result.cleaned,
+    };
+  }
+
+  // Revoke specific sessions by session IDs
+  @UseGuards(JwtAuthGuard)
+  @Post('revoke-sessions')
+  @HttpCode(HttpStatus.OK)
+  async revokeSessions(
+    @CurrentUser('id') userId: string,
+    @Body() body: { sessionIds: string[] },
+  ) {
+    if (!body.sessionIds || body.sessionIds.length === 0) {
+      throw new BadRequestException('Session IDs are required');
+    }
+
+    const result = await this.authService.revokeUserSessions(
+      userId,
+      body.sessionIds,
+    );
+    return {
+      success: true,
+      message: `Revoked ${result.revokedCount} sessions`,
+      revokedCount: result.revokedCount,
+    };
+  }
+
+  // Revoke ALL user sessions (force logout from all devices)
+  @UseGuards(JwtAuthGuard)
+  @Post('revoke-all-sessions')
+  @HttpCode(HttpStatus.OK)
+  async revokeAllSessions(@CurrentUser('id') userId: string) {
+    const result = await this.authService.revokeAllUserSessions(userId);
+    return {
+      success: true,
+      message: result.message,
+      revokedCount: result.revokedCount,
+      sessionIds: result.sessionIds,
     };
   }
 }

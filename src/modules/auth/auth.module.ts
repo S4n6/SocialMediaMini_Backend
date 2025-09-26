@@ -10,6 +10,10 @@ import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
 import { NotificationModule } from '../notification/notification.module';
 import { RedisCacheModule } from '../cache/cache.module';
+import { UserManagementService } from './repositories/user-management.repository';
+import { AuthenticationService } from './repositories/authentication.repository';
+import { SessionService } from './repositories/session.repository';
+import { TokenService } from './repositories/token.repository';
 
 @Module({
   imports: [
@@ -24,7 +28,21 @@ import { RedisCacheModule } from '../cache/cache.module';
     RedisCacheModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GoogleStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    UserManagementService,
+    AuthenticationService,
+    SessionService,
+    TokenService,
+    JwtStrategy,
+    GoogleStrategy,
+  ],
+  exports: [
+    AuthService,
+    UserManagementService,
+    AuthenticationService,
+    SessionService,
+    TokenService,
+  ],
 })
 export class AuthModule {}
