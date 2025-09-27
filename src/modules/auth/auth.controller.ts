@@ -93,7 +93,6 @@ export class AuthController {
       return {
         message: 'Login successful',
         user: result.user,
-        expiresIn: JWT.EXPIRES_IN,
       };
     }
 

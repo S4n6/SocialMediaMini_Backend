@@ -11,6 +11,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { SearchHistoryModule } from './modules/search-history/search-history.module';
 import {
   CorsMiddleware,
   RateLimitMiddleware,
@@ -35,6 +36,7 @@ import {
     MailerModule,
     RedisCacheModule,
     NotificationModule,
+    SearchHistoryModule,
     PrismaModule,
   ],
   controllers: [],

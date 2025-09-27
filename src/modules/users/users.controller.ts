@@ -19,17 +19,23 @@ import { RolesGuard } from '../../guards/roles.guard';
 import { SkipGuards } from '../../decorators/skipGuard.decorator';
 import { JwtAuthGuard } from '../../guards/jwt.guard';
 import { Roles } from '../../decorators/roles.decorator';
+import { CurrentUser } from '../../decorators/currentUser.decorator';
 import { UserResponse } from './dto/responseUser.dto';
 import { UserListItem } from './dto/responseUser.dto';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { CreateUserDto } from './dto/createUser.dto';
 import { ROLES } from 'src/constants/roles.constant';
 import { ApiResponse } from 'src/common/interfaces/api-response.interface';
+import { SearchHistoryService } from '../search-history/search-history.service';
+import { User } from '@prisma/client';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly searchHistoryService: SearchHistoryService,
+  ) {}
 
   @Post()
   @SkipGuards()
@@ -51,11 +57,21 @@ export class UsersController {
 
   @Get('search')
   async searchUsers(
+    @CurrentUser() user: User,
     @Query('q') query: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
+    @Query('saveToHistory', new ParseIntPipe({ optional: true }))
+    saveToHistory: number = 1,
   ): Promise<ApiResponse<UserListItem[]>> {
-    return this.usersService.searchUsers(query, page, limit);
+    // Get search results
+    const searchResult = await this.usersService.searchUsers(
+      query,
+      page,
+      limit,
+    );
+
+    return searchResult;
   }
 
   @Get('username/:username')

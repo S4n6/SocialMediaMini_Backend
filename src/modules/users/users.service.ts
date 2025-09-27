@@ -158,6 +158,36 @@ export class UsersService {
     );
   }
 
+  async findManyByIds(ids: string[]): Promise<UserListItem[]> {
+    if (!ids || ids.length === 0) {
+      return [];
+    }
+
+    try {
+      const users = await this.prisma.user.findMany({
+        where: {
+          id: {
+            in: ids,
+          },
+        },
+        select: {
+          id: true,
+          userName: true,
+          fullName: true,
+          avatar: true,
+          createdAt: true,
+        },
+      });
+
+      // Return users in the same order as the input IDs
+      const userMap = new Map(users.map((user) => [user.id, user]));
+      return ids.map((id) => userMap.get(id)).filter(Boolean) as UserListItem[];
+    } catch (error) {
+      console.error('Error finding users by IDs:', error);
+      throw error;
+    }
+  }
+
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
