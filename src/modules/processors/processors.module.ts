@@ -2,8 +2,8 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '../../database/prisma.module';
-import { NotificationProcessor } from '../notification/notify.processor';
-import { NotificationService } from '../notification/notification.service';
+import { NotificationProcessor } from '../notification';
+import { NotificationModule } from '../notification/notification.module';
 import { JwtModule } from '@nestjs/jwt';
 import { JWT } from '../../config/jwt.config';
 import { REDIS } from '../../config/redis.config';
@@ -21,7 +21,8 @@ import { QUEUE } from '../../config/queue.config';
     }),
     BullModule.registerQueue({ name: QUEUE.NOTIFICATION }),
     PrismaModule,
+    NotificationModule,
   ],
-  providers: [NotificationProcessor, NotificationService],
+  providers: [NotificationProcessor],
 })
 export class ProcessorModule {}

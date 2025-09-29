@@ -1,14 +1,47 @@
 import { Module } from '@nestjs/common';
-import { NotificationService } from './notification.service';
-import { NotificationController } from './notification.controller';
 import { JwtModule } from '@nestjs/jwt';
-import { JWT } from '../../config/jwt.config';
 import { BullModule } from '@nestjs/bullmq';
-import { NotificationGateway } from './notification.gateway';
+
+// Presentation Layer
+import {
+  NotificationController,
+  NotificationGateway,
+  NotificationProcessor,
+} from './presentation';
+
+// Application Layer
+import { NotificationApplicationService } from './application/notification-application.service';
+import {
+  CreateNotificationUseCase,
+  GetNotificationUseCase,
+  GetNotificationsUseCase,
+  UpdateNotificationUseCase,
+  MarkAsReadUseCase,
+  MarkAsUnreadUseCase,
+  DeleteNotificationUseCase,
+  GetNotificationStatsUseCase,
+  GetRealtimeNotificationsUseCase,
+  NotificationCleanupUseCase,
+  NOTIFICATION_REPOSITORY_TOKEN,
+} from './application';
+
+// Domain Layer
+import { NotificationDomainService, NotificationFactory } from './domain';
+
+// Infrastructure Layer
+import {
+  NotificationRepository,
+  NotificationApplicationRepository,
+  EmailNotificationService,
+  PushNotificationService,
+  RealtimeNotificationService,
+} from './infrastructure';
+
+// Configuration
+import { JWT } from '../../config/jwt.config';
 import { QUEUE } from '../../config/queue.config';
 import { REDIS } from '../../config/redis.config';
 import { PrismaModule } from '../../database/prisma.module';
-import { NotificationProcessor } from './notify.processor';
 
 @Module({
   imports: [
@@ -24,7 +57,56 @@ import { NotificationProcessor } from './notify.processor';
     PrismaModule,
   ],
   controllers: [NotificationController],
-  providers: [NotificationService, NotificationGateway],
-  exports: [NotificationService, NotificationGateway],
+  providers: [
+    // Application Layer
+    NotificationApplicationService,
+
+    // Use Cases
+    CreateNotificationUseCase,
+    GetNotificationUseCase,
+    GetNotificationsUseCase,
+    UpdateNotificationUseCase,
+    MarkAsReadUseCase,
+    MarkAsUnreadUseCase,
+    DeleteNotificationUseCase,
+    GetNotificationStatsUseCase,
+    GetRealtimeNotificationsUseCase,
+    NotificationCleanupUseCase,
+
+    // Domain Layer
+    NotificationDomainService,
+    NotificationFactory,
+
+    // Infrastructure Layer - Repositories
+    NotificationRepository,
+    NotificationApplicationRepository,
+    {
+      provide: NOTIFICATION_REPOSITORY_TOKEN,
+      useClass: NotificationRepository,
+    },
+
+    // Infrastructure Layer - External Services
+    EmailNotificationService,
+    PushNotificationService,
+    RealtimeNotificationService,
+
+    // WebSocket Gateway
+    NotificationGateway,
+
+    // Queue Processor
+    NotificationProcessor,
+  ],
+  exports: [
+    // Export application service for other modules
+    NotificationApplicationService,
+
+    // Export external services for other modules
+    EmailNotificationService,
+    PushNotificationService,
+    RealtimeNotificationService,
+
+    // Export presentation layer
+    NotificationGateway,
+  ],
 })
 export class NotificationModule {}

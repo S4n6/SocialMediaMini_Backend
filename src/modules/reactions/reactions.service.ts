@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateReactionDto } from './dto/createReaction.dto';
-import { NotificationService } from '../notification/notification.service';
+import { NotificationApplicationService } from '../notification/application/notification-application.service';
 import { notificationQueue } from 'src/queues/notification.queue';
 
 @Injectable()

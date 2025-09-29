@@ -15,7 +15,7 @@ import { AuthenticationService } from './repositories/authentication.repository'
 import { SessionService } from './repositories/session.repository';
 import { TokenService } from './repositories/token.repository';
 import { RedisCacheService } from '../cache/cache.service';
-import { NotificationGateway } from '../notification/notification.gateway';
+import { NotificationGateway } from '../notification';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()

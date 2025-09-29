@@ -10,27 +10,45 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========== ENUMS ==========
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
 // ========== CORE MODELS ==========
 
 model User {
-  id                String    @id @default(uuid()) @map("UserId")
-  fullName          String    @map("FullName")
-  userName          String    @unique @map("UserName")
-  email             String    @unique @map("Email")
-  password          String?   @map("Password") // Make optional for Google users
-  googleId          String?   @unique @map("GoogleId") // Add Google ID field
-  dateOfBirth       DateTime? @map("DateOfBirth") // Make optional for Google users
-  phoneNumber       String?   @map("PhoneNumber")
-  avatar            String?   @map("Avatar")
-  bio               String?   @map("Bio")
-  location          String?   @map("Location")
-  gender            String?   @map("Gender")
-  websiteUrl        String?   @map("WebsiteUrl") // New optional website URL field
-  role              String    @default("USER") @map("Role")
-  isEmailVerified   Boolean   @default(false) @map("IsEmailVerified")
-  emailVerifiedAt   DateTime? @map("EmailVerifiedAt")
-  createdAt         DateTime  @default(now()) @map("CreatedAt")
-  updatedAt         DateTime  @updatedAt @map("UpdatedAt")
+  id                  String        @id @default(uuid()) @map("UserId")
+  fullName            String        @map("FullName")
+  username            String        @unique @map("Username")
+  email               String        @unique @map("Email")
+  passwordHash        String?       @map("PasswordHash") // Make optional for Google users
+  googleId            String?       @unique @map("GoogleId") // Add Google ID field
+  dateOfBirth         DateTime?     @map("DateOfBirth") // Make optional for Google users
+  phoneNumber         String?       @map("PhoneNumber")
+  avatar              String?       @map("Avatar")
+  bio                 String?       @map("Bio")
+  location            String?       @map("Location")
+  gender              String?       @map("Gender")
+  websiteUrl          String?       @map("WebsiteUrl") // New optional website URL field
+  role                UserRole      @default(USER) @map("Role")
+  status              UserStatus    @default(ACTIVE) @map("Status")
+  isEmailVerified     Boolean       @default(false) @map("IsEmailVerified")
+  emailVerifiedAt     DateTime?     @map("EmailVerifiedAt")
+  lastProfileUpdate   DateTime?     @map("LastProfileUpdate")
+  createdAt           DateTime      @default(now()) @map("CreatedAt")
+  updatedAt           DateTime      @updatedAt @map("UpdatedAt")
 
   // Core relationships
   posts             Post[]
@@ -47,6 +65,10 @@ model User {
   reportsReceived   Report[]  @relation("ReportTarget")
   notifications     Notification[]
   sessions          Session[]
+  
+  // Search history relationships
+  searchHistory     SearchHistory?     @relation("UserSearchHistory")
+  searchedHistory   SearchHistoryEntry[] @relation("UserSearchedHistory")
 
   @@map("Users")
 }
@@ -278,5 +300,34 @@ model Session {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("Sessions")
+}
+
+// ========== SEARCH HISTORY MODELS ==========
+
+model SearchHistory {
+  id        String   @id @default(uuid()) @map("SearchHistoryId")
+  userId    String   @unique @map("UserId")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+  updatedAt DateTime @updatedAt @map("UpdatedAt")
+
+  user      User     @relation("UserSearchHistory", fields: [userId], references: [id], onDelete: Cascade)
+  entries   SearchHistoryEntry[]
+
+  @@map("SearchHistories")
+}
+
+model SearchHistoryEntry {
+  id              String        @id @default(uuid()) @map("SearchHistoryEntryId")
+  searchedUserId  String        @map("SearchedUserId")
+  searchedAt      DateTime      @default(now()) @map("SearchedAt")
+  createdAt       DateTime      @default(now()) @map("CreatedAt")
+
+  searchHistoryId String        @map("SearchHistoryId")
+  searchHistory   SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
+
+  searchedUser    User          @relation("UserSearchedHistory", fields: [searchedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([searchHistoryId, searchedUserId])
+  @@map("SearchHistoryEntries")
 }
 

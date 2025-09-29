@@ -1,14 +1,45 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { SearchHistoryService } from './search-history.service';
-import { SearchHistoryController } from './search-history.controller';
-import { RedisCacheModule } from '../cache/cache.module';
+import { PrismaModule } from '../../database/prisma.module';
 import { UsersModule } from '../users/users.module';
-import { SearchHistoryRepository } from './repositories/search-history.repository';
+
+// Domain layer
+import { SearchHistoryRepository, SearchHistoryDomainService } from './domain';
+
+// Application layer
+import {
+  GetSearchHistoryUseCase,
+  AddSearchEntryUseCase,
+  RemoveSearchEntryUseCase,
+  ClearSearchHistoryUseCase,
+  SearchHistoryApplicationService,
+} from './application';
+
+// Infrastructure layer
+import { PrismaSearchHistoryRepository } from './infrastructure';
+
+// Presentation layer
+import { SearchHistoryController } from './presentation';
 
 @Module({
-  imports: [RedisCacheModule, forwardRef(() => UsersModule)],
+  imports: [PrismaModule, forwardRef(() => UsersModule)],
   controllers: [SearchHistoryController],
-  providers: [SearchHistoryService, SearchHistoryRepository],
-  exports: [SearchHistoryService],
+  providers: [
+    // Domain layer
+    SearchHistoryDomainService,
+
+    // Application layer
+    GetSearchHistoryUseCase,
+    AddSearchEntryUseCase,
+    RemoveSearchEntryUseCase,
+    ClearSearchHistoryUseCase,
+    SearchHistoryApplicationService,
+
+    // Infrastructure layer
+    {
+      provide: SearchHistoryRepository,
+      useClass: PrismaSearchHistoryRepository,
+    },
+  ],
+  exports: [SearchHistoryApplicationService],
 })
 export class SearchHistoryModule {}

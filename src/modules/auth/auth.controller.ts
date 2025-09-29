@@ -13,7 +13,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { UserApplicationService } from '../users/application/user-application.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/guards/jwt.guard';
 import { RegisterDto } from './dto/register.dto';
@@ -32,14 +32,14 @@ import { AuthService } from './auth.service';
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
-    private readonly usersService: UsersService,
+    private readonly userApplicationService: UserApplicationService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @HttpCode(HttpStatus.OK)
   async getCurrentUser(@CurrentUser('id') userId: string) {
-    return this.usersService.getUserProfile(userId);
+    return this.userApplicationService.getUserProfile(userId);
   }
 
   @Post('register')
