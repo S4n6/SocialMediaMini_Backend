@@ -35,12 +35,12 @@ import {
 } from '../application/dto/user.dto';
 
 // Guards and decorators (using correct paths)
-import { RolesGuard } from '../../../guards/roles.guard';
-import { SkipGuards } from '../../../decorators/skipGuard.decorator';
-import { JwtAuthGuard } from '../../../guards/jwt.guard';
-import { Roles } from '../../../decorators/roles.decorator';
-import { CurrentUser } from '../../../decorators/currentUser.decorator';
-import { ROLES } from '../../../constants/roles.constant';
+import { RolesGuard } from '../../../shared/guards/roles.guard';
+import { SkipGuards } from '../../../shared/decorators/skipGuard.decorator';
+import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
+import { Roles } from '../../../shared/decorators/roles.decorator';
+import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
+import { ROLES } from '../../../shared/constants/roles.constant';
 
 @ApiTags('Users')
 @Controller('users')

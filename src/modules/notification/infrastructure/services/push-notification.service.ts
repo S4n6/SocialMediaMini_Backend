@@ -109,6 +109,9 @@ export class PushNotificationService implements IPushNotificationService {
     console.log(
       `[PUSH] Registered device token for user ${userId}, platform: ${platform}`,
     );
+
+    // method is synchronous in this mock implementation; keep async for interface compatibility
+    return Promise.resolve();
   }
 
   async unregisterDeviceToken(
@@ -125,6 +128,9 @@ export class PushNotificationService implements IPushNotificationService {
     }
 
     console.log(`[PUSH] Unregistered device token for user ${userId}`);
+
+    // method is synchronous in this mock implementation; keep async for interface compatibility
+    return Promise.resolve();
   }
 
   private async sendToDevice(
@@ -136,6 +142,8 @@ export class PushNotificationService implements IPushNotificationService {
     console.log(
       `[PUSH] Sending to ${platform} device: ${deviceToken.substring(0, 10)}...`,
     );
+    // use payload fields to avoid unused var lint
+    console.log(`[PUSH] Payload type: ${String(payload?.type)}`);
 
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 50));

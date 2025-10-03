@@ -71,14 +71,12 @@ export class EmailNotificationService implements IEmailNotificationService {
     context: {
       recipientName?: string;
       actorName?: string;
-      entityName?: string;
       appUrl?: string;
     },
   ): { subject: string; content: string } {
     const {
       recipientName = 'User',
       actorName = 'Someone',
-      entityName = 'item',
       appUrl = '#',
     } = context;
 

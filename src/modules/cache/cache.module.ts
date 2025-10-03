@@ -1,6 +1,9 @@
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RedisCacheService } from './cache.service';
+import { CacheUtils } from './cache.utils';
+import { CacheInterceptor } from './cache.interceptor';
 import Keyv from 'keyv';
 import { CacheableMemory } from 'cacheable';
 import { createKeyv } from '@keyv/redis';
@@ -22,7 +25,14 @@ import { REDIS } from 'src/config/redis.config';
       },
     }),
   ],
-  providers: [RedisCacheService],
-  exports: [RedisCacheService],
+  providers: [
+    RedisCacheService,
+    CacheUtils,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: CacheInterceptor,
+    },
+  ],
+  exports: [RedisCacheService, CacheUtils],
 })
 export class RedisCacheModule {}

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ApiResponse } from '../../../common/interfaces/api-response.interface';
+import { ApiResponse } from '../../../shared/common/interfaces/api-response.interface';
 import {
   GetSearchHistoryUseCase,
   AddSearchEntryUseCase,

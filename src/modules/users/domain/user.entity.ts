@@ -50,6 +50,7 @@ export class User extends Entity<string> {
   private _isEmailVerified: boolean;
   private _emailVerifiedAt?: Date;
   private _googleId?: string;
+  private _avatar?: string;
   private _createdAt: Date;
   private _updatedAt: Date;
   private _lastProfileUpdate?: Date;
@@ -71,6 +72,7 @@ export class User extends Entity<string> {
       createdAt?: Date;
       updatedAt?: Date;
       lastProfileUpdate?: Date;
+      avatar?: string;
     },
   ) {
     super(id);
@@ -86,6 +88,7 @@ export class User extends Entity<string> {
     this._createdAt = options?.createdAt || new Date();
     this._updatedAt = options?.updatedAt || new Date();
     this._lastProfileUpdate = options?.lastProfileUpdate;
+    this._avatar = options?.avatar;
 
     // If it's a new registration, raise domain event
     if (!options?.createdAt) {

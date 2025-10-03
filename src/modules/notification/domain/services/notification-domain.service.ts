@@ -7,7 +7,6 @@ import {
 import {
   NotificationNotFoundException,
   UnauthorizedNotificationAccessException,
-  NotificationBulkOperationException,
 } from '../notification.exceptions';
 
 /**

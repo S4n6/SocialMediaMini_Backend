@@ -8,8 +8,9 @@ import {
   Username,
 } from '../../domain';
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
-import { CreateUserDto, UserResponseDto } from '../dto';
-import { USER_REPOSITORY_TOKEN } from '../../users.module';
+import { CreateUserDto } from '../dto';
+import { UserResponseDto } from '../dto/user.dto';
+import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.module';
 
 /**
  * Use case for creating a new user account
@@ -23,6 +24,7 @@ export class CreateUserUseCase {
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
     private readonly userDomainService: UserDomainService,
+    @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
 
@@ -71,28 +73,20 @@ export class CreateUserUseCase {
   }
 
   private mapToResponseDto(user: User): UserResponseDto {
-    return {
+    return new UserResponseDto({
       id: user.id,
       username: user.username,
       email: user.email,
-      profile: {
-        fullName: user.profile.fullName,
-        bio: user.profile.bio,
-        avatar: user.profile.avatar,
-        location: user.profile.location,
-        websiteUrl: user.profile.websiteUrl,
-        dateOfBirth: user.profile.dateOfBirth,
-        phoneNumber: user.profile.phoneNumber,
-        gender: user.profile.gender,
-      },
-      role: user.role,
-      status: user.status,
+      fullName: user.profile.fullName,
+      bio: user.profile.bio,
+      avatar: user.profile.avatar,
+      location: user.profile.location,
+      websiteUrl: user.profile.websiteUrl,
       isEmailVerified: user.isEmailVerified,
-      emailVerifiedAt: user.emailVerifiedAt,
-      followingCount: user.followingCount,
-      followersCount: user.followersCount,
+      followersCount: user.followersCount || 0,
+      followingCount: user.followingCount || 0,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-    };
+    });
   }
 }

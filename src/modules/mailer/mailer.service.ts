@@ -9,7 +9,7 @@ import {
   SendFriendRequestDto,
 } from './dto/sendMail.dto';
 import { CreateMailerDto } from './dto/createMailer.dto';
-import { URLS } from 'src/constants/urls.constant';
+import { URLS } from '../../shared/constants/urls.constant';
 
 @Injectable()
 export class MailerService {

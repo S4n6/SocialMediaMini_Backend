@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CloudinaryService } from './cloudinary.service';
-import { JwtAuthGuard } from '../../guards/jwt.guard';
+import { JwtAuthGuard } from '../../shared/guards/jwt.guard';
 
 @Controller('cloudinary')
 @UseGuards(JwtAuthGuard)

@@ -7,7 +7,6 @@ import {
   Body,
   Param,
   Query,
-  UseGuards,
   Request,
   HttpCode,
   HttpStatus,
@@ -22,6 +21,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { PostApplicationService } from '../application/post-application.service';
+// Application DTOs
 import {
   CreatePostDto,
   UpdatePostDto,
@@ -29,12 +29,23 @@ import {
   CreateReactionDto,
   CreateCommentDto,
   UpdateCommentDto,
-  GetFeedDto,
-  PostResponseDto,
-  PostDetailResponseDto,
-  PostListResponseDto,
-  PostCommentResponseDto,
-} from '../application/dto/post.dto';
+  GetUserFeedDto,
+} from '../application/dto/post-use-case.dto';
+
+// Presentation DTOs
+import {
+  CreatePostRequestDto,
+  UpdatePostRequestDto,
+  GetPostsQueryRequestDto,
+  CreateReactionRequestDto,
+  CreateCommentRequestDto,
+} from './dto/post-request.dto';
+import {
+  PostResponseDto as PostApiResponse,
+  PostListResponseDto as PostListApiResponse,
+  CreatePostResponseDto,
+} from './dto/post-response.dto';
+import { GetFeedDto, PostCommentResponseDto, PostDetailResponseDto, PostListResponseDto, PostResponseDto } from '../application';
 
 // These would be imported from auth module
 // import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -60,10 +71,20 @@ export class PostsController {
   @ApiBearerAuth()
   async createPost(
     @Body() createPostDto: CreatePostDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostResponseDto> {
-    // TODO: Get actual user ID from authentication
-    const authorId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id from request
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const authorId = getUserId(req);
     return this.postApplicationService.createPost(authorId, createPostDto);
   }
 
@@ -79,10 +100,20 @@ export class PostsController {
   async updatePost(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePostDto: UpdatePostDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostResponseDto> {
-    // TODO: Get actual user ID and role from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.updatePost(id, userId, updatePostDto);
   }
 
@@ -94,11 +125,31 @@ export class PostsController {
   @ApiBearerAuth()
   async deletePost(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<void> {
-    // TODO: Get actual user ID and role from authentication
-    const userId = req.user?.userId || 'temp-user-id';
-    const userRole = req.user?.role || 'USER';
+    // Safe accessors for user id and role
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const getUserRole = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { role?: unknown } };
+        const v = maybe?.user?.role;
+        return typeof v === 'string' && v ? v : 'USER';
+      } catch {
+        return 'USER';
+      }
+    };
+
+    const userId = getUserId(req);
+    const userRole = getUserRole(req);
     return this.postApplicationService.deletePost(id, userId, userRole);
   }
 
@@ -114,10 +165,20 @@ export class PostsController {
   @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
   async getPost(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostDetailResponseDto> {
-    // TODO: Get actual user ID and following status from authentication
-    const viewerId = req.user?.userId;
+    // Safe accessor for optional viewer id
+    const getOptionalUserId = (r: unknown): string | undefined => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
+    const viewerId = getOptionalUserId(req);
     const isFollowing = false; // TODO: Implement following check
     return this.postApplicationService.getPostById(id, viewerId, isFollowing);
   }
@@ -161,10 +222,20 @@ export class PostsController {
   })
   async getPosts(
     @Query() query: GetPostsQueryDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostListResponseDto> {
-    // TODO: Get actual user ID from authentication
-    const viewerId = req.user?.userId;
+    // Safe accessor for optional viewer id
+    const getOptionalUserId = (r: unknown): string | undefined => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : undefined;
+      } catch {
+        return undefined;
+      }
+    };
+
+    const viewerId = getOptionalUserId(req);
     return this.postApplicationService.getPosts(query, viewerId);
   }
 
@@ -178,10 +249,20 @@ export class PostsController {
   @ApiBearerAuth()
   async getFeed(
     @Query() query: GetFeedDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostListResponseDto> {
-    // TODO: Get actual user ID from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.getUserFeed(userId, query);
   }
 
@@ -196,10 +277,20 @@ export class PostsController {
   async addReaction(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() createReactionDto: CreateReactionDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<void> {
-    // TODO: Get actual user ID from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.addReaction(
       id,
       userId,
@@ -215,10 +306,20 @@ export class PostsController {
   @ApiBearerAuth()
   async removeReaction(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<void> {
-    // TODO: Get actual user ID from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.removeReaction(id, userId);
   }
 
@@ -240,13 +341,23 @@ export class PostsController {
   async toggleReaction(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() createReactionDto: CreateReactionDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<{
     action: 'added' | 'removed' | 'changed';
     reactionType?: string;
   }> {
-    // TODO: Get actual user ID from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.toggleReaction(
       id,
       userId,
@@ -268,10 +379,20 @@ export class PostsController {
   async addComment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() createCommentDto: CreateCommentDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostCommentResponseDto> {
-    // TODO: Get actual user ID from authentication
-    const authorId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const authorId = getUserId(req);
     return this.postApplicationService.addComment(
       id,
       authorId,
@@ -293,10 +414,20 @@ export class PostsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('commentId', ParseUUIDPipe) commentId: string,
     @Body() updateCommentDto: UpdateCommentDto,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<PostCommentResponseDto> {
-    // TODO: Get actual user ID from authentication
-    const userId = req.user?.userId || 'temp-user-id';
+    // Safe accessor for user id
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const userId = getUserId(req);
     return this.postApplicationService.updateComment(
       id,
       commentId,
@@ -315,11 +446,31 @@ export class PostsController {
   async deleteComment(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('commentId', ParseUUIDPipe) commentId: string,
-    @Request() req: any, // Replace with @CurrentUser() when auth is ready
+    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
   ): Promise<void> {
-    // TODO: Get actual user ID and role from authentication
-    const userId = req.user?.userId || 'temp-user-id';
-    const userRole = req.user?.role || 'USER';
+    // Safe accessors for user id and role
+    const getUserId = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { userId?: unknown } };
+        const v = maybe?.user?.userId;
+        return typeof v === 'string' && v ? v : 'temp-user-id';
+      } catch {
+        return 'temp-user-id';
+      }
+    };
+
+    const getUserRole = (r: unknown): string => {
+      try {
+        const maybe = r as { user?: { role?: unknown } };
+        const v = maybe?.user?.role;
+        return typeof v === 'string' && v ? v : 'USER';
+      } catch {
+        return 'USER';
+      }
+    };
+
+    const userId = getUserId(req);
+    const userRole = getUserRole(req);
     return this.postApplicationService.deleteComment(
       id,
       commentId,

@@ -7,7 +7,7 @@ import {
 import { randomUUID } from 'crypto';
 import { PostEntity } from '../../domain/post.entity';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostDomainRepository } from '../../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../interfaces/post-repository.interface';
 import { UpdatePostDto, PostResponseDto } from '../dto/post.dto';
 import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
 
@@ -19,7 +19,7 @@ export class UpdatePostUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(

@@ -17,11 +17,9 @@ import {
   ApiResponse,
   ApiParam,
   ApiQuery,
-  ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
 import { NotificationApplicationService } from '../../application/notification-application.service';
-import { CleanupResult } from '../../application/use-cases/notification-cleanup.use-case';
 import {
   CreateNotificationRequestDto,
   UpdateNotificationRequestDto,

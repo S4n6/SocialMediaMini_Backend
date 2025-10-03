@@ -333,10 +333,11 @@ export class NotificationRepository implements INotificationDomainRepository {
   } | null> {
     // This would typically be stored in a separate preferences table
     // For now, return default preferences
-    return {
+    // Return default preferences synchronously to satisfy require-await rule
+    return Promise.resolve({
       enabledTypes: Object.values(NotificationType),
       mutedEntityIds: [],
-    };
+    });
   }
 
   async getLatestNotifications(
@@ -359,16 +360,65 @@ export class NotificationRepository implements INotificationDomainRepository {
   }
 
   private mapToDomainEntity(prismaNotification: any): NotificationEntity {
+    const asRecord = (v: unknown): Record<string, unknown> | null =>
+      typeof v === 'object' && v !== null
+        ? (v as Record<string, unknown>)
+        : null;
+
+    const pn = asRecord(prismaNotification);
+
+    if (!pn) {
+      throw new Error('Invalid prisma notification');
+    }
+
+    const safeString = (v: unknown): string | undefined => {
+      if (v == null) return undefined;
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+      return undefined;
+    };
+
+    const safeDate = (v: unknown): Date => {
+      if (v instanceof Date) return v;
+      if (typeof v === 'number') return new Date(v);
+      if (typeof v === 'string') {
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? new Date() : d;
+      }
+      return new Date();
+    };
+
+    const id = safeString(pn.id) ?? '';
+    const rawType = safeString(pn.type) ?? NotificationType.SYSTEM;
+    const type = Object.values(NotificationType).includes(
+      rawType as NotificationType,
+    )
+      ? (rawType as NotificationType)
+      : NotificationType.SYSTEM;
+    const title = safeString(pn.title) ?? '';
+    const content = safeString(pn.content) ?? '';
+    const userId = safeString(pn.userId) ?? '';
+    const isRead = Boolean(pn.isRead);
+    const entityId = safeString(pn.entityId);
+    const entityType =
+      typeof pn.entityType === 'string' &&
+      Object.values(NotificationEntityType).includes(
+        pn.entityType as NotificationEntityType,
+      )
+        ? (pn.entityType as NotificationEntityType)
+        : undefined;
+    const createdAt = safeDate(pn.createdAt);
+
     return NotificationEntity.fromPersistence({
-      id: prismaNotification.id,
-      type: prismaNotification.type as NotificationType,
-      title: prismaNotification.title,
-      content: prismaNotification.content,
-      userId: prismaNotification.userId,
-      isRead: prismaNotification.isRead,
-      entityId: prismaNotification.entityId,
-      entityType: prismaNotification.entityType as NotificationEntityType,
-      createdAt: prismaNotification.createdAt,
+      id,
+      type,
+      title,
+      content,
+      userId,
+      isRead,
+      entityId,
+      entityType,
+      createdAt,
     });
   }
 }

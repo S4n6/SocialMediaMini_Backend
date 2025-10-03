@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostEntity } from '../../domain/post.entity';
 import { PostFactory } from '../../domain/factories/post.factory';
-import { IPostDomainRepository } from '../../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../interfaces/post-repository.interface';
 import { CreatePostDto, PostResponseDto } from '../dto/post.dto';
 
 export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
@@ -14,7 +14,7 @@ export class CreatePostUseCase {
   constructor(
     private readonly postFactory: PostFactory,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(

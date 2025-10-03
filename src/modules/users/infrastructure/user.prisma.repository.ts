@@ -7,6 +7,8 @@ import {
   UserId,
   UserEmail,
   Username,
+  UserRole,
+  UserStatus,
 } from '../domain';
 
 /**
@@ -16,6 +18,42 @@ import {
 @Injectable()
 export class UserPrismaRepository implements IUserRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Helpers to safely coerce unknown Prisma results
+  private asRecord(v: unknown): Record<string, unknown> {
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  }
+
+  private safeString(v: unknown): string {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    try {
+      const json = JSON.stringify(v);
+      return json === undefined ? Object.prototype.toString.call(v) : json;
+    } catch {
+      return Object.prototype.toString.call(v);
+    }
+  }
+
+  private safeBool(v: unknown): boolean {
+    if (typeof v === 'boolean') return v;
+    if (v === 'true' || v === '1') return true;
+    if (v === 'false' || v === '0') return false;
+    return Boolean(v);
+  }
+
+  private safeDate(v: unknown): Date {
+    if (v instanceof Date) return v;
+    const s = this.safeString(v);
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+
+  private safeStringArray(v: unknown): string[] {
+    if (!Array.isArray(v)) return [];
+    return v.map((x) => this.safeString(x));
+  }
 
   async save(user: User): Promise<void> {
     const userData = this.mapToDataModel(user);
@@ -27,9 +65,10 @@ export class UserPrismaRepository implements IUserRepository {
     });
   }
 
-  async findById(id: UserId): Promise<User | null> {
+  async findById(id: UserId | string): Promise<User | null> {
+    const idValue = typeof id === 'string' ? id : id.getValue();
     const userData = await this.prisma.user.findUnique({
-      where: { id: id.getValue() },
+      where: { id: idValue },
       include: {
         followers: { select: { followerId: true } },
         following: { select: { followingId: true } },
@@ -43,9 +82,10 @@ export class UserPrismaRepository implements IUserRepository {
     return this.mapToDomainModel(userData);
   }
 
-  async findByEmail(email: UserEmail): Promise<User | null> {
+  async findByEmail(email: UserEmail | string): Promise<User | null> {
+    const emailValue = typeof email === 'string' ? email : email.getValue();
     const userData = await this.prisma.user.findUnique({
-      where: { email: email.getValue() },
+      where: { email: emailValue },
       include: {
         followers: { select: { followerId: true } },
         following: { select: { followingId: true } },
@@ -59,9 +99,11 @@ export class UserPrismaRepository implements IUserRepository {
     return this.mapToDomainModel(userData);
   }
 
-  async findByUsername(username: Username): Promise<User | null> {
+  async findByUsername(username: Username | string): Promise<User | null> {
+    const usernameValue =
+      typeof username === 'string' ? username : username.getValue();
     const userData = await this.prisma.user.findUnique({
-      where: { username: username.getValue() }, // Updated to use 'userName'
+      where: { username: usernameValue }, // Updated to use 'username'
       include: {
         followers: { select: { followerId: true } },
         following: { select: { followingId: true } },
@@ -91,16 +133,19 @@ export class UserPrismaRepository implements IUserRepository {
     return this.mapToDomainModel(userData);
   }
 
-  async existsByEmail(email: UserEmail): Promise<boolean> {
+  async existsByEmail(email: UserEmail | string): Promise<boolean> {
+    const emailValue = typeof email === 'string' ? email : email.getValue();
     const count = await this.prisma.user.count({
-      where: { email: email.getValue() },
+      where: { email: emailValue },
     });
     return count > 0;
   }
 
-  async existsByUsername(username: Username): Promise<boolean> {
+  async existsByUsername(username: Username | string): Promise<boolean> {
+    const usernameValue =
+      typeof username === 'string' ? username : username.getValue();
     const count = await this.prisma.user.count({
-      where: { username: username.getValue() }, // Updated to use 'username'
+      where: { username: usernameValue }, // Updated to use 'username'
     });
     return count > 0;
   }
@@ -304,31 +349,58 @@ export class UserPrismaRepository implements IUserRepository {
   }
 
   private mapToDomainModel(userData: any): User {
+    const row = this.asRecord(userData);
+
+    const profile = {
+      fullName: this.safeString(row.fullName),
+      bio: this.safeString(row.bio) || undefined,
+      avatar: this.safeString(row.avatar) || undefined,
+      location: this.safeString(row.location) || undefined,
+      websiteUrl: this.safeString(row.websiteUrl) || undefined,
+      dateOfBirth: this.safeDate(row.dateOfBirth),
+      phoneNumber: this.safeString(row.phoneNumber) || undefined,
+      gender: this.safeString(row.gender) || undefined,
+    };
+
+    const following = Array.isArray(row.following)
+      ? (row.following as unknown[]).map((f) =>
+          this.safeString(this.asRecord(f).followingId),
+        )
+      : [];
+
+    const followers = Array.isArray(row.followers)
+      ? (row.followers as unknown[]).map((f) =>
+          this.safeString(this.asRecord(f).followerId),
+        )
+      : [];
+
+    // Map role/status strings into enums with safe defaults
+    const roleStr = this.safeString(row.role);
+    const role = (Object.values(UserRole) as string[]).includes(roleStr)
+      ? (roleStr as UserRole)
+      : UserRole.USER;
+
+    const statusStr = this.safeString(row.status);
+    const status = (Object.values(UserStatus) as string[]).includes(statusStr)
+      ? (statusStr as UserStatus)
+      : UserStatus.ACTIVE;
+
     return UserFactory.reconstructUser({
-      id: userData.id,
-      username: userData.username, // Updated field name
-      email: userData.email,
-      passwordHash: userData.passwordHash, // Updated field name
-      googleId: userData.googleId,
-      role: userData.role,
-      status: userData.status, // New field
-      isEmailVerified: userData.isEmailVerified,
-      emailVerifiedAt: userData.emailVerifiedAt,
-      createdAt: userData.createdAt,
-      updatedAt: userData.updatedAt,
-      lastProfileUpdate: userData.lastProfileUpdate, // New field
-      profile: {
-        fullName: userData.fullName,
-        bio: userData.bio,
-        avatar: userData.avatar,
-        location: userData.location,
-        websiteUrl: userData.websiteUrl,
-        dateOfBirth: userData.dateOfBirth,
-        phoneNumber: userData.phoneNumber,
-        gender: userData.gender,
-      },
-      followingIds: userData.following?.map((f: any) => f.followingId) || [],
-      followerIds: userData.followers?.map((f: any) => f.followerId) || [],
+      id: this.safeString(row.id),
+      username: this.safeString(row.username),
+      email: this.safeString(row.email),
+      passwordHash: this.safeString(row.passwordHash) || undefined,
+      googleId: this.safeString(row.googleId) || undefined,
+      role,
+      status,
+      isEmailVerified: this.safeBool(row.isEmailVerified),
+      emailVerifiedAt: this.safeDate(row.emailVerifiedAt),
+      createdAt: this.safeDate(row.createdAt),
+      updatedAt: this.safeDate(row.updatedAt),
+      lastProfileUpdate: this.safeDate(row.lastProfileUpdate),
+      profile,
+      followingIds: following,
+      followerIds: followers,
     });
   }
 

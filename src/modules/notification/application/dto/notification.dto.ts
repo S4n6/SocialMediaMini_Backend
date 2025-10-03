@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsBoolean,
   IsUUID,
-  IsDateString,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NotificationType, NotificationEntityType } from '../../domain';

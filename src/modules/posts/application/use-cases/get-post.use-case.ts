@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostDomainRepository } from '../../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../interfaces/post-repository.interface';
 import {
   GetPostsQueryDto,
   PostResponseDto,
@@ -23,7 +23,7 @@ export class GetPostByIdUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(
@@ -100,7 +100,7 @@ export class GetPostsUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(
@@ -174,7 +174,7 @@ export class GetPostsUseCase {
 export class GetUserFeedUseCase {
   constructor(
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationResponseDto } from '../../application';
-import { NotificationType } from '../../domain';
 
 export interface RealTimeNotificationPayload {
   userId: string;
@@ -99,7 +98,7 @@ export class RealtimeNotificationService
     await this.sendInitialData(userId, socketId);
   }
 
-  async unsubscribeUser(userId: string, socketId: string): Promise<void> {
+  unsubscribeUser(userId: string, socketId: string): Promise<void> {
     const userSockets = this.userConnections.get(userId);
 
     if (userSockets) {
@@ -114,6 +113,9 @@ export class RealtimeNotificationService
         );
       }
     }
+
+    // Synchronous cleanup; return resolved promise to match signature
+    return Promise.resolve();
   }
 
   async broadcastUnreadCount(userId: string, count: number): Promise<boolean> {

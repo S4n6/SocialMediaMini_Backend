@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostDomainRepository } from '../../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../interfaces/post-repository.interface';
 import {
   CreateCommentDto,
   UpdateCommentDto,
@@ -22,7 +22,7 @@ export class AddCommentUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(
@@ -89,7 +89,7 @@ export class UpdateCommentUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(
@@ -152,7 +152,7 @@ export class DeleteCommentUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(

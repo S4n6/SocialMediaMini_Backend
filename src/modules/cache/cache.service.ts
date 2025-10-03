@@ -1,10 +1,29 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cache } from 'cache-manager';
+import * as zlib from 'zlib';
+import { promisify } from 'util';
+import {
+  CacheConfig,
+  CacheStats,
+  CacheEvent,
+  DEFAULT_CACHE_CONFIGS,
+  CacheConfigName,
+} from './cache.interfaces';
+
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 @Injectable()
 export class RedisCacheService {
   private readonly logger = new Logger(RedisCacheService.name);
+  private stats: CacheStats = {
+    hits: 0,
+    misses: 0,
+    hitRate: 0,
+    totalOperations: 0,
+    lastReset: new Date(),
+  };
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
@@ -32,7 +51,7 @@ export class RedisCacheService {
 
       return client;
     } catch (err) {
-      this.logger.error('Error accessing Redis client', err as any);
+      this.logger.error('Error accessing Redis client', err);
       return null;
     }
   }
@@ -60,38 +79,303 @@ export class RedisCacheService {
     }
   }
 
-  async get<T>(key: string): Promise<T | null> {
+  // Helper methods for configuration and serialization
+  getConfig(configName: CacheConfigName | string): CacheConfig {
+    if (typeof configName === 'string' && configName in DEFAULT_CACHE_CONFIGS) {
+      return DEFAULT_CACHE_CONFIGS[configName as CacheConfigName];
+    }
+    return { ttl: 300, serialize: true }; // Default config
+  }
+
+  private generateCacheKey(key: string, config: CacheConfig): string {
+    return config.prefix ? `${config.prefix}:${key}` : key;
+  }
+
+  private async serializeData(
+    data: any,
+    config: CacheConfig,
+  ): Promise<string | Buffer> {
+    if (!config.serialize) return data;
+
+    const serialized = JSON.stringify(data);
+
+    if (config.compress) {
+      try {
+        return await gzip(serialized);
+      } catch (error) {
+        this.logger.warn('Compression failed, using uncompressed data', error);
+        return serialized;
+      }
+    }
+
+    return serialized;
+  }
+
+  private async deserializeData<T>(data: any, config: CacheConfig): Promise<T> {
+    if (!config.serialize) return data as T;
+
     try {
-      const value = await this.cacheManager.get<T>(key);
-      return value ?? null;
+      let stringData: string;
+
+      if (config.compress && Buffer.isBuffer(data)) {
+        const decompressed = await gunzip(data);
+        stringData = decompressed.toString();
+      } else {
+        stringData = typeof data === 'string' ? data : JSON.stringify(data);
+      }
+
+      return JSON.parse(stringData);
+    } catch (error) {
+      this.logger.error('Failed to deserialize cache data', error);
+      return data as T;
+    }
+  }
+
+  private updateStats(isHit: boolean): void {
+    if (isHit) {
+      this.stats.hits++;
+    } else {
+      this.stats.misses++;
+    }
+    this.stats.totalOperations++;
+    this.stats.hitRate = (this.stats.hits / this.stats.totalOperations) * 100;
+  }
+
+  // Enhanced get method with config support
+  async get<T>(
+    key: string,
+    config?: CacheConfig | CacheConfigName,
+  ): Promise<T | null> {
+    try {
+      const cacheConfig =
+        typeof config === 'string'
+          ? this.getConfig(config)
+          : config || { ttl: 300 };
+      const fullKey = this.generateCacheKey(key, cacheConfig);
+
+      const value = await this.cacheManager.get(fullKey);
+
+      if (value !== null && value !== undefined) {
+        this.updateStats(true);
+        return await this.deserializeData<T>(value, cacheConfig);
+      }
+
+      this.updateStats(false);
+      return null;
     } catch (err) {
-      this.logger.error(`Error reading cache key=${key}`, err as any);
+      this.logger.error(`Error reading cache key=${key}`, err);
+      this.updateStats(false);
       return null;
     }
   }
 
-  async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+  // Enhanced set method with config support
+  async set<T>(
+    key: string,
+    value: T,
+    config?: CacheConfig | CacheConfigName | number,
+  ): Promise<void> {
     try {
-      // cache-manager.set expects a numeric TTL (seconds) as the third argument
-      await this.cacheManager.set(key, value, ttlSeconds ?? 50);
+      let cacheConfig: CacheConfig;
+
+      // Handle backward compatibility with old ttlSeconds parameter
+      if (typeof config === 'number') {
+        cacheConfig = { ttl: config, serialize: true };
+      } else if (typeof config === 'string') {
+        cacheConfig = this.getConfig(config);
+      } else {
+        cacheConfig = config || { ttl: 300, serialize: true };
+      }
+
+      const fullKey = this.generateCacheKey(key, cacheConfig);
+      const serializedValue = await this.serializeData(value, cacheConfig);
+
+      await this.cacheManager.set(
+        fullKey,
+        serializedValue,
+        cacheConfig.ttl ?? 300,
+      );
+
+      // Store tags for invalidation
+      if (cacheConfig.tags && cacheConfig.tags.length > 0) {
+        await this.addToTagIndex(cacheConfig.tags, fullKey);
+      }
     } catch (err) {
-      this.logger.error(`Error setting cache key=${key}`, err as any);
+      this.logger.error(`Error setting cache key=${key}`, err);
     }
   }
 
-  async del(key: string): Promise<void> {
+  // Helper methods for tag indexing
+  private async addToTagIndex(tags: string[], key: string): Promise<void> {
     try {
-      await this.cacheManager.del(key);
+      for (const tag of tags) {
+        const tagKey = `tag:${tag}`;
+        await this.cacheManager.set(`${tagKey}:${key}`, '1', 3600); // 1 hour for tag index
+      }
     } catch (err) {
-      this.logger.error(`Error deleting cache key=${key}`, err as any);
+      this.logger.warn('Failed to update tag index', err);
+    }
+  }
+
+  private async removeFromTagIndex(tags: string[], key: string): Promise<void> {
+    try {
+      for (const tag of tags) {
+        const tagKey = `tag:${tag}:${key}`;
+        await this.cacheManager.del(tagKey);
+      }
+    } catch (err) {
+      this.logger.warn('Failed to remove from tag index', err);
+    }
+  }
+
+  // Enhanced delete method
+  async del(
+    key: string,
+    config?: CacheConfig | CacheConfigName,
+  ): Promise<void> {
+    try {
+      const cacheConfig =
+        typeof config === 'string' ? this.getConfig(config) : config;
+      const fullKey = cacheConfig
+        ? this.generateCacheKey(key, cacheConfig)
+        : key;
+
+      await this.cacheManager.del(fullKey);
+
+      // Remove from tag index if tags exist
+      if (cacheConfig?.tags) {
+        await this.removeFromTagIndex(cacheConfig.tags, fullKey);
+      }
+    } catch (err) {
+      this.logger.error(`Error deleting cache key=${key}`, err);
+    }
+  }
+
+  // Pattern-based invalidation
+  async invalidateByPattern(pattern: string): Promise<void> {
+    try {
+      const client = this.getRedisClient();
+      if (!client) {
+        this.logger.warn('Redis client not available for pattern invalidation');
+        return;
+      }
+
+      // Use SCAN to find keys matching pattern
+      const keys: string[] = [];
+      let cursor = '0';
+
+      do {
+        const result = await client.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          1000,
+        );
+        cursor = result[0];
+        keys.push(...result[1]);
+      } while (cursor !== '0');
+
+      if (keys.length > 0) {
+        await client.del(...keys);
+        this.logger.debug(
+          `Invalidated ${keys.length} keys matching pattern: ${pattern}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(`Error invalidating pattern=${pattern}`, err);
+    }
+  }
+
+  // Tag-based invalidation
+  async invalidateByTag(tag: string): Promise<void> {
+    try {
+      await this.invalidateByPattern(`tag:${tag}:*`);
+    } catch (err) {
+      this.logger.error(`Error invalidating tag=${tag}`, err);
+    }
+  }
+
+  // Event-based invalidation
+  async invalidateByEvent(
+    event: CacheEvent,
+    data: Record<string, any>,
+  ): Promise<void> {
+    try {
+      switch (event) {
+        case CacheEvent.USER_UPDATED:
+          await this.invalidateByPattern(`user:profile:${data.userId}`);
+          await this.invalidateByPattern(`user:feed:${data.userId}:*`);
+          break;
+        case CacheEvent.POST_CREATED:
+        case CacheEvent.POST_UPDATED:
+          await this.invalidateByPattern(`user:feed:*`);
+          await this.invalidateByPattern(`post:list:*`);
+          break;
+        case CacheEvent.USER_DELETED:
+          await this.invalidateByPattern(`user:*:${data.userId}:*`);
+          await this.invalidateByPattern(`*:${data.userId}:*`);
+          break;
+        default:
+          this.logger.warn(`Unknown cache event: ${event}`);
+      }
+    } catch (err) {
+      this.logger.error(`Error handling cache event=${event}`, err);
+    }
+  }
+
+  // Multiple key operations
+  async mget<T>(
+    keys: string[],
+    config?: CacheConfig | CacheConfigName,
+  ): Promise<(T | null)[]> {
+    const promises = keys.map((key) => this.get<T>(key, config));
+    return Promise.all(promises);
+  }
+
+  async mset<T>(
+    keyValuePairs: Array<[string, T]>,
+    config?: CacheConfig | CacheConfigName,
+  ): Promise<void> {
+    const promises = keyValuePairs.map(([key, value]) =>
+      this.set(key, value, config),
+    );
+    await Promise.all(promises);
+  }
+
+  // Statistics and monitoring
+  getStats(): CacheStats {
+    return { ...this.stats };
+  }
+
+  resetStats(): void {
+    this.stats = {
+      hits: 0,
+      misses: 0,
+      hitRate: 0,
+      totalOperations: 0,
+      lastReset: new Date(),
+    };
+  }
+
+  async ping(): Promise<boolean> {
+    try {
+      await this.cacheManager.set('ping', 'pong', 1);
+      const result = await this.cacheManager.get('ping');
+      await this.cacheManager.del('ping');
+      return result === 'pong';
+    } catch (err) {
+      this.logger.error('Cache ping failed', err);
+      return false;
     }
   }
 
   async clear(): Promise<void> {
     try {
       await this.cacheManager.clear();
+      this.resetStats();
     } catch (err) {
-      this.logger.error('Error clearing cache', err as any);
+      this.logger.error('Error clearing cache', err);
     }
   }
 
@@ -113,7 +397,7 @@ export class RedisCacheService {
       this.logger.warn(`zAdd method not found on Redis client for key=${key}`);
       return 0;
     } catch (err) {
-      this.logger.error(`Error adding to sorted set key=${key}`, err as any);
+      this.logger.error(`Error adding to sorted set key=${key}`, err);
       return 0;
     }
   }
@@ -180,10 +464,7 @@ export class RedisCacheService {
 
       return [];
     } catch (err) {
-      this.logger.error(
-        `Error getting sorted set range key=${key}`,
-        err as any,
-      );
+      this.logger.error(`Error getting sorted set range key=${key}`, err);
       return [];
     }
   }
@@ -205,10 +486,7 @@ export class RedisCacheService {
       this.logger.warn(`zCard method not found on Redis client for key=${key}`);
       return 0;
     } catch (err) {
-      this.logger.error(
-        `Error getting sorted set count key=${key}`,
-        err as any,
-      );
+      this.logger.error(`Error getting sorted set count key=${key}`, err);
       return 0;
     }
   }
@@ -236,10 +514,7 @@ export class RedisCacheService {
       );
       return 0;
     } catch (err) {
-      this.logger.error(
-        `Error removing sorted set range key=${key}`,
-        err as any,
-      );
+      this.logger.error(`Error removing sorted set range key=${key}`, err);
       return 0;
     }
   }
@@ -261,10 +536,7 @@ export class RedisCacheService {
       this.logger.warn(`zRem method not found on Redis client for key=${key}`);
       return 0;
     } catch (err) {
-      this.logger.error(
-        `Error removing from sorted set key=${key}`,
-        err as any,
-      );
+      this.logger.error(`Error removing from sorted set key=${key}`, err);
       return 0;
     }
   }
@@ -288,10 +560,7 @@ export class RedisCacheService {
       );
       return null;
     } catch (err) {
-      this.logger.error(
-        `Error getting sorted set score key=${key}`,
-        err as any,
-      );
+      this.logger.error(`Error getting sorted set score key=${key}`, err);
       return null;
     }
   }
@@ -315,7 +584,7 @@ export class RedisCacheService {
       );
       return false;
     } catch (err) {
-      this.logger.error(`Error setting expiry for key=${key}`, err as any);
+      this.logger.error(`Error setting expiry for key=${key}`, err);
       return false;
     }
   }

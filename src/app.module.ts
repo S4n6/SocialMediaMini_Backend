@@ -4,7 +4,7 @@ import { UsersModule } from './modules/users/users.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PostMediasModule } from './modules/post-medias/postMedias.module';
-import { FriendsModule } from './modules/follow/follow.module';
+import { FollowsModule } from './modules/follow/follow.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { PostsModule } from './modules/posts/posts.module';
@@ -12,6 +12,7 @@ import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { SearchHistoryModule } from './modules/search-history/search-history.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 import {
   CorsMiddleware,
   RateLimitMiddleware,
@@ -21,26 +22,28 @@ import {
   SecurityHeadersMiddleware,
   FileUploadSecurityMiddleware,
   WebSocketSecurityMiddleware,
-} from './middlewares';
+} from './shared/middlewares';
+import { ErrorMonitoringService } from './shared/services/error-monitoring.service';
 
 @Module({
   imports: [
     UsersModule,
-    CommentsModule,
     AuthModule,
-    PostMediasModule,
-    FriendsModule,
-    ReactionsModule,
-    CloudinaryModule,
-    PostsModule,
+    // CommentsModule,
+    // PostMediasModule,
+    // FollowsModule,
+    // ReactionsModule,
+    // CloudinaryModule,
+    // PostsModule,
     MailerModule,
     RedisCacheModule,
     NotificationModule,
-    SearchHistoryModule,
+    // SearchHistoryModule,
+    // MessagingModule,
     PrismaModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [ErrorMonitoringService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

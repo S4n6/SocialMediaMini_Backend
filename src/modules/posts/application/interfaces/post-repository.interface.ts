@@ -1,16 +1,18 @@
 import { PostEntity } from '../../domain/post.entity';
-import {
-  GetPostsQueryDto,
-  PostListResponseDto,
-  PostResponseDto,
-} from '../dto/post.dto';
 
+/**
+ * Repository interface for Post aggregate
+ * This interface defines the contract for post persistence operations
+ * Used by application layer to abstract data access
+ */
 export interface IPostRepository {
-  // Create & Update
+  // Basic CRUD operations
   save(post: PostEntity): Promise<PostEntity>;
-
-  // Read operations
   findById(id: string): Promise<PostEntity | null>;
+  delete(id: string): Promise<void>;
+  exists(id: string): Promise<boolean>;
+
+  // Query operations
   findByAuthorId(
     authorId: string,
     page: number,
@@ -19,10 +21,20 @@ export interface IPostRepository {
     posts: PostEntity[];
     total: number;
   }>;
-  findAll(query: GetPostsQueryDto): Promise<{
+
+  findAll(filters: {
+    authorId?: string;
+    privacy?: string;
+    hashtag?: string;
+    search?: string;
+    page: number;
+    limit: number;
+    sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_commented';
+  }): Promise<{
     posts: PostEntity[];
     total: number;
   }>;
+
   findByHashtag(
     hashtag: string,
     page: number,
@@ -32,8 +44,33 @@ export interface IPostRepository {
     total: number;
   }>;
 
-  // Delete
-  delete(id: string): Promise<void>;
+  // Bulk operations
+  findByIds(ids: string[]): Promise<PostEntity[]>;
+
+  // Feed operations
+  getUserFeed(
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    posts: PostEntity[];
+    total: number;
+  }>;
+
+  getTrendingPosts(
+    page: number,
+    limit: number,
+  ): Promise<{
+    posts: PostEntity[];
+    total: number;
+  }>;
+
+  // Statistics
+  getPostStats(postId: string): Promise<{
+    likesCount: number;
+    commentsCount: number;
+    sharesCount: number;
+  }>;
 
   // Reactions
   addReaction(
@@ -55,33 +92,20 @@ export interface IPostRepository {
   removeComment(postId: string, commentId: string): Promise<void>;
   updateComment(commentId: string, content: string): Promise<void>;
 
-  // Statistics
-  getPostStats(postId: string): Promise<{
-    likesCount: number;
-    commentsCount: number;
-    sharesCount: number;
-  }>;
-
-  // Feed operations
-  getUserFeed(
-    userId: string,
+  // Search operations
+  searchPosts(
+    query: string,
+    filters: {
+      authorId?: string;
+      hashtag?: string;
+      privacy?: string;
+      dateFrom?: Date;
+      dateTo?: Date;
+    },
     page: number,
     limit: number,
   ): Promise<{
     posts: PostEntity[];
     total: number;
   }>;
-  getTrendingPosts(
-    page: number,
-    limit: number,
-  ): Promise<{
-    posts: PostEntity[];
-    total: number;
-  }>;
-
-  // Existence checks
-  exists(id: string): Promise<boolean>;
-
-  // Bulk operations
-  findByIds(ids: string[]): Promise<PostEntity[]>;
 }

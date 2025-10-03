@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
+import { IEventBus } from '../../shared/events/event-bus.interface';
+import { InMemoryEventBus } from '../../shared/events/in-memory-event-bus.service';
 
 // Clean Architecture imports
 import { UserApplicationService } from './application/user-application.service';
@@ -25,28 +27,31 @@ import { UsersController } from './presentation/users.controller';
 
 // Repository interface token
 export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
+export const EVENT_BUS_TOKEN = 'EVENT_BUS';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [UsersController],
+  controllers: [
+    // UsersController, // temporarily disabled
+  ],
   providers: [
     // Application Layer
-    UserApplicationService,
+    // UserApplicationService, // Temporarily disabled
 
     // Use Cases - User Management
-    CreateUserUseCase,
-    UpdateProfileUseCase,
-    VerifyEmailUseCase,
+    // CreateUserUseCase, // Temporarily disabled
+    // UpdateProfileUseCase,
+    // VerifyEmailUseCase,
 
     // Use Cases - Follow Management
-    FollowUserUseCase,
-    UnfollowUserUseCase,
+    // FollowUserUseCase,
+    // UnfollowUserUseCase,
 
     // Use Cases - User Queries
-    GetUserProfileUseCase,
-    SearchUsersUseCase,
-    GetUserFollowersUseCase,
-    GetUserFollowingUseCase,
+    // GetUserProfileUseCase,
+    // SearchUsersUseCase,
+    // GetUserFollowersUseCase,
+    // GetUserFollowingUseCase,
 
     // Domain Layer
     UserFactory,
@@ -57,12 +62,19 @@ export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
       provide: USER_REPOSITORY_TOKEN,
       useClass: UserPrismaRepository,
     },
+
+    // Event Bus
+    {
+      provide: EVENT_BUS_TOKEN,
+      useClass: InMemoryEventBus,
+    },
   ],
   exports: [
-    UserApplicationService,
-    USER_REPOSITORY_TOKEN,
-    UserFactory,
+    // UserApplicationService, // Temporarily disabled
+    USER_REPOSITORY_TOKEN, // Export for other modules to use
+    UserFactory, // Export for other modules to use
     UserDomainService,
+    EVENT_BUS_TOKEN, // Export event bus for other modules
   ],
 })
 export class UsersModule {}

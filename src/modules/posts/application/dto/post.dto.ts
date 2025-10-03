@@ -1,55 +1,35 @@
 import {
-  IsString,
-  IsOptional,
-  IsEnum,
   IsArray,
-  IsUUID,
-  ValidateNested,
-  IsNumber,
-  Min,
-  Max,
-  IsUrl,
+  IsEnum,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
   MaxLength,
+  Min,
+  ValidateNested,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
 import { PostPrivacy, ReactionType } from '../../domain/post.entity';
+import { Type } from 'class-transformer';
 
-// ===== CREATE POST DTOs =====
+// ===== USE CASE INPUT DTOs =====
+// These DTOs are used for use case inputs/outputs and business logic
+// No validation decorators - validation handled at presentation layer
 
 export class CreatePostMediaDto {
-  @IsString()
-  @IsUrl()
   url: string;
-
-  @IsEnum(['image', 'video'])
   type: 'image' | 'video';
-
-  @IsNumber()
-  @Min(0)
   order: number;
 }
 
 export class CreatePostDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000, { message: 'Post content cannot exceed 2000 characters' })
   content?: string;
-
-  @IsEnum(PostPrivacy)
-  @IsOptional()
-  privacy: PostPrivacy = PostPrivacy.PUBLIC;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreatePostMediaDto)
+  privacy: PostPrivacy;
   media?: CreatePostMediaDto[];
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
   hashtags?: string[];
+  authorId: string; // Added for use case context
 }
 
 // ===== UPDATE POST DTOs =====

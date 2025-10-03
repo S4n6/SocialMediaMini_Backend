@@ -210,25 +210,23 @@ export class PostApplicationService {
    * Enriches post response with additional user information
    * In a real implementation, this would fetch user data from UserApplicationService
    */
-  private async enrichPostResponse(
-    post: PostResponseDto,
-  ): Promise<PostResponseDto> {
+  private enrichPostResponse(post: PostResponseDto): Promise<PostResponseDto> {
     // TODO: Integrate with UserApplicationService to fetch user details
-    // For now, return the post as-is
-    return {
+    // For now, return the post as-is (wrapped in a resolved promise to keep callers consistent)
+    return Promise.resolve({
       ...post,
       author: {
         ...post.author,
         fullName: 'User ' + post.author.id.substring(0, 8), // Placeholder
         username: '@user' + post.author.id.substring(0, 4), // Placeholder
       },
-    };
+    });
   }
 
   /**
    * Enriches post detail response with additional user information
    */
-  private async enrichPostDetailResponse(
+  private enrichPostDetailResponse(
     post: PostDetailResponseDto,
   ): Promise<PostDetailResponseDto> {
     // TODO: Integrate with UserApplicationService to fetch user details
@@ -242,7 +240,7 @@ export class PostApplicationService {
       userFullName: 'User ' + reaction.userId.substring(0, 8), // Placeholder
     }));
 
-    return {
+    return Promise.resolve({
       ...post,
       author: {
         ...post.author,
@@ -251,19 +249,19 @@ export class PostApplicationService {
       },
       comments: enrichedComments,
       reactions: enrichedReactions,
-    };
+    });
   }
 
   /**
    * Enriches comment response with additional user information
    */
-  private async enrichCommentResponse(
+  private enrichCommentResponse(
     comment: PostCommentResponseDto,
   ): Promise<PostCommentResponseDto> {
     // TODO: Integrate with UserApplicationService to fetch user details
-    return {
+    return Promise.resolve({
       ...comment,
       authorFullName: 'User ' + comment.authorId.substring(0, 8), // Placeholder
-    };
+    });
   }
 }

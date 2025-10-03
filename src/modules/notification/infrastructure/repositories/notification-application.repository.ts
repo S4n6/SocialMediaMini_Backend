@@ -12,6 +12,8 @@ import {
   INotificationDomainRepository,
   NotificationDomainService,
   NotificationFactory,
+  NotificationType,
+  NotificationEntityType,
 } from '../../domain';
 
 export const NOTIFICATION_REPOSITORY_TOKEN = 'NOTIFICATION_REPOSITORY';
@@ -229,21 +231,66 @@ export class NotificationApplicationRepository
     );
   }
 
-  private mapToResponseDto(notification: any): NotificationResponseDto {
-    const priority = this.domainService.getNotificationPriority(
-      notification.type,
-    );
+  private mapToResponseDto(notification: unknown): NotificationResponseDto {
+    const asRecord = (v: unknown): Record<string, unknown> =>
+      v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+
+    const pn = asRecord(notification);
+
+    const safeStringify = (v: unknown): string => {
+      if (v === undefined || v === null) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+      try {
+        return JSON.stringify(v);
+      } catch {
+        return Object.prototype.toString.call(v);
+      }
+    };
+
+    const getString = (k: string) => safeStringify(pn[k]);
+
+    const getOptionalString = (k: string) => {
+      const v = pn[k];
+      if (v === undefined || v === null) return undefined;
+      return safeStringify(v);
+    };
+
+    const getDate = (k: string) => {
+      const v = pn[k];
+      if (v instanceof Date) return v;
+      if (typeof v === 'number') return new Date(v);
+      if (typeof v === 'string') {
+        const n = Number(v);
+        return Number.isFinite(n) ? new Date(n) : new Date(v);
+      }
+      return new Date();
+    };
+
+    const id = getString('id');
+    const type = getString('type') as unknown as NotificationType;
+    const title = getString('title');
+    const content = getString('content');
+    const userId = getString('userId');
+    const isRead = Boolean(pn.isRead);
+    const entityId = getOptionalString('entityId');
+    const entityType = pn.entityType
+      ? (safeStringify(pn.entityType) as unknown as NotificationEntityType)
+      : undefined;
+    const createdAt = getDate('createdAt');
+
+    const priority = this.domainService.getNotificationPriority(type);
 
     return {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      content: notification.content,
-      userId: notification.userId,
-      isRead: notification.isRead,
-      entityId: notification.entityId,
-      entityType: notification.entityType,
-      createdAt: notification.createdAt,
+      id,
+      type,
+      title,
+      content,
+      userId,
+      isRead,
+      entityId,
+      entityType,
+      createdAt,
       priority,
     };
   }

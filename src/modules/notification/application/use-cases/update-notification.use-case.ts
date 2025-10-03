@@ -66,21 +66,30 @@ export class UpdateNotificationUseCase {
     return this.mapToResponseDto(updatedNotification);
   }
 
-  private mapToResponseDto(notification: any): NotificationResponseDto {
+  private mapToResponseDto(notification: unknown): NotificationResponseDto {
+    const asRecord = (v: unknown): Record<string, any> =>
+      (v as Record<string, any>) || {};
+    const pn = asRecord(notification);
+    const getString = (k: string) => (typeof pn[k] === 'string' ? pn[k] : '');
+    const getBoolean = (k: string) =>
+      typeof pn[k] === 'boolean' ? pn[k] : false;
+    const getDate = (k: string) =>
+      pn[k] instanceof Date ? pn[k] : new Date(pn[k] ?? Date.now());
+
     const priority = this.notificationDomainService.getNotificationPriority(
-      notification.type,
+      pn.type,
     );
 
     return {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      content: notification.content,
-      userId: notification.userId,
-      isRead: notification.isRead,
-      entityId: notification.entityId,
-      entityType: notification.entityType,
-      createdAt: notification.createdAt,
+      id: getString('id'),
+      type: pn.type,
+      title: getString('title'),
+      content: getString('content'),
+      userId: getString('userId'),
+      isRead: getBoolean('isRead'),
+      entityId: getString('entityId'),
+      entityType: pn.entityType,
+      createdAt: getDate('createdAt'),
       priority,
     };
   }

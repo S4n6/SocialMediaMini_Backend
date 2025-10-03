@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostDomainRepository } from '../../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../interfaces/post-repository.interface';
 import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
 
 /**
@@ -16,7 +16,7 @@ export class DeletePostUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostDomainRepository,
+    private readonly postRepository: IPostRepository,
   ) {}
 
   async execute(

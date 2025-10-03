@@ -18,7 +18,7 @@ interface NotificationJobData {
   relatedEntityType?: string;
   title?: string;
   message?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -39,34 +39,69 @@ export class NotificationProcessor extends WorkerHost {
     super();
   }
 
+  // small helpers to safely coerce job payloads coming from external producers
+  private asRecord(v: unknown): Record<string, unknown> {
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  }
+
+  private getString(record: Record<string, unknown>, k: string): string {
+    const v = record[k];
+    return typeof v === 'string' ? v : '';
+  }
+
+  private getBoolean(record: Record<string, unknown>, k: string): boolean {
+    const v = record[k];
+    return typeof v === 'boolean' ? v : false;
+  }
+
   async process(job: Job<NotificationJobData, any, string>): Promise<any> {
     this.logger.log(
       `[Job ${job.id}] Started processing job with name: ${job.name}`,
     );
 
     try {
-      const jobData = job.data;
+      const jobData = this.asRecord(job.data);
 
-      const jobId = job.id || 'unknown';
+      const jobId = job.id ?? 'unknown';
 
       switch (job.name) {
         case 'create-notification':
-          await this.processCreateNotification(jobId, jobData);
+          await this.processCreateNotification(
+            jobId,
+            jobData as unknown as NotificationJobData,
+          );
           break;
         case 'reaction-notification':
-          await this.processReactionNotification(jobId, jobData);
+          await this.processReactionNotification(
+            jobId,
+            jobData as unknown as NotificationJobData,
+          );
           break;
         case 'follow-notification':
-          await this.processFollowNotification(jobId, jobData);
+          await this.processFollowNotification(
+            jobId,
+            jobData as unknown as NotificationJobData,
+          );
           break;
         case 'comment-notification':
-          await this.processCommentNotification(jobId, jobData);
+          await this.processCommentNotification(
+            jobId,
+            jobData as unknown as NotificationJobData,
+          );
           break;
         case 'message-notification':
-          await this.processMessageNotification(jobId, jobData);
+          await this.processMessageNotification(
+            jobId,
+            jobData as unknown as NotificationJobData,
+          );
           break;
         case 'bulk-notification':
-          await this.processBulkNotification(jobId, jobData);
+          await this.processBulkNotification(
+            jobId,
+            jobData as unknown as NotificationJobData & {
+              targetUserIds?: string[];
+            },
+          );
           break;
         default:
           this.logger.warn(`[Job ${jobId}] Unknown job name: ${job.name}`);
@@ -75,9 +110,10 @@ export class NotificationProcessor extends WorkerHost {
 
       this.logger.log(`[Job ${job.id}] Successfully processed`);
     } catch (error) {
+      const ex = error as unknown as { message?: string; stack?: string };
       this.logger.error(
-        `[Job ${job.id}] Failed with error: ${error.message}`,
-        error.stack,
+        `[Job ${job.id}] Failed with error: ${ex.message ?? 'unknown'}`,
+        ex.stack,
       );
       // Ném lỗi để BullMQ có thể thử lại job nếu cần
       throw error;

@@ -1,10 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { INotificationDomainRepository } from '../../domain/repositories/notification-domain-repository.interface';
 import { NotificationDomainService } from '../../domain/services/notification-domain.service';
-import {
-  NotificationNotFoundException,
-  UnauthorizedNotificationAccessException,
-} from '../../domain/notification.exceptions';
+import { NotificationNotFoundException } from '../../domain/notification.exceptions';
 import { NOTIFICATION_REPOSITORY_TOKEN } from './create-notification.use-case';
 
 /**

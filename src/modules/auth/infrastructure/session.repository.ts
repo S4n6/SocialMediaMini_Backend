@@ -1,206 +1,209 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { ISessionRepository } from '../domain/repositories';
-import {
-  AuthSession,
-  AuthSessionCreationData,
-  AuthSessionUpdateData,
-} from '../domain/entities';
+import { JWT } from 'src/config/jwt.config';
+import * as crypto from 'crypto';
 
 @Injectable()
-export class SessionRepository implements ISessionRepository {
+export class SessionService {
   constructor(private prisma: PrismaService) {}
 
+  // ===== SESSION GENERATION =====
+
+  generateSessionId(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  generateRefreshToken(sessionId: string): string {
+    const payload = { sessionId, timestamp: Date.now() };
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+  }
+
+  // ===== SESSION CRUD =====
+
   async createSession(
-    sessionData: AuthSessionCreationData,
-  ): Promise<AuthSession> {
-    const session = await this.prisma.session.create({
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<string> {
+    const sessionId = this.generateSessionId();
+
+    // Calculate expiry date from JWT config
+    const expiresAt = new Date();
+    const expiryTime = JWT.REFRESH_EXPIRES_IN;
+
+    if (expiryTime.endsWith('d')) {
+      expiresAt.setDate(expiresAt.getDate() + parseInt(expiryTime));
+    } else if (expiryTime.endsWith('h')) {
+      expiresAt.setHours(expiresAt.getHours() + parseInt(expiryTime));
+    } else {
+      expiresAt.setDate(expiresAt.getDate() + 7);
+    }
+
+    await this.prisma.session.create({
       data: {
-        sessionId: sessionData.sessionId,
-        userId: sessionData.userId,
-        ipAddress: sessionData.ipAddress,
-        userAgent: sessionData.userAgent,
-        expiresAt: sessionData.expiresAt,
-        isRevoked: false,
-      },
-    });
-
-    return this.mapPrismaSessionToEntity(session, sessionData.refreshToken);
-  }
-
-  async findSessionById(id: string): Promise<AuthSession | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { id },
-    });
-
-    return session ? this.mapPrismaSessionToEntity(session) : null;
-  }
-
-  async findSessionBySessionId(sessionId: string): Promise<AuthSession | null> {
-    const session = await this.prisma.session.findUnique({
-      where: { sessionId },
-    });
-
-    return session ? this.mapPrismaSessionToEntity(session) : null;
-  }
-
-  async findSessionByRefreshToken(
-    refreshToken: string,
-  ): Promise<AuthSession | null> {
-    // Note: refreshToken not in schema - would need alternative storage (Redis/separate table)
-    // For now, return null as we can't query by refreshToken
-    console.log(
-      `Finding session by refresh token: ${refreshToken} - not implemented due to schema limitations`,
-    );
-    return null;
-  }
-
-  async findUserSessions(userId: string): Promise<AuthSession[]> {
-    const sessions = await this.prisma.session.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return sessions.map((session) => this.mapPrismaSessionToEntity(session));
-  }
-
-  async findActiveUserSessions(userId: string): Promise<AuthSession[]> {
-    const sessions = await this.prisma.session.findMany({
-      where: {
+        sessionId,
         userId,
-        isRevoked: false,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return sessions.map((session) => this.mapPrismaSessionToEntity(session));
-  }
-
-  async updateSession(
-    id: string,
-    sessionData: AuthSessionUpdateData,
-  ): Promise<AuthSession> {
-    const session = await this.prisma.session.update({
-      where: { id },
-      data: {
-        isRevoked: sessionData.isRevoked,
-        // Note: revokedAt not in schema
+        expiresAt,
+        userAgent,
+        ipAddress,
       },
     });
 
-    return this.mapPrismaSessionToEntity(session);
+    return this.generateRefreshToken(sessionId);
   }
 
-  async revokeSession(sessionId: string): Promise<void> {
+  async getSessionFromRefreshToken(
+    refreshToken: string,
+  ): Promise<{ sessionId: string; id: string }> {
+    try {
+      const tokenPayload = JSON.parse(
+        Buffer.from(refreshToken, 'base64').toString(),
+      );
+      const { sessionId } = tokenPayload;
+
+      if (!sessionId) {
+        throw new UnauthorizedException('Invalid refresh token format');
+      }
+
+      const session = await this.prisma.session.findUnique({
+        where: { sessionId },
+        select: { id: true, sessionId: true },
+      });
+
+      if (!session) {
+        throw new UnauthorizedException('Session not found');
+      }
+
+      return session;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async verifyAndUpdateSession(
+    refreshToken: string,
+  ): Promise<{ userId: string; email: string }> {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      const tokenPayload = JSON.parse(
+        Buffer.from(refreshToken, 'base64').toString(),
+      );
+      const { sessionId } = tokenPayload;
+
+      if (!sessionId) {
+        throw new UnauthorizedException('Invalid refresh token format');
+      }
+
+      const session = await this.prisma.session.findUnique({
+        where: { sessionId },
+        include: { user: true },
+      });
+
+      if (!session) {
+        throw new UnauthorizedException(
+          'Session not found. Please log in again.',
+        );
+      }
+
+      if (session.isRevoked) {
+        throw new UnauthorizedException(
+          'Session has been revoked. Please log in again.',
+        );
+      }
+
+      if (session.expiresAt < new Date()) {
+        await this.deleteSession(session.sessionId);
+        throw new UnauthorizedException(
+          'Session has expired. Please log in again.',
+        );
+      }
+
+      // Update last used timestamp
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { lastUsedAt: new Date() },
+      });
+
+      return {
+        userId: session.userId,
+        email: session.user.email,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException(
+        'Invalid refresh token. Please log in again.',
+      );
+    }
+  }
+
+  async rotateRefreshToken(sessionId: string): Promise<string> {
+    const newRefreshToken = this.generateRefreshToken(sessionId);
+
+    const expiresAt = new Date();
+    const expiryTime = JWT.REFRESH_EXPIRES_IN;
+
+    if (expiryTime.endsWith('d')) {
+      expiresAt.setDate(expiresAt.getDate() + parseInt(expiryTime));
+    } else if (expiryTime.endsWith('h')) {
+      expiresAt.setHours(expiresAt.getHours() + parseInt(expiryTime));
+    } else {
+      expiresAt.setDate(expiresAt.getDate() + 7);
+    }
+
     await this.prisma.session.update({
       where: { sessionId },
       data: {
-        isRevoked: true,
-        // Note: revokedAt not in schema
+        lastUsedAt: new Date(),
+        expiresAt: expiresAt,
       },
+    });
+
+    return newRefreshToken;
+  }
+
+  // ===== SESSION DELETION =====
+
+  async deleteSession(refreshTokenOrSessionId: string): Promise<void> {
+    try {
+      // Try to parse as refresh token first
+      const tokenPayload = JSON.parse(
+        Buffer.from(refreshTokenOrSessionId, 'base64').toString(),
+      );
+      const { sessionId } = tokenPayload;
+
+      if (sessionId) {
+        await this.prisma.session.deleteMany({
+          where: { sessionId, isRevoked: false },
+        });
+      }
+    } catch (error) {
+      // If parsing fails, treat as sessionId directly
+      await this.prisma.session.deleteMany({
+        where: { sessionId: refreshTokenOrSessionId, isRevoked: false },
+      });
+    }
+  }
+
+  async deleteAllUserSessions(userId: string): Promise<void> {
+    await this.prisma.session.deleteMany({
+      where: { userId, isRevoked: false },
     });
   }
 
-  async revokeUserSessions(
-    userId: string,
-    sessionIds: string[],
-  ): Promise<number> {
-    const result = await this.prisma.session.updateMany({
+  async deleteSessions(userId: string, sessionIds: string[]) {
+    const deleteResult = await this.prisma.session.deleteMany({
       where: {
         userId,
         sessionId: { in: sessionIds },
-      },
-      data: {
-        isRevoked: true,
-        // Note: revokedAt not in schema
-      },
-    });
-
-    return result.count;
-  }
-
-  async revokeAllUserSessions(userId: string): Promise<number> {
-    const result = await this.prisma.session.updateMany({
-      where: {
-        userId,
         isRevoked: false,
       },
-      data: {
-        isRevoked: true,
-        // Note: revokedAt not in schema
-      },
     });
 
-    return result.count;
-  }
-
-  async deleteExpiredSessions(): Promise<number> {
-    const result = await this.prisma.session.deleteMany({
-      where: {
-        OR: [{ expiresAt: { lt: new Date() } }, { isRevoked: true }],
-      },
-    });
-
-    return result.count;
-  }
-
-  async deleteUserSessions(
-    userId: string,
-    sessionIds: string[],
-  ): Promise<number> {
-    const result = await this.prisma.session.deleteMany({
-      where: {
-        userId,
-        sessionId: { in: sessionIds },
-      },
-    });
-
-    return result.count;
-  }
-
-  async isSessionValid(sessionId: string): Promise<boolean> {
-    const session = await this.prisma.session.findUnique({
-      where: { sessionId },
-      select: {
-        isRevoked: true,
-        expiresAt: true,
-      },
-    });
-
-    if (!session) return false;
-    if (session.isRevoked) return false;
-    if (session.expiresAt < new Date()) return false;
-
-    return true;
-  }
-
-  async isRefreshTokenValid(refreshToken: string): Promise<boolean> {
-    // Note: refreshToken not in schema - would need alternative storage
-    // For now, always return false as we can't validate refresh tokens
-    console.log(
-      `Validating refresh token: ${refreshToken} - not implemented due to schema limitations`,
-    );
-    return false;
-  }
-
-  private mapPrismaSessionToEntity(
-    session: any,
-    refreshToken?: string,
-  ): AuthSession {
-    return {
-      id: session.id,
-      sessionId: session.sessionId,
-      userId: session.userId,
-      refreshToken: refreshToken || '', // Use provided refreshToken or empty string
-      ipAddress: session.ipAddress,
-      userAgent: session.userAgent,
-      isRevoked: session.isRevoked,
-      createdAt: session.createdAt,
-      expiresAt: session.expiresAt,
-      revokedAt: session.isRevoked ? session.createdAt : undefined, // Fallback for revokedAt
-    };
+    return { revokedCount: deleteResult.count };
   }
 }

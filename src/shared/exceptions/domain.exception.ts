@@ -113,3 +113,142 @@ export class ForbiddenException extends DomainException {
     super(message, code, 403);
   }
 }
+
+/**
+ * Exception thrown when external service fails
+ */
+export class ExternalServiceException extends DomainException {
+  public readonly service: string;
+  public readonly operation?: string;
+
+  constructor(
+    service: string,
+    message: string,
+    operation?: string,
+    code: string = 'EXTERNAL_SERVICE_ERROR',
+  ) {
+    super(message, code, 502);
+    this.service = service;
+    this.operation = operation;
+  }
+
+  public getDetails(): Record<string, any> {
+    return {
+      ...super.getDetails(),
+      service: this.service,
+      operation: this.operation,
+    };
+  }
+}
+
+/**
+ * Exception thrown when database operation fails
+ */
+export class DatabaseException extends DomainException {
+  public readonly operation: string;
+  public readonly table?: string;
+
+  constructor(
+    operation: string,
+    message: string,
+    table?: string,
+    code: string = 'DATABASE_ERROR',
+  ) {
+    super(message, code, 500);
+    this.operation = operation;
+    this.table = table;
+  }
+
+  public getDetails(): Record<string, any> {
+    return {
+      ...super.getDetails(),
+      operation: this.operation,
+      table: this.table,
+    };
+  }
+}
+
+/**
+ * Exception thrown when rate limit is exceeded
+ */
+export class RateLimitException extends DomainException {
+  public readonly limit: number;
+  public readonly windowMs: number;
+  public readonly resetTime?: Date;
+
+  constructor(
+    limit: number,
+    windowMs: number,
+    resetTime?: Date,
+    message: string = 'Rate limit exceeded',
+    code: string = 'RATE_LIMIT_EXCEEDED',
+  ) {
+    super(message, code, 429);
+    this.limit = limit;
+    this.windowMs = windowMs;
+    this.resetTime = resetTime;
+  }
+
+  public getDetails(): Record<string, any> {
+    return {
+      ...super.getDetails(),
+      limit: this.limit,
+      windowMs: this.windowMs,
+      resetTime: this.resetTime?.toISOString(),
+    };
+  }
+}
+
+/**
+ * Exception thrown when configuration is invalid
+ */
+export class ConfigurationException extends DomainException {
+  public readonly configKey: string;
+
+  constructor(
+    configKey: string,
+    message: string,
+    code: string = 'CONFIGURATION_ERROR',
+  ) {
+    super(message, code, 500);
+    this.configKey = configKey;
+  }
+
+  public getDetails(): Record<string, any> {
+    return {
+      ...super.getDetails(),
+      configKey: this.configKey,
+    };
+  }
+}
+
+/**
+ * Exception thrown when file operation fails
+ */
+export class FileOperationException extends DomainException {
+  public readonly operation: string;
+  public readonly fileName?: string;
+  public readonly fileSize?: number;
+
+  constructor(
+    operation: string,
+    message: string,
+    fileName?: string,
+    fileSize?: number,
+    code: string = 'FILE_OPERATION_ERROR',
+  ) {
+    super(message, code, 400);
+    this.operation = operation;
+    this.fileName = fileName;
+    this.fileSize = fileSize;
+  }
+
+  public getDetails(): Record<string, any> {
+    return {
+      ...super.getDetails(),
+      operation: this.operation,
+      fileName: this.fileName,
+      fileSize: this.fileSize,
+    };
+  }
+}

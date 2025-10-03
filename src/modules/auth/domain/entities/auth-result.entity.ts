@@ -14,7 +14,7 @@ export interface LoginResult extends AuthResult {
   user: {
     id: string;
     email: string;
-    userName: string;
+    username: string;
     fullName: string;
     avatar?: string;
     role: string;
@@ -30,8 +30,13 @@ export interface RegisterResult {
   user?: {
     id: string;
     email: string;
-    userName: string;
+    username: string;
     fullName: string;
+    avatar?: string;
+    role: string;
+    isEmailVerified: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
   };
 }
 

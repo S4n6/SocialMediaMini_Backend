@@ -61,6 +61,10 @@ export class CreateUserDto {
   @IsString()
   @IsIn(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'])
   gender?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }
 
 /**

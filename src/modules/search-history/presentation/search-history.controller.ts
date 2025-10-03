@@ -14,14 +14,14 @@ import {
   ApiTags,
   ApiParam,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../../../guards/jwt.guard';
-import { CurrentUser } from '../../../decorators/currentUser.decorator';
+import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
+import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
 import { SearchHistoryApplicationService } from '../application/search-history-application.service';
 import {
   AddSearchEntryDto,
   SearchHistoryResponseDto,
 } from '../application/dto/search-history.dto';
-import { ApiResponse as ApiResponseInterface } from '../../../common/interfaces/api-response.interface';
+import { ApiResponse as ApiResponseInterface } from '../../../shared/common/interfaces/api-response.interface';
 
 @ApiTags('Search History')
 @ApiBearerAuth()

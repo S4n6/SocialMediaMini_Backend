@@ -1,7 +1,7 @@
 export interface AuthUser {
   id: string;
   email: string;
-  userName: string;
+  username: string;
   fullName: string;
   password?: string;
   avatar?: string;
@@ -13,7 +13,7 @@ export interface AuthUser {
 }
 
 export interface AuthUserCreationData {
-  userName: string;
+  username: string;
   email: string;
   fullName: string;
   password?: string;
@@ -24,7 +24,7 @@ export interface AuthUserCreationData {
 }
 
 export interface AuthUserUpdateData {
-  userName?: string;
+  username?: string;
   email?: string;
   fullName?: string;
   password?: string;

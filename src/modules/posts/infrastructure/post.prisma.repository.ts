@@ -2,14 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { PostEntity, PostPrivacy, ReactionType } from '../domain/post.entity';
 import { PostFactory } from '../domain/factories/post.factory';
-import { IPostDomainRepository } from '../domain/repositories/post-domain-repository.interface';
+import { IPostRepository } from '../application/interfaces/post-repository.interface';
 
 /**
  * Prisma implementation of Post repository
  * Handles persistence operations using Prisma ORM
  */
 @Injectable()
-export class PostPrismaRepository implements IPostDomainRepository {
+export class PostPrismaRepository implements IPostRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly postFactory: PostFactory,
@@ -509,6 +509,7 @@ export class PostPrismaRepository implements IPostDomainRepository {
   async getPostStats(postId: string): Promise<{
     likesCount: number;
     commentsCount: number;
+    sharesCount: number;
   }> {
     const stats = await this.prisma.post.findUnique({
       where: { id: postId },
@@ -525,38 +526,343 @@ export class PostPrismaRepository implements IPostDomainRepository {
     return {
       likesCount: stats?._count.reactions || 0,
       commentsCount: stats?._count.comments || 0,
+      sharesCount: 0, // TODO: Implement shares feature
     };
   }
 
   private mapToEntity(data: any): PostEntity {
+    // Local helpers to coerce unknown prisma results into safe primitives
+    const asRecord = (v: unknown): Record<string, unknown> =>
+      v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+
+    const safeString = (v: unknown): string => {
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+      // For objects/arrays avoid default [object Object] stringification
+      try {
+        const json = JSON.stringify(v);
+        return json === undefined ? Object.prototype.toString.call(v) : json;
+      } catch {
+        return Object.prototype.toString.call(v);
+      }
+    };
+
+    const safeDate = (v: unknown): Date => {
+      if (v instanceof Date) return v;
+      const s = safeString(v);
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? new Date() : d;
+    };
+
+    const row = asRecord(data);
+
+    const hashtags = Array.isArray(row.hashtags)
+      ? row.hashtags
+          .map((h) => asRecord(h).hashtag)
+          .map((hh) => safeString(asRecord(hh).name))
+      : [];
+
+    const media = Array.isArray(row.postMedia)
+      ? row.postMedia.map((m) => {
+          const rr = asRecord(m);
+          return {
+            id: safeString(rr.id),
+            url: safeString(rr.url),
+            type: safeString(rr.type) as 'image' | 'video',
+            order: Number(rr.order) || 0,
+          };
+        })
+      : [];
+
+    const reactions = Array.isArray(row.reactions)
+      ? row.reactions.map((r) => {
+          const rr = asRecord(r);
+          return {
+            id: safeString(rr.id),
+            userId: safeString(rr.reactorId),
+            type: safeString(rr.type) as ReactionType,
+            createdAt: safeDate(rr.createdAt),
+          };
+        })
+      : [];
+
+    const comments = Array.isArray(row.comments)
+      ? row.comments.map((c) => {
+          const rc = asRecord(c);
+          return {
+            id: safeString(rc.id),
+            content: safeString(rc.content),
+            authorId: safeString(rc.authorId),
+            parentId: safeString(rc.parentId),
+            createdAt: safeDate(rc.createdAt),
+            updatedAt: safeDate(rc.updatedAt),
+          };
+        })
+      : [];
+
     return this.postFactory.reconstitute({
-      id: data.id,
-      content: data.content,
-      authorId: data.authorId,
-      privacy: data.privacy as PostPrivacy,
-      hashtags: data.hashtags.map((h: any) => h.hashtag.name),
-      media: data.postMedia.map((m: any) => ({
-        id: m.id,
-        url: m.url,
-        type: m.type as 'image' | 'video',
-        order: m.order,
-      })),
-      reactions: data.reactions.map((r: any) => ({
-        id: r.id,
-        userId: r.reactorId,
-        type: r.type as ReactionType,
-        createdAt: r.createdAt,
-      })),
-      comments: data.comments.map((c: any) => ({
-        id: c.id,
-        content: c.content,
-        authorId: c.authorId,
-        parentId: c.parentId,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-      })),
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt,
+      id: safeString(row.id),
+      content: safeString(row.content),
+      authorId: safeString(row.authorId),
+      privacy: safeString(row.privacy) as PostPrivacy,
+      hashtags,
+      media,
+      reactions,
+      comments,
+      createdAt: safeDate(row.createdAt),
+      updatedAt: safeDate(row.updatedAt),
     });
+  }
+
+  // Missing methods implementation
+  async findByHashtag(
+    hashtag: string,
+    page: number,
+    limit: number,
+  ): Promise<{
+    posts: PostEntity[];
+    total: number;
+  }> {
+    const offset = (page - 1) * limit;
+
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where: {
+          hashtags: {
+            some: {
+              hashtag: {
+                name: hashtag,
+              },
+            },
+          },
+          privacy: PostPrivacy.PUBLIC,
+        },
+        skip: offset,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          author: true,
+          postMedia: true,
+          reactions: {
+            include: {
+              reactor: true,
+            },
+          },
+          comments: {
+            include: {
+              author: true,
+              replies: {
+                include: {
+                  author: true,
+                },
+              },
+            },
+          },
+          hashtags: {
+            include: {
+              hashtag: true,
+            },
+          },
+        },
+      }),
+      this.prisma.post.count({
+        where: {
+          hashtags: {
+            some: {
+              hashtag: {
+                name: hashtag,
+              },
+            },
+          },
+          privacy: PostPrivacy.PUBLIC,
+        },
+      }),
+    ]);
+
+    return {
+      posts: posts.map((post) => this.mapToEntity(post)),
+      total,
+    };
+  }
+
+  async addReaction(
+    postId: string,
+    userId: string,
+    reactionType: string,
+  ): Promise<void> {
+    await this.prisma.reaction.upsert({
+      where: {
+        reactorId_postId: {
+          reactorId: userId,
+          postId,
+        },
+      },
+      update: {
+        type: reactionType as ReactionType,
+      },
+      create: {
+        reactorId: userId,
+        postId,
+        type: reactionType as ReactionType,
+      },
+    });
+  }
+
+  async removeReaction(postId: string, userId: string): Promise<void> {
+    await this.prisma.reaction.deleteMany({
+      where: {
+        postId,
+        reactorId: userId,
+      },
+    });
+  }
+
+  async getUserReaction(
+    postId: string,
+    userId: string,
+  ): Promise<string | null> {
+    const reaction = await this.prisma.reaction.findFirst({
+      where: {
+        postId,
+        reactorId: userId,
+      },
+    });
+
+    return reaction?.type || null;
+  }
+
+  async addComment(
+    postId: string,
+    commentId: string,
+    content: string,
+    authorId: string,
+    parentId?: string,
+  ): Promise<void> {
+    await this.prisma.comment.create({
+      data: {
+        id: commentId,
+        content,
+        postId,
+        authorId,
+        parentId,
+      },
+    });
+  }
+
+  async removeComment(postId: string, commentId: string): Promise<void> {
+    await this.prisma.comment.delete({
+      where: {
+        id: commentId,
+        postId,
+      },
+    });
+  }
+
+  async updateComment(commentId: string, content: string): Promise<void> {
+    await this.prisma.comment.update({
+      where: {
+        id: commentId,
+      },
+      data: {
+        content,
+      },
+    });
+  }
+
+  async searchPosts(
+    query: string,
+    filters: {
+      authorId?: string;
+      hashtag?: string;
+      privacy?: string;
+      dateFrom?: Date;
+      dateTo?: Date;
+    },
+    page: number,
+    limit: number,
+  ): Promise<{
+    posts: PostEntity[];
+    total: number;
+  }> {
+    const offset = (page - 1) * limit;
+    const where: any = {
+      OR: [
+        {
+          content: {
+            contains: query,
+            mode: 'insensitive',
+          },
+        },
+        {
+          hashtags: {
+            hasSome: query.split(' '),
+          },
+        },
+      ],
+    };
+
+    if (filters.authorId) {
+      where.authorId = filters.authorId;
+    }
+
+    if (filters.hashtag) {
+      where.hashtags = {
+        has: filters.hashtag,
+      };
+    }
+
+    if (filters.privacy) {
+      where.privacy = filters.privacy as PostPrivacy;
+    }
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.createdAt = {};
+      if (filters.dateFrom) {
+        where.createdAt.gte = filters.dateFrom;
+      }
+      if (filters.dateTo) {
+        where.createdAt.lte = filters.dateTo;
+      }
+    }
+
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        skip: offset,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          author: true,
+          postMedia: true,
+          reactions: {
+            include: {
+              reactor: true,
+            },
+          },
+          comments: {
+            include: {
+              author: true,
+              replies: {
+                include: {
+                  author: true,
+                },
+              },
+            },
+          },
+          hashtags: {
+            include: {
+              hashtag: true,
+            },
+          },
+        },
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+
+    return {
+      posts: posts.map((post) => this.mapToEntity(post)),
+      total,
+    };
   }
 }

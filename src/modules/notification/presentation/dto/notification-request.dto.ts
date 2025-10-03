@@ -82,7 +82,7 @@ export class CreateNotificationRequestDto {
     example: { postTitle: 'My first post' },
   })
   @IsOptional()
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class UpdateNotificationRequestDto {

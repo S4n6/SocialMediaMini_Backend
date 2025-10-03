@@ -17,12 +17,9 @@ export class UserRegisteredEventHandler
 {
   private readonly logger = new Logger(UserRegisteredEventHandler.name);
 
-  constructor() // Inject notification service, email service, etc.
-  // private readonly notificationService: INotificationService,
-  // private readonly emailService: IEmailService,
-  {}
+  constructor() {} // private readonly emailService: IEmailService, // private readonly notificationService: INotificationService, // Inject notification service, email service, etc.
 
-  async handle(event: UserRegisteredEvent): Promise<void> {
+  handle(event: UserRegisteredEvent): Promise<void> {
     this.logger.log(`Handling UserRegisteredEvent for user: ${event.userId}`);
 
     try {
@@ -52,6 +49,8 @@ export class UserRegisteredEventHandler
       );
       // In production, you might want to queue for retry
     }
+
+    return Promise.resolve();
   }
 }
 
@@ -65,11 +64,9 @@ export class UserFollowedEventHandler
 {
   private readonly logger = new Logger(UserFollowedEventHandler.name);
 
-  constructor() // private readonly notificationService: INotificationService,
-  // private readonly userRepository: IUserRepository,
-  {}
+  constructor() {} // private readonly userRepository: IUserRepository, // private readonly notificationService: INotificationService,
 
-  async handle(event: UserFollowedEvent): Promise<void> {
+  handle(event: UserFollowedEvent): Promise<void> {
     this.logger.log(
       `Handling UserFollowedEvent: ${event.followerId} -> ${event.followeeId}`,
     );
@@ -80,7 +77,7 @@ export class UserFollowedEventHandler
       // if (!follower) return;
 
       // Create notification for the followed user
-      // await this.notificationService.createNotification({
+      // await this.notification_service.createNotification({
       //   userId: event.followeeId,
       //   type: NotificationType.NEW_FOLLOWER,
       //   title: 'New Follower',
@@ -100,6 +97,8 @@ export class UserFollowedEventHandler
     } catch (error) {
       this.logger.error(`Failed to handle UserFollowedEvent`, error);
     }
+
+    return Promise.resolve();
   }
 }
 
@@ -113,11 +112,9 @@ export class UserProfileUpdatedEventHandler
 {
   private readonly logger = new Logger(UserProfileUpdatedEventHandler.name);
 
-  constructor() // private readonly cacheService: ICacheService,
-  // private readonly searchService: ISearchService,
-  {}
+  constructor() {} // private readonly searchService: ISearchService, // private readonly cacheService: ICacheService,
 
-  async handle(event: UserProfileUpdatedEvent): Promise<void> {
+  handle(event: UserProfileUpdatedEvent): Promise<void> {
     this.logger.log(
       `Handling UserProfileUpdatedEvent for user: ${event.userId}`,
     );
@@ -129,7 +126,7 @@ export class UserProfileUpdatedEventHandler
       // Update search index if searchable fields changed
       // const searchableChanges = this.hasSearchableChanges(event);
       // if (searchableChanges) {
-      //   await this.searchService.updateUserIndex(event.userId, {
+      //   await this.search_service.updateUserIndex(event.userId, {
       //     fullName: event.newProfile.fullName,
       //     bio: event.newProfile.bio,
       //     location: event.newProfile.location
@@ -150,6 +147,8 @@ export class UserProfileUpdatedEventHandler
         error,
       );
     }
+
+    return Promise.resolve();
   }
 
   private hasSearchableChanges(event: UserProfileUpdatedEvent): boolean {
@@ -169,11 +168,9 @@ export class UserEmailVerifiedEventHandler
 {
   private readonly logger = new Logger(UserEmailVerifiedEventHandler.name);
 
-  constructor() // private readonly notificationService: INotificationService,
-  // private readonly emailService: IEmailService,
-  {}
+  constructor() {} // private readonly emailService: IEmailService, // private readonly notificationService: INotificationService,
 
-  async handle(event: UserEmailVerifiedEvent): Promise<void> {
+  handle(event: UserEmailVerifiedEvent): Promise<void> {
     this.logger.log(
       `Handling UserEmailVerifiedEvent for user: ${event.userId}`,
     );
@@ -186,7 +183,7 @@ export class UserEmailVerifiedEventHandler
       // });
 
       // Create notification
-      // await this.notificationService.createNotification({
+      // await this.notification_service.createNotification({
       //   userId: event.userId,
       //   type: NotificationType.EMAIL_VERIFIED,
       //   title: 'Email Verified',
@@ -206,5 +203,7 @@ export class UserEmailVerifiedEventHandler
         error,
       );
     }
+
+    return Promise.resolve();
   }
 }
