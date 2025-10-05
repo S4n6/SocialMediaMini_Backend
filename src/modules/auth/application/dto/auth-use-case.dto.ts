@@ -6,7 +6,6 @@ export class RegisterUserDto {
   fullName: string;
   username: string;
   email: string;
-  password: string;
   dateOfBirth: Date;
   phoneNumber?: string;
   gender?: string;
@@ -17,6 +16,8 @@ export class LoginDto {
   identifier: string; // email or username
   password: string;
   rememberMe?: boolean;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 export class GoogleAuthDto {
@@ -38,6 +39,7 @@ export class ResetPasswordDto {
 
 export class VerifyEmailDto {
   token: string;
+  password: string;
 }
 
 export class RefreshTokenDto {
@@ -45,8 +47,7 @@ export class RefreshTokenDto {
 }
 
 export class LogoutDto {
-  userId: string;
-  sessionId?: string;
+  refreshToken?: string;
   revokeAll?: boolean;
 }
 

@@ -3,7 +3,9 @@ export interface RegisterUserRequest {
   email: string;
   fullName: string;
   avatar?: string;
-  password: string;
+  dateOfBirth?: Date;
+  phoneNumber?: string;
+  gender?: 'male' | 'female' | 'other';
 }
 
 export interface LoginRequest {
@@ -19,8 +21,7 @@ export interface RefreshTokenRequest {
 }
 
 export interface LogoutRequest {
-  sessionId: string;
-  userId: string;
+  refreshToken?: string;
 }
 
 export interface LogoutAllDevicesRequest {
@@ -41,6 +42,10 @@ export interface ResetPasswordRequest {
 export interface VerifyEmailRequest {
   token: string;
   password?: string;
+}
+
+export interface ResendVerificationRequest {
+  email: string;
 }
 
 export interface GoogleAuthRequest {

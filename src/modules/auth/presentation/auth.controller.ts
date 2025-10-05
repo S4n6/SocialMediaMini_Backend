@@ -10,6 +10,7 @@ import {
   Res,
   Headers,
   Ip,
+  Inject,
 } from '@nestjs/common';
 import { Response } from 'express';
 
@@ -25,10 +26,12 @@ import {
   VerifyEmailRequestDto,
   ResendVerificationRequestDto,
 } from './dto/auth-request.dto';
+import { RegisterUserDto } from '../application';
 
 @Controller('auth')
 export class AuthController {
   constructor(
+    @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
     private readonly authApplicationService: AuthApplicationService,
   ) {}
 
@@ -37,10 +40,9 @@ export class AuthController {
   async register(@Body() registerDto: RegisterRequestDto) {
     try {
       // Map presentation DTO to application DTO
-      const applicationDto: any = {
+      const applicationDto: RegisterUserDto = {
         fullName: registerDto.fullName,
         email: registerDto.email,
-        password: registerDto.password,
         dateOfBirth: registerDto.dateOfBirth,
         username: registerDto.username || `user_${Date.now()}`,
         phoneNumber: registerDto.phoneNumber,
@@ -89,6 +91,8 @@ export class AuthController {
         identifier: loginDto.identifier,
         password: loginDto.password,
         rememberMe: loginDto.rememberMe || false,
+        userAgent: userAgent || 'unknown',
+        ipAddress: clientIp || 'unknown',
       };
 
       const result = await this.authApplicationService.login(applicationDto);
@@ -142,8 +146,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body() verifyDto: VerifyEmailRequestDto) {
     try {
-      const applicationDto: any = {
+      const applicationDto: VerifyEmailRequestDto = {
         token: verifyDto.token,
+        password: verifyDto.password,
       };
 
       const result =
@@ -154,6 +159,20 @@ export class AuthController {
         message: 'Email verified successfully',
         user: result,
       };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@Body() resendDto: ResendVerificationRequestDto) {
+    try {
+      const result = await this.authApplicationService.resendVerification({
+        email: resendDto.email,
+      });
+
+      return result;
     } catch (error) {
       throw error;
     }
@@ -210,16 +229,17 @@ export class AuthController {
       const isWeb = clientType.toLowerCase() === 'web';
 
       if (isWeb) {
+        await this.authApplicationService.logout({
+          refreshToken: req.cookies['refresh_token'],
+        });
         res.clearCookie('access_token');
         res.clearCookie('refresh_token');
       }
 
       if (body.refreshToken) {
-        const applicationDto: any = {
-          userId: 'temp_user_id', // TODO: Get from JWT
+        await this.authApplicationService.logout({
           refreshToken: body.refreshToken,
-        };
-        await this.authApplicationService.logout(applicationDto);
+        });
       }
 
       return {
@@ -242,7 +262,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      const clientType = (req.headers['x-client-type'] || '').toString();
+      const clientType = req.headers['x-client-type'].toString();
       const isWeb = clientType.toLowerCase() === 'web';
 
       const refreshToken = isWeb
@@ -252,6 +272,8 @@ export class AuthController {
       if (!refreshToken) {
         throw new Error('Refresh token not found');
       }
+
+      console.log('Refresh token received:', refreshToken);
 
       const applicationDto: any = {
         refreshToken,

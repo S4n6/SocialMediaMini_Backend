@@ -8,3 +8,4 @@ export * from './forgot-password.use-case';
 export * from './reset-password.use-case';
 export * from './verify-email.use-case';
 export * from './google-auth.use-case';
+export * from './resend-verification.use-case';

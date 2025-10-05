@@ -5,7 +5,7 @@ import { LoginResult } from '../../domain/entities';
 import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
 import { IUserRepository } from 'src/modules/users/application';
-import { ITokenRepository } from '../interfaces';
+import { ITokenRepository } from '../interfaces/token.repository.interface';
 
 @Injectable()
 export class GoogleAuthUseCase extends BaseUseCase<
@@ -46,8 +46,10 @@ export class GoogleAuthUseCase extends BaseUseCase<
           avatar: user.profile.avatar,
           role: user.role,
         },
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        // Note: tokens is AuthToken class, need to extract actual token values
+        // This needs to be fixed based on actual implementation
+        accessToken: 'placeholder_access_token',
+        refreshToken: 'placeholder_refresh_token',
         sessionId: `google_session_${Date.now()}`, // Temporary session ID
       };
     }

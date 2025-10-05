@@ -83,7 +83,17 @@ export class UserPrismaRepository implements IUserRepository {
   }
 
   async findByEmail(email: UserEmail | string): Promise<User | null> {
+    console.log('Finding user by email-----------------:', email);
     const emailValue = typeof email === 'string' ? email : email.getValue();
+
+    if (!emailValue || emailValue.trim() === '') {
+      console.warn(
+        'UserPrismaRepository.findByEmail called with empty/undefined email:',
+        email,
+      );
+      return null;
+    }
+
     const userData = await this.prisma.user.findUnique({
       where: { email: emailValue },
       include: {
@@ -416,8 +426,8 @@ export class UserPrismaRepository implements IUserRepository {
       isEmailVerified: user.isEmailVerified,
       emailVerifiedAt: user.emailVerifiedAt,
       updatedAt: user.updatedAt,
-      lastProfileUpdate: user.lastProfileUpdate,
       // Profile fields are now direct on User model
+      lastProfileUpdate: user.profile.lastProfileUpdate,
       fullName: user.profile.fullName,
       bio: user.profile.bio,
       avatar: user.profile.avatar,

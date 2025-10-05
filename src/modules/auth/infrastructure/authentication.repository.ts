@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   BadRequestException,
   UnauthorizedException,
   NotFoundException,
@@ -7,10 +8,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { SessionService } from './session.repository';
-import { TokenService } from './token.repository';
+import { ISessionRepository } from '../application/interfaces/session.repository.interface';
+import { ITokenRepository } from '../application/interfaces/token.repository.interface';
 import { RedisCacheService } from '../../cache/cache.service';
 import { LoginRequest as LoginDto } from '../application/use-cases/auth.dtos';
+import {
+  SESSION_REPOSITORY_TOKEN,
+  TOKEN_REPOSITORY_TOKEN,
+} from '../auth.constants';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -18,8 +23,10 @@ export class AuthenticationService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private sessionService: SessionService,
-    private tokenService: TokenService,
+    @Inject(SESSION_REPOSITORY_TOKEN)
+    private sessionService: ISessionRepository,
+    @Inject(TOKEN_REPOSITORY_TOKEN)
+    private tokenService: ITokenRepository,
     private cacheService: RedisCacheService,
   ) {}
 

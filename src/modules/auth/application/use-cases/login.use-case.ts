@@ -8,20 +8,25 @@ import { BaseUseCase } from './base.use-case';
 import { LoginRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
 import { IUserRepository } from '../../../users/application';
-import { ITokenRepository } from '../interfaces/token-repository.interface';
+import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { ISessionRepository } from '../interfaces/session.repository.interface';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
-import { TOKEN_REPOSITORY_TOKEN } from '../../auth.module';
-import { SessionService } from '../../infrastructure/session.repository';
-import { TokenService } from '../../infrastructure/token.repository';
+import {
+  TOKEN_REPOSITORY_TOKEN,
+  SESSION_REPOSITORY_TOKEN,
+} from '../../auth.constants';
 import { AuthUserService } from '../auth-user.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
   constructor(
+    @Inject('AUTH_USER_SERVICE') // Use token for consistency
     private authUserService: AuthUserService, // Use auth service wrapper
-    private sessionService: SessionService, // Direct injection instead of token
-    private tokenService: TokenService, // Direct injection instead of token
+    @Inject(SESSION_REPOSITORY_TOKEN)
+    private sessionService: ISessionRepository, // Use interface with DI token
+    @Inject(TOKEN_REPOSITORY_TOKEN)
+    private tokenService: ITokenRepository, // Use interface with DI token
   ) {
     super();
   }
@@ -34,6 +39,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     if (!identifier) {
       throw new UnauthorizedException('Email or username is required');
     }
+    console.log('User authenticated:', userAgent);
 
     // Try to find user by email first, then by username
     const user =
@@ -63,18 +69,27 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate tokens
+    // Clean up old sessions from same device/user agent
+    if (userAgent) {
+      // Delete sessions from the same device (userAgent)
+      await this.sessionService.deleteSessionsByUserAgent(user.id, userAgent);
+    } else {
+      // If no userAgent provided, clean all sessions (fallback to prevent session accumulation)
+      await this.sessionService.deleteAllUserSessions(user.id);
+    }
+
+    // Generate tokens and session (createTokensForUser already creates the session)
     const tokens = await this.tokenService.createTokensForUser(
       user.id,
       user.email,
       user.role,
-    );
-
-    // Create session
-    const sessionId = await this.sessionService.createSession(
-      user.id,
       userAgent,
       ipAddress,
+    );
+
+    // Extract sessionId from refresh token for compatibility
+    const sessionInfo = await this.sessionService.getSessionFromRefreshToken(
+      tokens.refreshToken,
     );
 
     return {
@@ -90,7 +105,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      sessionId: sessionId,
+      sessionId: sessionInfo.sessionId, // Extract sessionId from refresh token for compatibility
     };
   }
 }

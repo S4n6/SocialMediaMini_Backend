@@ -10,6 +10,7 @@ interface UserProfileProps {
   dateOfBirth?: Date;
   phoneNumber?: string;
   gender?: string;
+  lastProfileUpdate?: Date;
 }
 
 /**
@@ -51,6 +52,10 @@ export class UserProfile extends ValueObject<UserProfileProps> {
 
   get gender(): string | undefined {
     return this.value.gender;
+  }
+
+  get lastProfileUpdate(): Date | undefined {
+    return this.value.lastProfileUpdate;
   }
 
   /**

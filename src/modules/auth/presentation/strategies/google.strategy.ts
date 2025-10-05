@@ -3,14 +3,13 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { GOOGLE_CONFIG } from '../../../../config/google.config';
 import { URLS } from '../../../../shared/constants/urls.constant';
-import { AuthUserService } from '../../application/auth-user.service';
-import { TokenService } from '../../infrastructure/token.repository';
+import { AuthApplicationService } from '../../application/auth-application.service';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
-    private authUserService: AuthUserService,
-    private tokenService: TokenService,
+    @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
+    private authApplicationService: AuthApplicationService,
   ) {
     const clientID = GOOGLE_CONFIG.clientID;
     const clientSecret = GOOGLE_CONFIG.clientSecret;
@@ -41,67 +40,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       const email = emails[0].value;
       const fullName = `${name.givenName} ${name.familyName}`;
 
-      // Check if user exists
-      let user = await this.authUserService.findUserByEmail(email);
+      // Use application service for Google authentication
+      // This delegates business logic to the application layer
+      const result = await this.authApplicationService.googleAuth({
+        googleId: id,
+        email,
+        fullName,
+        avatar: photos[0]?.value,
+        emailVerified: true, // Google emails are pre-verified
+      });
 
-      if (user) {
-        // User exists, generate tokens
-        const tokens = await this.tokenService.createTokensForUser(
-          user.id,
-          user.email,
-          user.role,
-        );
-
-        const result = {
-          success: true,
-          message: 'Google login successful',
-          user: {
-            id: user.id,
-            email: user.email,
-            fullName: user.profile.fullName,
-            avatar: user.profile.avatar,
-            role: user.role,
-          },
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-        };
-
-        done(null, result);
-      } else {
-        // User doesn't exist, create new user
-        const newUser = await this.authUserService.createUserFromGoogle({
-          googleId: id,
-          email,
-          fullName: fullName,
-          avatar: photos[0]?.value,
-        });
-
-        // Save the new user
-        await this.authUserService.saveUser(newUser);
-
-        // Generate tokens for new user
-        const tokens = await this.tokenService.createTokensForUser(
-          newUser.id,
-          newUser.email,
-          newUser.role,
-        );
-
-        const result = {
-          success: true,
-          message: 'Google registration successful',
-          user: {
-            id: newUser.id,
-            email: newUser.email,
-            fullName: newUser.profile.fullName,
-            avatar: newUser.profile.avatar,
-            role: newUser.role,
-          },
-          accessToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-        };
-
-        done(null, result);
-      }
+      done(null, result);
     } catch (error) {
       console.error('Google auth error:', error);
       done(error, false);

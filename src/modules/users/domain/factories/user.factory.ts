@@ -21,6 +21,7 @@ export interface CreateUserRequest {
     location?: string;
     phoneNumber?: string;
     gender?: string;
+    lastProfileUpdate?: Date;
   };
   role?: UserRole;
 }

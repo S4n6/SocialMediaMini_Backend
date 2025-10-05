@@ -2,10 +2,10 @@ import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
-import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
-import { mailQueue } from '../../../../queues/mail.queue';
-import * as crypto from 'crypto';
-import { IUserRepository } from 'src/modules/users/application';
+import { AuthUserService } from '../auth-user.service';
+import { IEmailSender } from '../interfaces/email-sender.interface';
+import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
+import { Email } from '../../domain/value-objects/email.vo';
 
 @Injectable()
 export class ForgotPasswordUseCase extends BaseUseCase<
@@ -13,7 +13,8 @@ export class ForgotPasswordUseCase extends BaseUseCase<
   PasswordResetResult
 > {
   constructor(
-    @Inject(USER_REPOSITORY_TOKEN) private userRepository: IUserRepository,
+    private authUserService: AuthUserService,
+    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
   }
@@ -22,7 +23,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     const { email } = request;
 
     // Check if user exists
-    const user = await this.userRepository.findByEmail(email);
+    const user = await this.authUserService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('No account found with this email address');
     }
@@ -34,26 +35,23 @@ export class ForgotPasswordUseCase extends BaseUseCase<
       );
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    // Generate JWT reset token (no need to store in database)
+    const resetToken = this.authUserService.generatePasswordResetToken(
+      user.id,
+      user.email,
+    );
 
-    // // Save reset token
-    // await this.userRepository.setPasswordResetToken(
-    //   user.id,
-    //   resetToken,
-    //   resetTokenExpires,
-    // );
-
-    // Send password reset email using queue
+    // Send password reset email directly via email sender
     try {
-      await mailQueue.add('sendPasswordResetEmail', {
-        email: user.email,
-        resetToken,
-        username: user.username,
-      });
+      const tokenString = await resetToken;
+      await this.emailSender.sendPasswordResetEmail(
+        new Email(user.email),
+        tokenString,
+        user.profile.fullName,
+      );
     } catch (error) {
-      console.error('Failed to queue password reset email:', error);
+      console.error('Failed to send password reset email:', error);
+      throw new Error('Failed to send password reset email');
     }
 
     return {

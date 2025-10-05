@@ -8,6 +8,8 @@ import { IUserRepository } from '../../users/application';
 import { USER_REPOSITORY_TOKEN } from '../../users/users.module';
 import { User } from '../../users/domain/user.entity';
 import { PrismaService } from '../../../database/prisma.service';
+import { ITokenGenerator } from './interfaces/token-generator.interface';
+import { Token } from '../domain/value-objects/token.vo';
 
 /**
  * Auth Service - Wrapper for Users Repository with Auth-specific logic
@@ -21,45 +23,86 @@ export class AuthUserService {
     @Inject(USER_REPOSITORY_TOKEN)
     private userRepository: IUserRepository,
     private prismaService: PrismaService, // For auth-specific queries
+    @Inject('TOKEN_GENERATOR')
+    private tokenGenerator: ITokenGenerator,
   ) {}
 
   /**
    * Find user by email OR username (auth-specific method)
    */
   async findUserByEmailOrUsername(identifier: string): Promise<User | null> {
-    // Try email first
     let user = await this.userRepository.findByEmail(identifier);
+    console.log('User found by email:', user);
     if (!user) {
-      // Try username if email fails
       user = await this.userRepository.findByUsername(identifier);
     }
     return user;
   }
 
   /**
-   * Verify email by token (auth-specific method)
-   * TODO: Add emailVerificationToken field to User schema
+   * Verify email by token using JWT-based verification
    */
   async verifyEmailByToken(token: string): Promise<User | null> {
-    // For now, return null as verification token field doesn't exist in schema
-    // This needs to be implemented once schema is updated
-    console.warn(
-      'verifyEmailByToken: Schema missing emailVerificationToken field',
-    );
-    return null;
+    try {
+      // Verify and decode the JWT token
+      const tokenObj = new Token(token);
+      const payload =
+        await this.tokenGenerator.verifyVerificationToken(tokenObj);
+
+      if (!payload) {
+        return null; // Invalid or expired token
+      }
+
+      // Find user by ID from token payload
+      const user = await this.userRepository.findById(payload.userId);
+
+      if (!user) {
+        return null; // User not found
+      }
+
+      // Verify that the email in token matches user's email (security check)
+      if (user.email !== payload.email) {
+        return null; // Email mismatch, potential security issue
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Error verifying email token:', error);
+      return null;
+    }
   }
 
   /**
-   * Find user by password reset token (auth-specific method)
-   * TODO: Add passwordResetToken field to User schema
+   * Find user by password reset token using JWT-based verification
    */
   async findUserByPasswordResetToken(token: string): Promise<User | null> {
-    // For now, return null as password reset token field doesn't exist in schema
-    // This needs to be implemented once schema is updated
-    console.warn(
-      'findUserByPasswordResetToken: Schema missing passwordResetToken field',
-    );
-    return null;
+    try {
+      // Verify and decode the JWT token
+      const tokenObj = new Token(token);
+      const payload =
+        await this.tokenGenerator.verifyPasswordResetToken(tokenObj);
+
+      if (!payload) {
+        return null; // Invalid or expired token
+      }
+
+      // Find user by ID from token payload
+      const user = await this.userRepository.findById(payload.userId);
+
+      if (!user) {
+        return null; // User not found
+      }
+
+      // Verify that the email in token matches user's email (security check)
+      if (user.email !== payload.email) {
+        return null; // Email mismatch, potential security issue
+      }
+
+      return user;
+    } catch (error) {
+      console.error('Error verifying password reset token:', error);
+      return null;
+    }
   }
 
   /**
@@ -149,5 +192,57 @@ export class AuthUserService {
    */
   async saveUser(user: User): Promise<void> {
     await this.userRepository.save(user);
+  }
+
+  /**
+   * Generate email verification token for user
+   */
+  async generateEmailVerificationToken(
+    userId: string,
+    email: string,
+  ): Promise<string> {
+    const token = await this.tokenGenerator.generateVerificationToken(
+      userId,
+      email,
+    );
+    return token.value;
+  }
+
+  /**
+   * Generate password reset token for user
+   */
+  async generatePasswordResetToken(
+    userId: string,
+    email: string,
+  ): Promise<string> {
+    const token = await this.tokenGenerator.generatePasswordResetToken(
+      userId,
+      email,
+    );
+    return token.value;
+  }
+
+  /**
+   * Find user by email (alias for findUserByEmail)
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    return await this.findUserByEmail(email);
+  }
+
+  /**
+   * Update last verification email sent timestamp
+   */
+  async updateLastVerificationSentAt(
+    userId: string,
+    timestamp: Date,
+  ): Promise<void> {
+    // For now, we'll use lastProfileUpdate field as a placeholder
+    // In production, you should add a specific lastVerificationSentAt field to User model
+    await this.prismaService.user.update({
+      where: { id: userId },
+      data: {
+        lastProfileUpdate: timestamp,
+      },
+    });
   }
 }

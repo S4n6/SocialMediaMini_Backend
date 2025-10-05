@@ -23,6 +23,7 @@ import { ResetPasswordUseCase } from './use-cases/reset-password.use-case';
 import { VerifyEmailUseCase } from './use-cases/verify-email.use-case';
 import { RefreshTokenUseCase } from './use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './use-cases/logout.use-case';
+import { ResendVerificationUseCase } from './use-cases/resend-verification.use-case';
 
 /**
  * Application service for authentication operations
@@ -39,6 +40,7 @@ export class AuthApplicationService {
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly resendVerificationUseCase: ResendVerificationUseCase,
   ) {}
 
   async registerUser(registerDto: RegisterUserDto): Promise<AuthResultDto> {
@@ -46,8 +48,9 @@ export class AuthApplicationService {
       username: registerDto.username,
       email: registerDto.email,
       fullName: registerDto.fullName,
-      password: registerDto.password,
       avatar: registerDto.avatar,
+      dateOfBirth: registerDto.dateOfBirth,
+      phoneNumber: registerDto.phoneNumber,
     });
 
     if (!result.success || !result.user) {
@@ -85,6 +88,8 @@ export class AuthApplicationService {
         ? loginDto.identifier
         : undefined,
       password: loginDto.password,
+      ipAddress: loginDto.ipAddress,
+      userAgent: loginDto.userAgent,
     });
 
     return {
@@ -171,6 +176,7 @@ export class AuthApplicationService {
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<AuthUserDto> {
     const result = await this.verifyEmailUseCase.execute({
       token: verifyEmailDto.token,
+      password: verifyEmailDto.password,
     });
 
     if (!result.success || !result.user) {
@@ -188,6 +194,14 @@ export class AuthApplicationService {
       createdAt: result.user.createdAt || new Date(),
       updatedAt: result.user.updatedAt || new Date(),
     };
+  }
+
+  async resendVerification(dto: {
+    email: string;
+  }): Promise<{ success: boolean; message: string }> {
+    return await this.resendVerificationUseCase.execute({
+      email: dto.email,
+    });
   }
 
   async refreshToken(
@@ -210,16 +224,14 @@ export class AuthApplicationService {
   async logout(logoutDto: LogoutDto): Promise<{ revokedSessions: number }> {
     if (logoutDto.revokeAll) {
       // Logout from all devices
-      const result = await this.logoutUseCase.execute({
-        userId: logoutDto.userId,
-        sessionId: '', // Empty for logout all
+      await this.logoutUseCase.execute({
+        refreshToken: logoutDto.refreshToken,
       });
       return { revokedSessions: 1 }; // Assuming success
     } else {
-      // Logout from current session
-      const result = await this.logoutUseCase.execute({
-        userId: logoutDto.userId,
-        sessionId: logoutDto.sessionId || '',
+      console.log('Logging out from single session');
+      await this.logoutUseCase.execute({
+        refreshToken: logoutDto.refreshToken,
       });
       return { revokedSessions: 1 };
     }
