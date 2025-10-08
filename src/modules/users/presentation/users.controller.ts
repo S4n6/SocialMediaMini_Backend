@@ -78,7 +78,6 @@ export class UsersController {
     @Query('q') query: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-    // @CurrentUser('id') requesterId?: string, // Uncomment when auth is ready
   ): Promise<{
     users: UserListItemDto[];
     total: number;
@@ -100,6 +99,7 @@ export class UsersController {
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<UserResponseDto> {
+    console.log('Fetching user with ID:', id);
     return this.userApplicationService.getUserProfile(id);
   }
 

@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { User, UserDomainService, IUserRepository, UserId } from '../../domain';
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
-import { USER_REPOSITORY_TOKEN } from '../../users.module';
+import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 
 /**
  * Use case for following a user
@@ -16,6 +16,7 @@ export class FollowUserUseCase {
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
     private readonly userDomainService: UserDomainService,
+    @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
 
@@ -82,8 +83,10 @@ export class UnfollowUserUseCase {
   private readonly logger = new Logger(UnfollowUserUseCase.name);
 
   constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
     private readonly userDomainService: UserDomainService,
+    @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
 

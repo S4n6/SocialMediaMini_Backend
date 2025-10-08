@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 import { User } from '../../domain';
 import { IUserRepository } from '../interfaces/user-repository.interface';
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
@@ -12,7 +13,9 @@ export class VerifyEmailUseCase {
   private readonly logger = new Logger(VerifyEmailUseCase.name);
 
   constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
+    @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
 

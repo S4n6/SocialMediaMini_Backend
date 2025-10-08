@@ -1,0 +1,2 @@
+export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
+export const EVENT_BUS_TOKEN = 'EVENT_BUS';

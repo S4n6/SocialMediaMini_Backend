@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { IUserRepository } from '../../users/application';
-import { USER_REPOSITORY_TOKEN } from '../../users/users.module';
+import { USER_REPOSITORY_TOKEN } from '../../users/users.constants';
 import { User } from '../../users/domain/user.entity';
 import { PrismaService } from '../../../database/prisma.service';
 import { ITokenGenerator } from './interfaces/token-generator.interface';

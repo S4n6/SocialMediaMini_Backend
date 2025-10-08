@@ -10,7 +10,7 @@ import {
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
 import { CreateUserDto } from '../dto';
 import { UserResponseDto } from '../dto/user.dto';
-import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.module';
+import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 
 /**
  * Use case for creating a new user account

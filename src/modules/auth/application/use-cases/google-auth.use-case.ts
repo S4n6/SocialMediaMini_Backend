@@ -3,7 +3,7 @@ import { BaseUseCase } from './base.use-case';
 import { GoogleAuthRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
 import { ROLES } from '../../../../shared/constants/roles.constant';
-import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
+import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository.interface';
 import { ITokenRepository } from '../interfaces/token.repository.interface';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';

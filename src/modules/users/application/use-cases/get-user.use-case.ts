@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
+import { USER_REPOSITORY_TOKEN } from '../../users.constants';
 import { User } from '../../domain';
 import { IUserRepository } from '../interfaces/user-repository.interface';
 import {
@@ -17,7 +18,10 @@ import { EntityNotFoundException } from '../../../../shared/exceptions/domain.ex
 export class GetUserProfileUseCase {
   private readonly logger = new Logger(GetUserProfileUseCase.name);
 
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
 
   async execute(
     userId: string,
@@ -95,7 +99,10 @@ export class GetUserProfileUseCase {
 export class SearchUsersUseCase {
   private readonly logger = new Logger(SearchUsersUseCase.name);
 
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
 
   async execute(
     dto: SearchUsersDto,
@@ -152,7 +159,10 @@ export class SearchUsersUseCase {
 export class GetUserFollowersUseCase {
   private readonly logger = new Logger(GetUserFollowersUseCase.name);
 
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
 
   async execute(
     userId: string,
@@ -211,7 +221,10 @@ export class GetUserFollowersUseCase {
 export class GetUserFollowingUseCase {
   private readonly logger = new Logger(GetUserFollowingUseCase.name);
 
-  constructor(private readonly userRepository: IUserRepository) {}
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
 
   async execute(
     userId: string,
