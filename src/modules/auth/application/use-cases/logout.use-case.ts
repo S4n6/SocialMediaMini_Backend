@@ -18,8 +18,6 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
     private sessionRepository: ISessionRepository,
     @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenRepository: ITokenRepository,
-    // @Inject(REFRESH_TOKEN_PARSER_TOKEN)
-    // private refreshTokenParser: IRefreshTokenParser,
   ) {
     super();
   }
@@ -31,23 +29,26 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
       throw new UnauthorizedException('Refresh token is required');
     }
 
-    // Extract userId and sessionId from refresh token using parser (Clean Architecture way)
-    // TODO: Implement proper refresh token parsing through domain service
-    const tokenPayload = JSON.parse(
-      Buffer.from(refreshToken, 'base64').toString(),
-    );
-    const sessionId = tokenPayload.sessionId;
-    const userId = tokenPayload.userId;
+    // Use the new sessionId-based approach - find session by refresh token hash
+    const session =
+      await this.sessionRepository.findByRefreshToken(refreshToken);
 
-    // Find session to validate it exists and belongs to the user
-    const session = await this.sessionRepository.findById(sessionId);
-    console.log('session found for logout:', session);
-    if (!session || session.userId !== userId) {
-      throw new UnauthorizedException('Invalid session');
+    if (!session) {
+      throw new UnauthorizedException('Invalid session or refresh token');
     }
 
-    // Delete session completely (not just revoke)
-    await this.sessionRepository.delete(sessionId);
+    // Validate that the refresh token matches this session
+    if (!session.isValidRefreshToken(refreshToken)) {
+      throw new UnauthorizedException('Refresh token does not match session');
+    }
+
+    // Validate session is not expired or revoked
+    if (!session.isValid()) {
+      throw new UnauthorizedException('Session is expired or revoked');
+    }
+
+    // Delete session completely using the database ID (not just revoke)
+    await this.sessionRepository.delete(session.id);
 
     return {
       success: true,

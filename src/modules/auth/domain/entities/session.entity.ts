@@ -1,4 +1,12 @@
 import { Token } from '../value-objects/token.vo';
+import { createHash } from 'crypto';
+
+/**
+ * Utility function to hash refresh token for sessionId
+ */
+function hashRefreshToken(refreshToken: string): string {
+  return createHash('sha256').update(refreshToken).digest('hex');
+}
 
 /**
  * Session Domain Entity
@@ -25,16 +33,19 @@ export class AuthSession {
    */
   static create(props: {
     id: string;
-    sessionId: string;
     userId: string;
     refreshToken: Token;
     ipAddress?: string;
     userAgent?: string;
     expiresAt: Date;
+    sessionId?: string; // Optional - will be generated from refresh token hash if not provided
   }): AuthSession {
+    const sessionId =
+      props.sessionId || hashRefreshToken(props.refreshToken.value);
+
     return new AuthSession(
       props.id,
-      props.sessionId,
+      sessionId,
       props.userId,
       props.refreshToken,
       props.ipAddress || null,
@@ -73,6 +84,20 @@ export class AuthSession {
       props.expiresAt,
       props.revokedAt,
     );
+  }
+
+  /**
+   * Generate sessionId from refresh token (static utility)
+   */
+  static generateSessionId(refreshToken: string): string {
+    return hashRefreshToken(refreshToken);
+  }
+
+  /**
+   * Validate if a refresh token matches this session's sessionId
+   */
+  isValidRefreshToken(refreshToken: string): boolean {
+    return this.sessionId === hashRefreshToken(refreshToken);
   }
 
   /**

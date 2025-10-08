@@ -8,6 +8,10 @@ export default tseslint.config(
   {
     ignores: ['eslint.config.mjs'],
   },
+  // Ignore generated Prisma migrations and other generated files
+  {
+    ignores: ['prisma/migrations/**'],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   eslintPluginPrettierRecommended,
@@ -34,6 +38,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'warn',
       '@typescript-eslint/no-unsafe-call': 'warn',
       '@typescript-eslint/no-unsafe-return': 'warn',
+      // Temporarily lower unused-vars to warn to allow incremental fixes.
+      // Ignore variables/args starting with `_` which is a common convention for unused params.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
     },
   },
 );

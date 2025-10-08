@@ -39,7 +39,6 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     if (!identifier) {
       throw new UnauthorizedException('Email or username is required');
     }
-    console.log('User authenticated:', userAgent);
 
     // Try to find user by email first, then by username
     const user =
@@ -75,7 +74,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       await this.sessionService.deleteSessionsByUserAgent(user.id, userAgent);
     } else {
       // If no userAgent provided, clean all sessions (fallback to prevent session accumulation)
-      await this.sessionService.deleteAllUserSessions(user.id);
+      await this.sessionService.deleteAllByUserId(user.id);
     }
 
     // Generate tokens and session (createTokensForUser already creates the session)

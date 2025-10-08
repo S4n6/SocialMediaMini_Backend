@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { ITokenRepository } from '../application/interfaces/token.repository.interface';
-import { AuthToken, TokenType } from '../domain/entities/token.entity';
-import { Token } from '../domain/value-objects/token.vo';
-import { Email } from '../domain/value-objects/email.vo';
-import { PrismaService } from '../../../database/prisma.service';
+import { ITokenRepository } from '../../application/interfaces/token.repository.interface';
+import { AuthToken, TokenType } from '../../domain/entities/token.entity';
+import { Token } from '../../domain/value-objects/token.vo';
+import { Email } from '../../domain/value-objects/email.vo';
+import { PrismaService } from '../../../../database/prisma.service';
+import { VerificationTokenService } from '../services/verification-token.service';
+import { AuthSession } from '../../domain/entities/session.entity';
 
 /**
  * Prisma Token Repository Implementation
@@ -11,61 +13,16 @@ import { PrismaService } from '../../../database/prisma.service';
  */
 @Injectable()
 export class TokenRepository implements ITokenRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly verificationTokenService: VerificationTokenService,
+  ) {}
 
-  async create(token: AuthToken): Promise<AuthToken> {
-    // NOTE: Requires Token model in Prisma schema
-    // Placeholder implementation
-    return token;
-  }
-
-  async findById(tokenId: string): Promise<AuthToken | null> {
-    // Placeholder implementation
-    return null;
-  }
-
-  async findByToken(token: string): Promise<AuthToken | null> {
-    // Placeholder implementation
-    return null;
-  }
-
-  async findByUserIdAndType(
-    userId: string,
-    type: string,
-  ): Promise<AuthToken[]> {
-    // Placeholder implementation
-    return [];
-  }
-
-  async update(tokenId: string, token: Partial<AuthToken>): Promise<AuthToken> {
-    // Placeholder implementation
-    throw new Error('Method not implemented.');
-  }
-
-  async delete(tokenId: string): Promise<void> {
-    // Placeholder implementation
-  }
-
-  async deleteByToken(token: string): Promise<void> {
-    // Placeholder implementation
-  }
-
-  async deleteByUserIdAndType(userId: string, type: string): Promise<void> {
-    // Placeholder implementation
-  }
-
-  async deleteExpired(): Promise<void> {
-    // Placeholder implementation
-  }
-
-  async isValidToken(token: string): Promise<boolean> {
-    // Placeholder implementation
-    return false;
-  }
-
-  async markAsUsed(tokenId: string): Promise<void> {
-    // Placeholder implementation
-  }
+  // NOTE: CRUD/lifecycle token methods removed - TokenRepository only exposes
+  // high-level token operations used by the application (createTokensForUser,
+  // refreshAccessToken, revokeRefreshToken, revokeAllUserTokens, generateAccessToken,
+  // generateEmailVerificationToken). If you need persistent tokens later,
+  // reintroduce CRUD methods and Prisma Token model.
 
   // High-level business operations
   generateAccessToken(userId: string, email: string): string {
@@ -119,18 +76,21 @@ export class TokenRepository implements ITokenRepository {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    // Generate session ID for this login
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Generate unique database ID for the session
+    const databaseId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     // Generate tokens
     const accessToken = this.generateAccessTokenWithRole(userId, email, role);
-    const refreshToken = this.generateRefreshToken(userId, sessionId);
+    const refreshToken = this.generateRefreshToken(userId, databaseId);
 
-    // Create session record in database
+    // Generate sessionId as hash of refresh token
+    const sessionId = AuthSession.generateSessionId(refreshToken);
+
+    // Create session record in database with hashed sessionId
     await this.prisma.session.create({
       data: {
-        id: `session_${sessionId}`,
-        sessionId: sessionId,
+        id: databaseId,
+        sessionId: sessionId, // This is now the hash of the refresh token
         userId: userId,
         ipAddress: ipAddress,
         userAgent: userAgent,
@@ -156,10 +116,11 @@ export class TokenRepository implements ITokenRepository {
       throw new Error('Invalid or expired refresh token');
     }
 
-    // Check if session is still valid
+    // Use the new sessionId hashing approach to find session
+    const sessionId = AuthSession.generateSessionId(refreshToken);
     const session = await this.prisma.session.findFirst({
       where: {
-        sessionId: tokenData.sessionId,
+        sessionId: sessionId,
         userId: tokenData.userId,
         isRevoked: false,
         expiresAt: {
@@ -172,7 +133,7 @@ export class TokenRepository implements ITokenRepository {
       throw new Error('Session not found or expired');
     }
 
-    // Generate new tokens
+    // Generate new tokens (keep same session database ID)
     const newAccessToken = this.generateAccessTokenWithRole(
       tokenData.userId,
       tokenData.email,
@@ -180,10 +141,19 @@ export class TokenRepository implements ITokenRepository {
     );
     const newRefreshToken = this.generateRefreshToken(
       tokenData.userId,
-      tokenData.sessionId,
+      session.id, // Use database ID for token generation
     );
 
-    // Update session activity (session is still valid, no update needed for now)
+    // Update sessionId with new refresh token hash
+    const newSessionId = AuthSession.generateSessionId(newRefreshToken);
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: {
+        sessionId: newSessionId,
+        lastUsedAt: new Date(),
+      },
+    });
+
     console.log('Refreshed tokens for session:', session.id);
 
     return {
@@ -198,13 +168,16 @@ export class TokenRepository implements ITokenRepository {
     const tokenData = this.validateRefreshToken(refreshToken);
 
     if (tokenData) {
-      // Revoke the session associated with this refresh token
+      // Use the new sessionId hashing approach to find and revoke session
+      const sessionId = AuthSession.generateSessionId(refreshToken);
       await this.prisma.session.updateMany({
         where: {
-          sessionId: tokenData.sessionId,
+          sessionId: sessionId,
           userId: tokenData.userId,
         },
-        data: { isRevoked: true },
+        data: {
+          isRevoked: true,
+        },
       });
     }
   }
@@ -215,6 +188,19 @@ export class TokenRepository implements ITokenRepository {
       where: { userId },
       data: { isRevoked: true },
     });
+  }
+
+  // Email verification token (non-persistent quick token)
+  async generateEmailVerificationToken(
+    userId: string,
+    email: string,
+  ): Promise<string> {
+    // Delegate to existing VerificationTokenService which signs JWTs
+    const token = this.verificationTokenService.generateEmailVerificationToken(
+      userId,
+      email,
+    );
+    return Promise.resolve(token);
   }
 
   // Helper method to validate refresh token

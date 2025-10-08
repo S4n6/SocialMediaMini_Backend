@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { JWT } from '../../../config/jwt.config';
+import { JWT } from '../../../../config/jwt.config';
 // Legacy service - interface moved to application layer
 
 export interface EmailVerificationPayload {
@@ -73,7 +73,7 @@ export class VerificationTokenService {
     try {
       const payload = this.jwtService.verify(token, {
         secret: JWT.SECRET,
-      }) as EmailVerificationPayload;
+      });
 
       // Check if token is for email verification
       if (payload.purpose !== 'email-verification') {
@@ -98,7 +98,7 @@ export class VerificationTokenService {
     try {
       const payload = this.jwtService.verify(token, {
         secret: JWT.SECRET,
-      }) as PasswordResetPayload;
+      });
 
       // Check if token is for password reset
       if (payload.purpose !== 'password-reset') {

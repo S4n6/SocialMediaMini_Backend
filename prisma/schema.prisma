@@ -288,7 +288,7 @@ model PostMedia {
 
 model Session {
   id          String   @id @default(uuid()) @map("SessionId")
-  sessionId   String   @unique @map("SessionIdentifier") // Unique session identifier
+  sessionId   String   @unique @map("SessionIdentifier") // Hash of refresh token for efficient lookups
   expiresAt   DateTime @map("ExpiresAt")
   createdAt   DateTime @default(now()) @map("CreatedAt")
   lastUsedAt  DateTime @default(now()) @map("LastUsedAt")
@@ -299,6 +299,8 @@ model Session {
   userId      String   @map("UserId")
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([sessionId])
+  @@index([userId, sessionId])
   @@map("Sessions")
 }
 

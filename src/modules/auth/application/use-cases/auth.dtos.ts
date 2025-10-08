@@ -49,6 +49,7 @@ export interface ResendVerificationRequest {
 }
 
 export interface GoogleAuthRequest {
+  googleId: string;
   email: string;
   fullName: string;
   profilePicture?: string;

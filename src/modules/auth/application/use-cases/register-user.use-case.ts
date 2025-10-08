@@ -8,14 +8,17 @@ import { BaseUseCase } from './base.use-case';
 import { RegisterUserRequest } from './auth.dtos';
 import { RegisterResult } from '../../domain/entities';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
-import { mailQueue } from '../../../../queues/mail.queue';
 import { MailerService } from '../../../mailer/mailer.service';
 import { IUserRepository } from 'src/modules/users/application';
 import { UserFactory } from '../../../users/domain/factories/user.factory';
-import { UserEmail, Username } from '../../../users/domain/value-objects';
 import { console } from 'inspector';
 import { UserRole } from 'src/modules/users/domain';
 import { AuthUserService } from '../auth-user.service';
+import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
+import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
+import { IEmailSender } from '../interfaces';
+import { Email } from '../../domain';
 
 @Injectable()
 export class RegisterUserUseCase extends BaseUseCase<
@@ -25,8 +28,11 @@ export class RegisterUserUseCase extends BaseUseCase<
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private userRepository: IUserRepository,
-    private mailerService: MailerService,
+    @Inject(EMAIL_SENDER_TOKEN)
+    private mailerService: IEmailSender,
     private authUserService: AuthUserService,
+    @Inject(TOKEN_REPOSITORY_TOKEN)
+    private tokenRepository: ITokenRepository,
   ) {
     super();
   }
@@ -70,8 +76,9 @@ export class RegisterUserUseCase extends BaseUseCase<
     await this.userRepository.save(newUser);
 
     // Generate JWT verification token with actual user ID
+    // Generate verification token via TokenRepository (non-persistent token)
     const verificationToken =
-      this.authUserService.generateEmailVerificationToken(
+      await this.tokenRepository.generateEmailVerificationToken(
         newUser.id,
         newUser.email,
       );
@@ -79,10 +86,14 @@ export class RegisterUserUseCase extends BaseUseCase<
     // Send verification email using mail queue and MailerService
     try {
       // Also attempt to send immediately via MailerService
-      const tokenString = await verificationToken;
-      await this.mailerService.sendEmailVerification(
+      const tokenString = verificationToken;
+      const email = new Email(newUser.email);
+      if (!email) {
+        throw new BadRequestException('Invalid email address');
+      }
+      await this.mailerService.sendVerificationEmail(
         email,
-        username,
+        newUser.profile.fullName,
         tokenString,
       );
     } catch (error) {

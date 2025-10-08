@@ -83,7 +83,6 @@ export class UserPrismaRepository implements IUserRepository {
   }
 
   async findByEmail(email: UserEmail | string): Promise<User | null> {
-    console.log('Finding user by email-----------------:', email);
     const emailValue = typeof email === 'string' ? email : email.getValue();
 
     if (!emailValue || emailValue.trim() === '') {

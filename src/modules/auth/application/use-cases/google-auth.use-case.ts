@@ -4,8 +4,18 @@ import { GoogleAuthRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
 import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
-import { IUserRepository } from 'src/modules/users/application';
+import { IUserRepository } from '../../../users/domain/repositories/user.repository.interface';
 import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
+import {
+  UserEmail,
+  Username,
+  UserId,
+} from '../../../users/domain/value-objects';
+import { UserProfile } from '../../../users/domain/user-profile.value-object';
+import { User } from '../../../users/domain/user.entity';
+import { UserRole } from '../../../users/domain/user.entity';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class GoogleAuthUseCase extends BaseUseCase<
@@ -15,24 +25,27 @@ export class GoogleAuthUseCase extends BaseUseCase<
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private userRepository: IUserRepository,
-    @Inject('TOKEN_REPOSITORY')
+    @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenRepository: ITokenRepository,
   ) {
     super();
   }
 
   async execute(request: GoogleAuthRequest): Promise<LoginResult> {
-    const { email, fullName, profilePicture } = request;
+    const { googleId, email, fullName, profilePicture } = request;
+
+    // Create value objects
+    const userEmail = new UserEmail(email);
 
     // Check if user exists
-    let user = await this.userRepository.findByEmail(email);
+    let user = await this.userRepository.findByEmail(userEmail);
 
     if (user) {
       // User exists, generate tokens and return
       const tokens = await this.tokenRepository.createTokensForUser(
         user.id,
         user.email,
-        user.role,
+        user.role.toString(),
       );
 
       return {
@@ -46,73 +59,64 @@ export class GoogleAuthUseCase extends BaseUseCase<
           avatar: user.profile.avatar,
           role: user.role,
         },
-        // Note: tokens is AuthToken class, need to extract actual token values
-        // This needs to be fixed based on actual implementation
-        accessToken: 'placeholder_access_token',
-        refreshToken: 'placeholder_refresh_token',
-        sessionId: `google_session_${Date.now()}`, // Temporary session ID
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        sessionId: `google_session_${Date.now()}`,
       };
-    }
+    } else {
+      // User doesn't exist, create new user
+      let userName = email.split('@')[0]; // Generate username from email
 
-    return {
-      success: true,
-      message: 'Google registration and login successful',
-      user: {
-        id: 'new_user_id', // Placeholder, replace with actual user ID after creation
-        email: email,
-        username: email.split('@')[0], // Placeholder, generate or ask for username later
+      // Check if username already exists
+      const existingUserByUsername = await this.userRepository.findByUsername(
+        new Username(userName),
+      );
+      if (existingUserByUsername) {
+        // Use email prefix with random number if username taken
+        const randomSuffix = Math.floor(Math.random() * 1000);
+        userName = `${email.split('@')[0]}${randomSuffix}`;
+      }
+
+      // Create user profile
+      const profile = new UserProfile({
         fullName: fullName,
         avatar: profilePicture,
-        role: ROLES.USER,
-      },
-      accessToken: '',
-      refreshToken: '',
-      sessionId: `google_session_${Date.now()}`, // Temporary session ID
-    };
+      });
 
-    //else {
-    //   // User doesn't exist, create new user
-    //   let userName = email.split('@')[0]; // Generate username from email
+      // Create new user
+      const userId = uuidv4();
+      user = new User(userId, userName, email, profile, {
+        googleId: googleId,
+        isEmailVerified: true, // Google accounts are pre-verified
+        role: UserRole.USER,
+        emailVerifiedAt: new Date(),
+      });
 
-    //   // Check if username already exists
-    //   const existingUserByUsername =
-    //     await this.userRepository.findUserByUsername(userName);
-    //   if (existingUserByUsername) {
-    //     // Use email prefix with random number if username taken
-    //     const randomSuffix = Math.floor(Math.random() * 1000);
-    //     userName = `${email.split('@')[0]}${randomSuffix}`;
-    //   }
+      // Save user to repository
+      await this.userRepository.save(user);
 
-    //   user = await this.userRepository.createUser({
-    //     email,
-    //     fullName: fullName,
-    //     username: userName,
-    //     avatar: profilePicture,
-    //     isEmailVerified: true, // Google accounts are pre-verified
-    //     role: ROLES.USER,
-    //   });
+      // Generate tokens for new user
+      const tokens = await this.tokenRepository.createTokensForUser(
+        user.id,
+        user.email,
+        user.role.toString(),
+      );
 
-    //   const tokens = await this.tokenRepository.createTokensForUser(
-    //     user.id,
-    //     user.email,
-    //     user.role,
-    //   );
-
-    //   return {
-    //     success: true,
-    //     message: 'Google registration and login successful',
-    //     user: {
-    //       id: user.id,
-    //       email: user.email,
-    //       username: user.username,
-    //       fullName: user.fullName,
-    //       avatar: user.avatar,
-    //       role: user.role,
-    //     },
-    //     accessToken: tokens.accessToken,
-    //     refreshToken: tokens.refreshToken,
-    //     sessionId: `google_session_${Date.now()}`, // Temporary session ID
-    //   };
-    // }
+      return {
+        success: true,
+        message: 'Google registration and login successful',
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          fullName: user.profile.fullName,
+          avatar: user.profile.avatar,
+          role: user.role,
+        },
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        sessionId: `google_session_${Date.now()}`,
+      };
+    }
   }
 }

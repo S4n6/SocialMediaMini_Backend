@@ -9,11 +9,26 @@ export interface ISessionRepository {
    * Create new session
    */
   create(session: AuthSession): Promise<AuthSession>;
+  create(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<string>;
 
   /**
-   * Find session by ID
+   * Find session by ID (database ID)
    */
   findById(sessionId: string): Promise<AuthSession | null>;
+
+  /**
+   * Find session by refresh token (uses hashed sessionId)
+   */
+  findByRefreshToken(refreshToken: string): Promise<AuthSession | null>;
+
+  /**
+   * Find session by sessionId (hashed refresh token)
+   */
+  findBySessionId(sessionId: string): Promise<AuthSession | null>;
 
   /**
    * Find all sessions by user ID
@@ -53,30 +68,10 @@ export interface ISessionRepository {
    */
   extendSession(sessionId: string, newExpiryDate: Date): Promise<void>;
 
-  // High-level business operations for legacy compatibility
-  /**
-   * Create session and return refresh token
-   */
-  createSession(
-    userId: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<string>;
-
-  /**
-   * Delete session by sessionId
-   */
-  deleteSession(sessionId: string): Promise<void>;
-
   /**
    * Delete sessions by userId and sessionIds array
    */
   deleteSessions(userId: string, sessionIds: string[]): Promise<void>;
-
-  /**
-   * Delete all user sessions
-   */
-  deleteAllUserSessions(userId: string): Promise<void>;
 
   /**
    * Delete sessions by user agent

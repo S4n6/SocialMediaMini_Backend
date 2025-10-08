@@ -9,6 +9,6 @@ import mailerConfig from 'src/config/mailer.config';
   imports: [ConfigModule.forFeature(mailerConfig)],
   controllers: [MailerController],
   providers: [MailerService],
-  exports: [MailerService], // Export for use in other modules
+  exports: [MailerService],
 })
 export class MailerModule {}

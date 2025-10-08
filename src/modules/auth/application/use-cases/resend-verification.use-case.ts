@@ -7,6 +7,8 @@ import {
 import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
 import { AuthUserService } from '../auth-user.service';
+import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { IEmailSender } from '../interfaces/email-sender.interface';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
@@ -21,6 +23,7 @@ export class ResendVerificationUseCase extends BaseUseCase<
 
   constructor(
     private authUserService: AuthUserService,
+    @Inject(TOKEN_REPOSITORY_TOKEN) private tokenRepository: ITokenRepository,
     @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
@@ -53,8 +56,8 @@ export class ResendVerificationUseCase extends BaseUseCase<
       );
     }
 
-    // Generate verification token using existing method
-    const token = await this.authUserService.generateEmailVerificationToken(
+    // Generate verification token using TokenRepository
+    const token = await this.tokenRepository.generateEmailVerificationToken(
       user.id,
       user.email,
     );
@@ -62,8 +65,8 @@ export class ResendVerificationUseCase extends BaseUseCase<
     // Send email via injected email sender
     await this.emailSender.sendVerificationEmail(
       new Email(user.email),
-      token,
       user.profile.fullName,
+      token,
     );
 
     // Update last verification sent timestamp

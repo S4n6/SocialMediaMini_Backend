@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { IEmailSender } from '../../application/interfaces/email-sender.interface';
 import { Email } from '../../domain/value-objects/email.vo';
 import { MailerService } from '../../../mailer/mailer.service';
@@ -9,13 +9,22 @@ import { MailerService } from '../../../mailer/mailer.service';
  */
 @Injectable()
 export class MailerEmailSender implements IEmailSender {
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    @Inject()
+    private readonly mailerService: MailerService,
+  ) {}
 
   async sendVerificationEmail(
     to: Email,
-    verificationToken: string,
     userName: string,
+    verificationToken: string,
   ): Promise<void> {
+    console.log(
+      'Sending verification email to:',
+      to.value,
+      userName,
+      verificationToken,
+    );
     await this.mailerService.sendEmailVerification(
       to.value,
       userName,

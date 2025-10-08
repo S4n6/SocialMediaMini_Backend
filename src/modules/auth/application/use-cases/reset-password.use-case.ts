@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  UnauthorizedException,
   Inject,
 } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
@@ -9,13 +10,17 @@ import { ResetPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
 import * as bcrypt from 'bcrypt';
 import { AuthUserService } from '../auth-user.service';
+import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
 
 @Injectable()
 export class ResetPasswordUseCase extends BaseUseCase<
   ResetPasswordRequest,
   PasswordResetResult
 > {
-  constructor(private authUserService: AuthUserService) {
+  constructor(
+    private authUserService: AuthUserService,
+    private verificationTokenService: VerificationTokenService,
+  ) {
     super();
   }
 
@@ -34,10 +39,24 @@ export class ResetPasswordUseCase extends BaseUseCase<
       );
     }
 
-    // Find user by reset token
-    const user = await this.authUserService.findUserByPasswordResetToken(token);
+    // Verify the reset token using VerificationTokenService
+    const tokenPayload =
+      await this.verificationTokenService.verifyPasswordResetToken(token);
+    if (!tokenPayload) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+
+    // Find user by ID from token payload
+    const user = await this.authUserService.findUserById(tokenPayload.userId);
     if (!user) {
-      throw new NotFoundException('Invalid or expired reset token');
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify that the email in token matches user's email (security check)
+    if (user.email !== tokenPayload.email) {
+      throw new UnauthorizedException(
+        'Token email mismatch - possible security breach',
+      );
     }
 
     // Hash new password
@@ -46,9 +65,6 @@ export class ResetPasswordUseCase extends BaseUseCase<
 
     // Update user password
     await this.authUserService.updateUserPassword(user.id, hashedPassword);
-
-    // Note: Clear reset token functionality needs to be implemented in AuthUserService
-    // TODO: Add clearPasswordResetToken method
 
     return {
       success: true,

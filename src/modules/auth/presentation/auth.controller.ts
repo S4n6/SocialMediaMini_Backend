@@ -11,7 +11,9 @@ import {
   Headers,
   Ip,
   Inject,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { GoogleAuthGuard } from '../../../shared/guards/google.guard';
 import { Response } from 'express';
 
 // Application layer
@@ -228,25 +230,35 @@ export class AuthController {
       const clientType = (req.headers['x-client-type'] || '').toString();
       const isWeb = clientType.toLowerCase() === 'web';
 
-      if (isWeb) {
-        await this.authApplicationService.logout({
-          refreshToken: req.cookies['refresh_token'],
-        });
-        res.clearCookie('access_token');
-        res.clearCookie('refresh_token');
+      // Prefer cookie for web clients, fallback to body.refreshToken.
+      const cookieRefresh = req.cookies
+        ? req.cookies['refresh_token']
+        : undefined;
+      const refreshToken = isWeb
+        ? cookieRefresh || body.refreshToken
+        : body.refreshToken || cookieRefresh;
+
+      // Call logout once if we have a refresh token
+      if (refreshToken) {
+        await this.authApplicationService.logout({ refreshToken });
       }
 
-      if (body.refreshToken) {
-        await this.authApplicationService.logout({
-          refreshToken: body.refreshToken,
-        });
-      }
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieOptions = {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: isProd ? ('none' as const) : ('lax' as const),
+      };
+
+      res.clearCookie('access_token', cookieOptions);
+      res.clearCookie('refresh_token', cookieOptions);
 
       return {
         success: true,
         message: 'Logged out successfully',
       };
     } catch (error) {
+      console.error('Logout error:', error);
       return {
         success: true,
         message: 'Logged out successfully',
@@ -269,11 +281,11 @@ export class AuthController {
         ? req.cookies['refresh_token']
         : body.refreshToken;
 
-      if (!refreshToken) {
-        throw new Error('Refresh token not found');
-      }
-
       console.log('Refresh token received:', refreshToken);
+
+      if (!refreshToken) {
+        throw new UnauthorizedException('Refresh token not found');
+      }
 
       const applicationDto: any = {
         refreshToken,
@@ -318,6 +330,77 @@ export class AuthController {
         },
       };
     } catch (error) {
+      throw error;
+    }
+  }
+
+  // Google OAuth endpoints
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth(@Request() req) {
+    // This endpoint will redirect to Google OAuth
+    // The actual redirect is handled by the GoogleAuthGuard
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuthCallback(
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+    @Headers('x-client-type') clientType: string = 'web',
+  ) {
+    try {
+      const result = req.user; // This comes from GoogleStrategy
+      const isWeb = clientType.toLowerCase() === 'web';
+
+      if (isWeb) {
+        const isProd = process.env.NODE_ENV === 'production';
+
+        // Set tokens as cookies for web clients
+        if (result.tokens?.accessToken) {
+          res.cookie('access_token', result.tokens.accessToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? 'none' : 'lax',
+            maxAge: 24 * 60 * 60 * 1000, // 24 hours
+          });
+        }
+
+        if (result.tokens?.refreshToken) {
+          res.cookie('refresh_token', result.tokens.refreshToken, {
+            httpOnly: true,
+            secure: isProd,
+            sameSite: isProd ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          });
+        }
+
+        // Redirect to frontend with success
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        return res.redirect(
+          `${frontendUrl}/auth/success?message=Login successful`,
+        );
+      }
+
+      // For mobile/API clients, return JSON
+      return {
+        success: true,
+        message: result.message || 'Google authentication successful',
+        user: result.user,
+        tokens: result.tokens,
+        session: result.session,
+      };
+    } catch (error) {
+      console.error('Google auth callback error:', error);
+
+      const isWeb = clientType.toLowerCase() === 'web';
+      if (isWeb) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        return res.redirect(
+          `${frontendUrl}/auth/error?message=Authentication failed`,
+        );
+      }
+
       throw error;
     }
   }

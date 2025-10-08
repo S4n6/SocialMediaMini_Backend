@@ -1,3 +1,3 @@
 // Repository Implementations
-export * from './session.repository';
-export * from './token.repository';
+export * from './repositories/session.repository';
+export * from './repositories/token.repository';

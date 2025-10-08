@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ISessionRepository } from '../application/interfaces/session.repository.interface';
-import { AuthSession } from '../domain/entities/session.entity';
-import { Token } from '../domain/value-objects/token.vo';
-import { PrismaService } from '../../../database/prisma.service';
+import { ISessionRepository } from '../../application/interfaces/session.repository.interface';
+import { AuthSession } from '../../domain/entities/session.entity';
+import { Token } from '../../domain/value-objects/token.vo';
+import { PrismaService } from '../../../../database/prisma.service';
 
 /**
  * Prisma Session Repository Implementation
@@ -12,7 +12,48 @@ import { PrismaService } from '../../../database/prisma.service';
 export class SessionRepository implements ISessionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(session: AuthSession): Promise<AuthSession> {
+  // Overload: create from AuthSession entity
+  async create(session: AuthSession): Promise<AuthSession>;
+  // Overload: create from simple parameters (replaces createSession)
+  async create(
+    userId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<string>;
+  async create(
+    sessionOrUserId: AuthSession | string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<AuthSession | string> {
+    // If first parameter is a string (userId), create session from parameters
+    if (typeof sessionOrUserId === 'string') {
+      const userId = sessionOrUserId;
+
+      // Generate unique database ID and refresh token
+      const databaseId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const refreshToken = new Token(
+        this.generateRefreshToken(userId, databaseId),
+      );
+
+      // Create a new AuthSession domain entity - sessionId will be generated from refresh token hash
+      const sessionData = {
+        id: databaseId,
+        userId,
+        refreshToken,
+        ipAddress,
+        userAgent,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      };
+
+      const session = AuthSession.create(sessionData);
+      const createdSession = await this.create(session);
+
+      // Return the refresh token
+      return createdSession.refreshToken.value;
+    }
+
+    // If first parameter is AuthSession object, use original logic
+    const session = sessionOrUserId;
     const sessionData = session.toPlainObject();
 
     const createdSession = await this.prisma.session.create({
@@ -59,6 +100,19 @@ export class SessionRepository implements ISessionRepository {
     });
 
     return sessions.map((session) => this.mapToDomain(session));
+  }
+
+  async findByRefreshToken(refreshToken: string): Promise<AuthSession | null> {
+    const sessionId = AuthSession.generateSessionId(refreshToken);
+    return this.findBySessionId(sessionId);
+  }
+
+  async findBySessionId(sessionId: string): Promise<AuthSession | null> {
+    const session = await this.prisma.session.findUnique({
+      where: { sessionId: sessionId },
+    });
+
+    return session ? this.mapToDomain(session) : null;
   }
 
   async update(
@@ -150,27 +204,15 @@ export class SessionRepository implements ISessionRepository {
     });
   }
 
-  // High-level business operations
-  async createSession(
-    userId: string,
-    userAgent?: string,
-    ipAddress?: string,
-  ): Promise<string> {
-    // TODO: Implement session creation with refresh token
-    throw new Error('Method not implemented.');
-  }
-
-  async deleteSession(sessionId: string): Promise<void> {
-    await this.delete(sessionId);
-  }
-
   async deleteSessions(userId: string, sessionIds: string[]): Promise<void> {
-    // TODO: Implement batch delete
-    throw new Error('Method not implemented.');
-  }
-
-  async deleteAllUserSessions(userId: string): Promise<void> {
-    await this.deleteAllByUserId(userId);
+    await this.prisma.session.deleteMany({
+      where: {
+        userId: userId,
+        id: {
+          in: sessionIds,
+        },
+      },
+    });
   }
 
   async deleteSessionsByUserAgent(
@@ -186,69 +228,69 @@ export class SessionRepository implements ISessionRepository {
   }
 
   async getSessionFromRefreshToken(refreshToken: string): Promise<any> {
-    // Since refresh tokens are stored as part of the session creation process,
-    // we need to decode the refresh token to get session info
+    // Use the new sessionId hashing approach
     try {
-      // For simplicity, assuming refresh token contains session info
-      // In a real implementation, this would involve JWT verification
+      const sessionId = AuthSession.generateSessionId(refreshToken);
+      const session = await this.findBySessionId(sessionId);
+
+      if (session) {
+        return {
+          sessionId: session.sessionId,
+          userId: session.userId,
+          isValid: session.isValid(),
+        };
+      }
+
+      // If session not found, try to decode refresh token for backward compatibility
       const tokenParts = refreshToken.split('.');
       if (tokenParts.length >= 2) {
         const payload = JSON.parse(
           Buffer.from(tokenParts[1], 'base64').toString(),
         );
         return {
-          sessionId: payload.sessionId || `session_${Date.now()}`,
+          sessionId: payload.sessionId || sessionId,
           userId: payload.sub,
+          isValid: false,
         };
       }
 
-      // Fallback: generate session info
       return {
-        sessionId: `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        sessionId: sessionId,
         userId: 'unknown',
+        isValid: false,
       };
     } catch (error) {
-      console.error('Error decoding refresh token:', error);
+      console.error('Error getting session from refresh token:', error);
       return {
-        sessionId: `session_${Date.now()}_fallback`,
+        sessionId: AuthSession.generateSessionId(refreshToken),
         userId: 'unknown',
+        isValid: false,
       };
     }
   }
 
   async verifyAndUpdateSession(refreshToken: string): Promise<any> {
     try {
-      // Parse refresh token to get session info
-      const tokenParts = refreshToken.split('.');
-      if (tokenParts.length >= 2) {
-        const payload = JSON.parse(
-          Buffer.from(tokenParts[1], 'base64').toString(),
-        );
+      // Use the new sessionId hashing approach
+      const session = await this.findByRefreshToken(refreshToken);
 
-        // Find and verify session
-        const session = await this.prisma.session.findFirst({
-          where: {
-            sessionId: payload.sessionId,
-            userId: payload.sub,
-            isRevoked: false,
-            expiresAt: {
-              gt: new Date(),
-            },
-          },
+      if (session && session.isValid()) {
+        // Update lastUsedAt timestamp
+        await this.prisma.session.update({
+          where: { sessionId: session.sessionId },
+          data: { lastUsedAt: new Date() },
         });
 
-        if (session) {
-          return {
-            sessionId: session.sessionId,
-            userId: session.userId,
-            isValid: true,
-          };
-        }
+        return {
+          sessionId: session.sessionId,
+          userId: session.userId,
+          isValid: true,
+        };
       }
 
       return { isValid: false };
     } catch (error) {
-      console.error('Error verifying session:', error);
+      console.error('Error verifying and updating session:', error);
       return { isValid: false };
     }
   }

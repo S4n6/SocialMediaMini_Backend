@@ -15,13 +15,13 @@ import {
 import { AuthApplicationService } from './application/services/auth.service';
 
 // Infrastructure Layer - Repository Implementations
-import { SessionRepository } from './infrastructure/session.repository';
-import { TokenRepository } from './infrastructure/token.repository';
+import { SessionRepository } from './infrastructure/repositories/session.repository';
+import { TokenRepository } from './infrastructure/repositories/token.repository';
 
 // Infrastructure Layer - Service Implementations
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
 import { JwtTokenGenerator } from './infrastructure/security/jwt-token-generator';
-import { MailerEmailSender } from './infrastructure/messaging/mailer-email-sender';
+import { MailerEmailSender } from './infrastructure/services/mailer-email.service';
 
 // Presentation Layer
 import { AuthController } from './presentation/auth.controller';
@@ -38,8 +38,8 @@ import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-cas
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { ResendVerificationUseCase } from './application/use-cases/resend-verification.use-case';
-import { AuthenticationService } from './infrastructure/authentication.repository';
-import { VerificationTokenService } from './infrastructure/verification-token.service';
+import { AuthenticationService } from './infrastructure/repositories/authentication.repository';
+import { VerificationTokenService } from './infrastructure/services/verification-token.service';
 // import { RefreshTokenParserService } from './infrastructure/refresh-token-parser.service';
 // Removed: SessionRepositoryAdapter and TokenRepositoryAdapter (replaced by clean architecture)
 import { JwtStrategy } from './presentation/strategies/Jwt.strategy';

@@ -124,6 +124,7 @@ export class AuthApplicationService {
 
   async googleAuth(googleAuthDto: GoogleAuthDto): Promise<AuthResultDto> {
     const result = await this.googleAuthUseCase.execute({
+      googleId: googleAuthDto.googleId,
       email: googleAuthDto.email,
       fullName: googleAuthDto.fullName,
       profilePicture: googleAuthDto.avatar,
@@ -223,13 +224,11 @@ export class AuthApplicationService {
 
   async logout(logoutDto: LogoutDto): Promise<{ revokedSessions: number }> {
     if (logoutDto.revokeAll) {
-      // Logout from all devices
       await this.logoutUseCase.execute({
         refreshToken: logoutDto.refreshToken,
       });
-      return { revokedSessions: 1 }; // Assuming success
+      return { revokedSessions: 1 };
     } else {
-      console.log('Logging out from single session');
       await this.logoutUseCase.execute({
         refreshToken: logoutDto.refreshToken,
       });

@@ -6,16 +6,16 @@ import {
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
+import { PrismaService } from '../../../../database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { ISessionRepository } from '../application/interfaces/session.repository.interface';
-import { ITokenRepository } from '../application/interfaces/token.repository.interface';
-import { RedisCacheService } from '../../cache/cache.service';
-import { LoginRequest as LoginDto } from '../application/use-cases/auth.dtos';
+import { ISessionRepository } from '../../application/interfaces/session.repository.interface';
+import { ITokenRepository } from '../../application/interfaces/token.repository.interface';
+import { RedisCacheService } from '../../../cache/cache.service';
+import { LoginRequest as LoginDto } from '../../application/use-cases/auth.dtos';
 import {
   SESSION_REPOSITORY_TOKEN,
   TOKEN_REPOSITORY_TOKEN,
-} from '../auth.constants';
+} from '../../auth.constants';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -114,7 +114,7 @@ export class AuthenticationService {
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const payload = { sub: userId, email };
     const accessToken = this.jwtService.sign(payload);
-    const refreshToken = await this.sessionService.createSession(
+    const refreshToken = await this.sessionService.create(
       userId,
       userAgent,
       ipAddress,
@@ -140,7 +140,7 @@ export class AuthenticationService {
     }
 
     // Delete the session
-    await this.sessionService.deleteSession(sessionId);
+    await this.sessionService.delete(sessionId);
 
     return { message: 'Logged out successfully' };
   }

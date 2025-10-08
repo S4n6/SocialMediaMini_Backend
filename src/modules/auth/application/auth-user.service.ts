@@ -10,6 +10,7 @@ import { User } from '../../users/domain/user.entity';
 import { PrismaService } from '../../../database/prisma.service';
 import { ITokenGenerator } from './interfaces/token-generator.interface';
 import { Token } from '../domain/value-objects/token.vo';
+import { VerificationTokenService } from '../infrastructure/services/verification-token.service';
 
 /**
  * Auth Service - Wrapper for Users Repository with Auth-specific logic
@@ -25,6 +26,7 @@ export class AuthUserService {
     private prismaService: PrismaService, // For auth-specific queries
     @Inject('TOKEN_GENERATOR')
     private tokenGenerator: ITokenGenerator,
+    private verificationTokenService: VerificationTokenService,
   ) {}
 
   /**
@@ -32,7 +34,6 @@ export class AuthUserService {
    */
   async findUserByEmailOrUsername(identifier: string): Promise<User | null> {
     let user = await this.userRepository.findByEmail(identifier);
-    console.log('User found by email:', user);
     if (!user) {
       user = await this.userRepository.findByUsername(identifier);
     }
@@ -44,10 +45,10 @@ export class AuthUserService {
    */
   async verifyEmailByToken(token: string): Promise<User | null> {
     try {
-      // Verify and decode the JWT token
-      const tokenObj = new Token(token);
+      // Verify and decode the JWT token using VerificationTokenService
+      // (matches tokens created by TokenRepository.generateEmailVerificationToken)
       const payload =
-        await this.tokenGenerator.verifyVerificationToken(tokenObj);
+        await this.verificationTokenService.verifyEmailVerificationToken(token);
 
       if (!payload) {
         return null; // Invalid or expired token
@@ -197,17 +198,6 @@ export class AuthUserService {
   /**
    * Generate email verification token for user
    */
-  async generateEmailVerificationToken(
-    userId: string,
-    email: string,
-  ): Promise<string> {
-    const token = await this.tokenGenerator.generateVerificationToken(
-      userId,
-      email,
-    );
-    return token.value;
-  }
-
   /**
    * Generate password reset token for user
    */

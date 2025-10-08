@@ -20,6 +20,8 @@ export class RefreshTokenUseCase extends BaseUseCase<
   async execute(request: RefreshTokenRequest): Promise<TokenRefreshResult> {
     const { refreshToken } = request;
 
+    console.log('RefreshTokenUseCase called with request:', request);
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }

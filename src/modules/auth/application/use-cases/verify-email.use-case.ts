@@ -22,6 +22,8 @@ export class VerifyEmailUseCase extends BaseUseCase<
   async execute(request: VerifyEmailRequest): Promise<EmailVerificationResult> {
     const { token, password } = request;
 
+    console.log('Verifying email with token:', token, password); // --- IGNORE ---
+
     // Find user by verification token
     const user = await this.authUserService.verifyEmailByToken(token);
     if (!user) {
