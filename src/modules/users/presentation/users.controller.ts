@@ -39,7 +39,6 @@ import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { SkipGuards } from '../../../shared/decorators/skipGuard.decorator';
 import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
 import { Roles } from '../../../shared/decorators/roles.decorator';
-import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
 import { ROLES } from '../../../shared/constants/roles.constant';
 
 @ApiTags('Users')
@@ -52,7 +51,6 @@ export class UsersController {
   ) {}
 
   @Post()
-  @SkipGuards()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user' })
   @SwaggerResponse({

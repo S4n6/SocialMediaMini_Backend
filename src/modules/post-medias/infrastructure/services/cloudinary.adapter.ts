@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { CloudinaryService } from '../../../cloudinary/cloudinary.service';
 import {
-  CloudinaryService as DomainCloudinaryService,
+  CloudinaryService as ICloudinaryService,
   UploadedFile,
-} from '../domain/services/post-media-domain.service';
+} from '../../application/ports/services/cloudinary.service';
 
 @Injectable()
-export class CloudinaryAdapter implements DomainCloudinaryService {
+export class CloudinaryAdapter implements ICloudinaryService {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   async uploadMultipleFiles(

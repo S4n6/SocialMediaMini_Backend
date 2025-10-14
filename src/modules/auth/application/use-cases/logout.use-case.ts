@@ -16,35 +16,45 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
   constructor(
     @Inject(SESSION_REPOSITORY_TOKEN)
     private sessionRepository: ISessionRepository,
-    @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenRepository: ITokenRepository,
   ) {
     super();
   }
 
   async execute(request: LogoutRequest): Promise<AuthResult> {
     const { refreshToken } = request;
-
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
     }
 
-    // Use the new sessionId-based approach - find session by refresh token hash
     const session =
       await this.sessionRepository.findByRefreshToken(refreshToken);
 
     if (!session) {
-      throw new UnauthorizedException('Invalid session or refresh token');
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
     }
 
     // Validate that the refresh token matches this session
     if (!session.isValidRefreshToken(refreshToken)) {
-      throw new UnauthorizedException('Refresh token does not match session');
+      // Token doesn't match session - treat as success to avoid failing logout
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
     }
 
     // Validate session is not expired or revoked
     if (!session.isValid()) {
-      throw new UnauthorizedException('Session is expired or revoked');
+      // Session already expired/revoked - treat as successful
+      return {
+        success: true,
+        message: 'Logout successful',
+      };
     }
 
     // Delete session completely using the database ID (not just revoke)

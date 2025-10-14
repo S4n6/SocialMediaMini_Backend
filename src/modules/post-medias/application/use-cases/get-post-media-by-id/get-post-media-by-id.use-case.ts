@@ -1,7 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostMediaRepository } from '../../domain/repositories/post-media.repository';
-import { PostMediaNotFoundException } from '../../domain/post-media.exceptions';
-import { PostMediaEntity } from '../../domain/post-media.entity';
+import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
+import { PostMediaEntity } from '../../../domain/post-media.entity';
+import { PostMediaNotFoundException } from '../../../domain/post-media.exceptions';
+import { POST_MEDIA_REPOSITORY } from '../../../tokens';
 
 export interface GetPostMediaByIdQuery {
   id: string;
@@ -10,7 +11,7 @@ export interface GetPostMediaByIdQuery {
 @Injectable()
 export class GetPostMediaByIdUseCase {
   constructor(
-    @Inject('POST_MEDIA_REPOSITORY')
+    @Inject(POST_MEDIA_REPOSITORY)
     private readonly postMediaRepository: PostMediaRepository,
   ) {}
 

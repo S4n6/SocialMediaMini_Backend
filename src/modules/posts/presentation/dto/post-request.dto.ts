@@ -12,7 +12,7 @@ import {
   IsNotEmpty,
   MaxLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ===== REQUEST DTOs =====
@@ -45,12 +45,15 @@ export class CreatePostRequestDto {
 
   @ApiPropertyOptional({
     description: 'Post privacy setting',
-    enum: ['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'],
+    enum: ['PUBLIC', 'PRIVATE', 'FOLLOWERS'],
     default: 'PUBLIC',
   })
-  @IsEnum(['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'])
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
+  @IsEnum(['PUBLIC', 'PRIVATE', 'FOLLOWERS'])
   @IsOptional()
-  privacy?: 'PUBLIC' | 'PRIVATE' | 'FRIENDS_ONLY';
+  privacy?: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
 
   @ApiPropertyOptional({
     description: 'Media attachments',
@@ -87,8 +90,11 @@ export class UpdatePostRequestDto {
     enum: ['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'],
   })
   @IsOptional()
-  @IsEnum(['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'])
-  privacy?: 'PUBLIC' | 'PRIVATE' | 'FRIENDS_ONLY';
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
+  @IsEnum(['PUBLIC', 'PRIVATE', 'FOLLOWERS'])
+  privacy?: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
 
   @ApiPropertyOptional({
     description: 'Updated media attachments',

@@ -1,11 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostMediaRepository } from '../../domain/repositories/post-media.repository';
-import { PostMediaEntity } from '../../domain/post-media.entity';
+import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
+import { PostService } from '../../ports/services/post.service';
+import { PostMediaEntity } from '../../../domain/post-media.entity';
 import {
   PostMediaNotFoundException,
   UnauthorizedPostMediaActionException,
-} from '../../domain/post-media.exceptions';
-import { PostService } from '../../domain/services/post-media-domain.service';
+} from '../../../domain/post-media.exceptions';
+import { POST_MEDIA_REPOSITORY, POST_SERVICE } from '../../../tokens';
 
 export interface UpdatePostMediaCommand {
   id: string;
@@ -17,9 +18,9 @@ export interface UpdatePostMediaCommand {
 @Injectable()
 export class UpdatePostMediaUseCase {
   constructor(
-    @Inject('POST_MEDIA_REPOSITORY')
+    @Inject(POST_MEDIA_REPOSITORY)
     private readonly postMediaRepository: PostMediaRepository,
-    @Inject('POST_SERVICE')
+    @Inject(POST_SERVICE)
     private readonly postService: PostService,
   ) {}
 

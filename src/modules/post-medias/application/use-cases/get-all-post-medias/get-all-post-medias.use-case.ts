@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostMediaRepository } from '../../domain/repositories/post-media.repository';
-import { PostMediaEntity } from '../../domain/post-media.entity';
+import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
+import { PostMediaEntity } from '../../../domain/post-media.entity';
+import { POST_MEDIA_REPOSITORY } from '../../../tokens';
 
 export interface GetAllPostMediasQuery {
   page: number;
@@ -18,7 +19,7 @@ export interface GetAllPostMediasResult {
 @Injectable()
 export class GetAllPostMediasUseCase {
   constructor(
-    @Inject('POST_MEDIA_REPOSITORY')
+    @Inject(POST_MEDIA_REPOSITORY)
     private readonly postMediaRepository: PostMediaRepository,
   ) {}
 

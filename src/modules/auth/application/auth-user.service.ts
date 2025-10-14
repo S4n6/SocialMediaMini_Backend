@@ -4,10 +4,8 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { IUserRepository } from '../../users/application';
-import { USER_REPOSITORY_TOKEN } from '../../users/users.constants';
+import { UserApplicationService } from '../../users/application/user-application.service';
 import { User } from '../../users/domain/user.entity';
-import { PrismaService } from '../../../database/prisma.service';
 import { ITokenGenerator } from './interfaces/token-generator.interface';
 import { Token } from '../domain/value-objects/token.vo';
 import { VerificationTokenService } from '../infrastructure/services/verification-token.service';
@@ -21,9 +19,7 @@ import { VerificationTokenService } from '../infrastructure/services/verificatio
 @Injectable()
 export class AuthUserService {
   constructor(
-    @Inject(USER_REPOSITORY_TOKEN)
-    private userRepository: IUserRepository,
-    private prismaService: PrismaService, // For auth-specific queries
+    private userApplicationService: UserApplicationService,
     @Inject('TOKEN_GENERATOR')
     private tokenGenerator: ITokenGenerator,
     private verificationTokenService: VerificationTokenService,
@@ -33,11 +29,9 @@ export class AuthUserService {
    * Find user by email OR username (auth-specific method)
    */
   async findUserByEmailOrUsername(identifier: string): Promise<User | null> {
-    let user = await this.userRepository.findByEmail(identifier);
-    if (!user) {
-      user = await this.userRepository.findByUsername(identifier);
-    }
-    return user;
+    return await this.userApplicationService.findUserByEmailOrUsername(
+      identifier,
+    );
   }
 
   /**
@@ -55,7 +49,9 @@ export class AuthUserService {
       }
 
       // Find user by ID from token payload
-      const user = await this.userRepository.findById(payload.userId);
+      const user = await this.userApplicationService.findUserById(
+        payload.userId,
+      );
 
       if (!user) {
         return null; // User not found
@@ -88,7 +84,9 @@ export class AuthUserService {
       }
 
       // Find user by ID from token payload
-      const user = await this.userRepository.findById(payload.userId);
+      const user = await this.userApplicationService.findUserById(
+        payload.userId,
+      );
 
       if (!user) {
         return null; // User not found
@@ -107,61 +105,51 @@ export class AuthUserService {
   }
 
   /**
-   * Update user password using repository
+   * Update user password using User Application Service
    */
   async updateUserPassword(
     userId: string,
     hashedPassword: string,
   ): Promise<void> {
-    // Use prisma directly for now as User entity doesn't expose password update method
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: { passwordHash: hashedPassword },
-    });
+    await this.userApplicationService.updateUserPassword(
+      userId,
+      hashedPassword,
+    );
   }
 
   /**
-   * Verify user email
+   * Verify user email using User Application Service
    */
   async verifyUserEmail(userId: string): Promise<void> {
-    // Use prisma directly for now
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: {
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
-      },
-    });
+    await this.userApplicationService.verifyEmail(userId);
   }
 
   /**
    * Check if email exists
    */
   async existsByEmail(email: string): Promise<boolean> {
-    const user = await this.userRepository.findByEmail(email);
-    return user !== null;
+    return await this.userApplicationService.existsByEmail(email);
   }
 
   /**
    * Check if username exists
    */
   async existsByUsername(username: string): Promise<boolean> {
-    const user = await this.userRepository.findByUsername(username);
-    return user !== null;
+    return await this.userApplicationService.existsByUsername(username);
   }
 
   /**
    * Find user by ID
    */
   async findUserById(userId: string): Promise<User | null> {
-    return await this.userRepository.findById(userId);
+    return await this.userApplicationService.findUserById(userId);
   }
 
   /**
    * Find user by email (direct access to repository method)
    */
   async findUserByEmail(email: string): Promise<User | null> {
-    return await this.userRepository.findByEmail(email);
+    return await this.userApplicationService.findUserByEmail(email);
   }
 
   /**
@@ -173,26 +161,14 @@ export class AuthUserService {
     fullName: string;
     avatar?: string;
   }): Promise<User> {
-    // Use UserFactory to create user from Google data
-    const { UserFactory } = await import(
-      '../../users/domain/factories/user.factory'
-    );
-
-    return await UserFactory.createUserFromGoogle({
-      googleId: googleData.googleId,
-      email: googleData.email,
-      profile: {
-        fullName: googleData.fullName,
-        avatar: googleData.avatar,
-      },
-    });
+    return await this.userApplicationService.createUserFromGoogle(googleData);
   }
 
   /**
    * Save user (create or update)
    */
   async saveUser(user: User): Promise<void> {
-    await this.userRepository.save(user);
+    await this.userApplicationService.saveUser(user);
   }
 
   /**
@@ -226,13 +202,9 @@ export class AuthUserService {
     userId: string,
     timestamp: Date,
   ): Promise<void> {
-    // For now, we'll use lastProfileUpdate field as a placeholder
-    // In production, you should add a specific lastVerificationSentAt field to User model
-    await this.prismaService.user.update({
-      where: { id: userId },
-      data: {
-        lastProfileUpdate: timestamp,
-      },
-    });
+    await this.userApplicationService.updateLastVerificationSentAt(
+      userId,
+      timestamp,
+    );
   }
 }

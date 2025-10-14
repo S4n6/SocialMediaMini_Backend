@@ -1,4 +1,4 @@
-import { PostMediaEntity } from '../post-media.entity';
+import { PostMediaEntity } from '../../../domain/post-media.entity';
 
 export interface PostMediaRepository {
   /**

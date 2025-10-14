@@ -2,11 +2,11 @@ import {
   PostMediaEntity,
   PostMediaType,
   PostMediaProps,
-} from '../post-media.entity';
+} from '../../domain/post-media.entity';
 import {
   InvalidPostMediaException,
   InvalidMediaTypeException,
-} from '../post-media.exceptions';
+} from '../../domain/post-media.exceptions';
 
 export interface CreatePostMediaParams {
   url: string;
