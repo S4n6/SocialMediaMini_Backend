@@ -26,17 +26,17 @@ class DomainException extends Error {
 }
 
 export enum PostPrivacy {
-  PUBLIC = 'public',
-  FOLLOWERS = 'followers',
-  PRIVATE = 'private',
+  PUBLIC = 'PUBLIC',
+  FOLLOWERS = 'FOLLOWERS',
+  PRIVATE = 'PRIVATE',
 }
 
 export enum ReactionType {
-  LIKE = 'like',
-  LOVE = 'love',
-  LAUGH = 'laugh',
-  ANGRY = 'angry',
-  SAD = 'sad',
+  LIKE = 'LIKE',
+  LOVE = 'LOVE',
+  LAUGH = 'LAUGH',
+  ANGRY = 'ANGRY',
+  SAD = 'SAD',
 }
 
 export interface PostMedia {

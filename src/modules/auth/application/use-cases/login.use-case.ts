@@ -10,7 +10,7 @@ import { LoginResult } from '../../domain/entities';
 import { IUserRepository } from '../../../users/application';
 import { ITokenRepository } from '../interfaces/token.repository.interface';
 import { ISessionRepository } from '../interfaces/session.repository.interface';
-import { USER_REPOSITORY_TOKEN } from '../../../users/users.module';
+import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
   TOKEN_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,

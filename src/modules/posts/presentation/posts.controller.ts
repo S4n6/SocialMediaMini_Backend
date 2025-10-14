@@ -7,10 +7,10 @@ import {
   Body,
   Param,
   Query,
-  Request,
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,40 +26,34 @@ import {
   CreatePostDto,
   UpdatePostDto,
   GetPostsQueryDto,
-  CreateReactionDto,
-  CreateCommentDto,
-  UpdateCommentDto,
   GetUserFeedDto,
 } from '../application/dto/post-use-case.dto';
+
+// Domain enums
+import { PostPrivacy } from '../domain/post.entity';
 
 // Presentation DTOs
 import {
   CreatePostRequestDto,
   UpdatePostRequestDto,
   GetPostsQueryRequestDto,
-  CreateReactionRequestDto,
-  CreateCommentRequestDto,
 } from './dto/post-request.dto';
-import {
-  PostResponseDto as PostApiResponse,
-  PostListResponseDto as PostListApiResponse,
-  CreatePostResponseDto,
-} from './dto/post-response.dto';
+
 import {
   GetFeedDto,
-  PostCommentResponseDto,
   PostDetailResponseDto,
   PostListResponseDto,
   PostResponseDto,
 } from '../application';
 
-// These would be imported from auth module
-// import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-// import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+// Import guards and decorators from shared folder
+import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
+import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
+import { SkipGuards } from '../../../shared/decorators/skipGuard.decorator';
 
 @ApiTags('Posts')
 @Controller('posts')
-// @UseGuards(JwtAuthGuard) // Uncomment when auth is ready
+@UseGuards(JwtAuthGuard)
 export class PostsController {
   constructor(
     private readonly postApplicationService: PostApplicationService,
@@ -76,22 +70,29 @@ export class PostsController {
   })
   @ApiBearerAuth()
   async createPost(
-    @Body() createPostDto: CreatePostDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @Body() createPostRequest: CreatePostRequestDto,
+    @CurrentUser('id') authorId: string,
   ): Promise<PostResponseDto> {
-    // Safe accessor for user id from request
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
+    const createPostDto: CreatePostDto = {
+      content: createPostRequest.content,
+      privacy: this.mapPrivacyToApplicationEnum(createPostRequest.privacy),
+      hashtags: createPostRequest.hashtags,
+      authorId,
     };
 
-    const authorId = getUserId(req);
     return this.postApplicationService.createPost(authorId, createPostDto);
+  }
+
+  private mapPrivacyToApplicationEnum(privacy?: string): PostPrivacy {
+    switch (privacy) {
+      case 'private':
+        return PostPrivacy.PRIVATE;
+      case 'followers':
+        return PostPrivacy.FOLLOWERS;
+      case 'public':
+      default:
+        return PostPrivacy.PUBLIC;
+    }
   }
 
   @Put(':id')
@@ -105,21 +106,25 @@ export class PostsController {
   @ApiBearerAuth()
   async updatePost(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updatePostDto: UpdatePostDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @Body() updatePostRequest: UpdatePostRequestDto,
+    @CurrentUser('userId') userId: string,
   ): Promise<PostResponseDto> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
+    // Map presentation DTO to application DTO
+    const updatePostDto: UpdatePostDto = {
+      id,
+      content: updatePostRequest.content,
+      privacy: updatePostRequest.privacy
+        ? this.mapPrivacyToApplicationEnum(updatePostRequest.privacy)
+        : undefined,
+      media: updatePostRequest.media?.map((m) => ({
+        url: m.url,
+        type: m.type,
+        order: m.order,
+      })),
+      hashtags: updatePostRequest.hashtags,
+      authorId: userId,
     };
 
-    const userId = getUserId(req);
     return this.postApplicationService.updatePost(id, userId, updatePostDto);
   }
 
@@ -131,37 +136,16 @@ export class PostsController {
   @ApiBearerAuth()
   async deletePost(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('role') userRole: string,
   ): Promise<void> {
-    // Safe accessors for user id and role
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const getUserRole = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { role?: unknown } };
-        const v = maybe?.user?.role;
-        return typeof v === 'string' && v ? v : 'USER';
-      } catch {
-        return 'USER';
-      }
-    };
-
-    const userId = getUserId(req);
-    const userRole = getUserRole(req);
     return this.postApplicationService.deletePost(id, userId, userRole);
   }
 
   // ===== POST RETRIEVAL =====
 
   @Get(':id')
+  @SkipGuards()
   @ApiOperation({ summary: 'Get a post by ID' })
   @ApiResponse({
     status: 200,
@@ -171,25 +155,14 @@ export class PostsController {
   @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
   async getPost(
     @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @CurrentUser('userId') viewerId?: string,
   ): Promise<PostDetailResponseDto> {
-    // Safe accessor for optional viewer id
-    const getOptionalUserId = (r: unknown): string | undefined => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : undefined;
-      } catch {
-        return undefined;
-      }
-    };
-
-    const viewerId = getOptionalUserId(req);
     const isFollowing = false; // TODO: Implement following check
     return this.postApplicationService.getPostById(id, viewerId, isFollowing);
   }
 
   @Get()
+  @SkipGuards()
   @ApiOperation({ summary: 'Get posts with filters' })
   @ApiResponse({
     status: 200,
@@ -228,20 +201,8 @@ export class PostsController {
   })
   async getPosts(
     @Query() query: GetPostsQueryDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @CurrentUser('userId') viewerId?: string,
   ): Promise<PostListResponseDto> {
-    // Safe accessor for optional viewer id
-    const getOptionalUserId = (r: unknown): string | undefined => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : undefined;
-      } catch {
-        return undefined;
-      }
-    };
-
-    const viewerId = getOptionalUserId(req);
     return this.postApplicationService.getPosts(query, viewerId);
   }
 
@@ -255,233 +216,8 @@ export class PostsController {
   @ApiBearerAuth()
   async getFeed(
     @Query() query: GetFeedDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
+    @CurrentUser('userId') userId: string,
   ): Promise<PostListResponseDto> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const userId = getUserId(req);
     return this.postApplicationService.getUserFeed(userId, query);
-  }
-
-  // ===== REACTIONS =====
-
-  @Post(':id/reactions')
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Add reaction to a post' })
-  @ApiResponse({ status: 201, description: 'Reaction added successfully' })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiBearerAuth()
-  async addReaction(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() createReactionDto: CreateReactionDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<void> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const userId = getUserId(req);
-    return this.postApplicationService.addReaction(
-      id,
-      userId,
-      createReactionDto,
-    );
-  }
-
-  @Delete(':id/reactions')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Remove reaction from a post' })
-  @ApiResponse({ status: 204, description: 'Reaction removed successfully' })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiBearerAuth()
-  async removeReaction(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<void> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const userId = getUserId(req);
-    return this.postApplicationService.removeReaction(id, userId);
-  }
-
-  @Put(':id/reactions/toggle')
-  @ApiOperation({ summary: 'Toggle reaction on a post' })
-  @ApiResponse({
-    status: 200,
-    description: 'Reaction toggled successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        action: { type: 'string', enum: ['added', 'removed', 'changed'] },
-        reactionType: { type: 'string', nullable: true },
-      },
-    },
-  })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiBearerAuth()
-  async toggleReaction(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() createReactionDto: CreateReactionDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<{
-    action: 'added' | 'removed' | 'changed';
-    reactionType?: string;
-  }> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const userId = getUserId(req);
-    return this.postApplicationService.toggleReaction(
-      id,
-      userId,
-      createReactionDto,
-    );
-  }
-
-  // ===== COMMENTS =====
-
-  @Post(':id/comments')
-  @ApiOperation({ summary: 'Add comment to a post' })
-  @ApiResponse({
-    status: 201,
-    description: 'Comment added successfully',
-    type: PostCommentResponseDto,
-  })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiBearerAuth()
-  async addComment(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() createCommentDto: CreateCommentDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<PostCommentResponseDto> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const authorId = getUserId(req);
-    return this.postApplicationService.addComment(
-      id,
-      authorId,
-      createCommentDto,
-    );
-  }
-
-  @Put(':id/comments/:commentId')
-  @ApiOperation({ summary: 'Update a comment' })
-  @ApiResponse({
-    status: 200,
-    description: 'Comment updated successfully',
-    type: PostCommentResponseDto,
-  })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiParam({ name: 'commentId', description: 'Comment ID', type: 'string' })
-  @ApiBearerAuth()
-  async updateComment(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('commentId', ParseUUIDPipe) commentId: string,
-    @Body() updateCommentDto: UpdateCommentDto,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<PostCommentResponseDto> {
-    // Safe accessor for user id
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const userId = getUserId(req);
-    return this.postApplicationService.updateComment(
-      id,
-      commentId,
-      userId,
-      updateCommentDto,
-    );
-  }
-
-  @Delete(':id/comments/:commentId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a comment' })
-  @ApiResponse({ status: 204, description: 'Comment deleted successfully' })
-  @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
-  @ApiParam({ name: 'commentId', description: 'Comment ID', type: 'string' })
-  @ApiBearerAuth()
-  async deleteComment(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('commentId', ParseUUIDPipe) commentId: string,
-    @Request() req: unknown, // Replace with @CurrentUser() when auth is ready
-  ): Promise<void> {
-    // Safe accessors for user id and role
-    const getUserId = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { userId?: unknown } };
-        const v = maybe?.user?.userId;
-        return typeof v === 'string' && v ? v : 'temp-user-id';
-      } catch {
-        return 'temp-user-id';
-      }
-    };
-
-    const getUserRole = (r: unknown): string => {
-      try {
-        const maybe = r as { user?: { role?: unknown } };
-        const v = maybe?.user?.role;
-        return typeof v === 'string' && v ? v : 'USER';
-      } catch {
-        return 'USER';
-      }
-    };
-
-    const userId = getUserId(req);
-    const userRole = getUserRole(req);
-    return this.postApplicationService.deleteComment(
-      id,
-      commentId,
-      userId,
-      userRole,
-    );
   }
 }

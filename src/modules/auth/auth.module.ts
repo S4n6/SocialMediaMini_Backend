@@ -40,13 +40,8 @@ import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { ResendVerificationUseCase } from './application/use-cases/resend-verification.use-case';
 import { AuthenticationService } from './infrastructure/repositories/authentication.repository';
 import { VerificationTokenService } from './infrastructure/services/verification-token.service';
-// import { RefreshTokenParserService } from './infrastructure/refresh-token-parser.service';
-// Removed: SessionRepositoryAdapter and TokenRepositoryAdapter (replaced by clean architecture)
 import { JwtStrategy } from './presentation/strategies/Jwt.strategy';
 import { GoogleStrategy } from './presentation/strategies/google.strategy';
-// Removed: PassportAuthAdapter (file was deleted)
-
-// External Dependencies
 import { UsersModule } from '../users/users.module';
 import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
@@ -69,12 +64,10 @@ import { PrismaModule } from '../../database/prisma.module';
   ],
   controllers: [AuthController],
   providers: [
-    // ============ NEW CLEAN ARCHITECTURE PROVIDERS ============
-
-    // Application Services
+    // Application
     AuthApplicationService,
 
-    // Repository Implementations
+    // Repositories
     {
       provide: SESSION_REPOSITORY_TOKEN,
       useClass: SessionRepository,
@@ -84,7 +77,7 @@ import { PrismaModule } from '../../database/prisma.module';
       useClass: TokenRepository,
     },
 
-    // Domain Service Implementations
+    // Services
     {
       provide: PASSWORD_HASHER_TOKEN,
       useClass: BcryptPasswordHasher,
@@ -98,22 +91,18 @@ import { PrismaModule } from '../../database/prisma.module';
       useClass: MailerEmailSender,
     },
 
-    // ============ LEGACY PROVIDERS (TO BE REMOVED) ============
-
-    // Legacy Application Services
+    // Legacy/Compatibility
     {
       provide: 'LEGACY_AUTH_APPLICATION_SERVICE',
       useClass: LegacyAuthApplicationService,
     },
-
+    AuthUserService,
     {
       provide: 'AUTH_USER_SERVICE',
-      useClass: AuthUserService,
+      useExisting: AuthUserService,
     },
 
-    AuthUserService,
-
-    // Legacy Use Cases
+    // Legacy use-cases
     RegisterUserUseCase,
     LoginUseCase,
     GoogleAuthUseCase,
@@ -124,30 +113,23 @@ import { PrismaModule } from '../../database/prisma.module';
     LogoutUseCase,
     ResendVerificationUseCase,
 
-    // Legacy Infrastructure Services
+    // Legacy infra
     AuthenticationService,
     {
       provide: 'AUTHENTICATION_SERVICE',
-      useClass: AuthenticationService,
+      useExisting: AuthenticationService,
     },
     VerificationTokenService,
-    // RefreshTokenParserService, // Removed temporarily
-    // Removed: SessionRepositoryAdapter, TokenRepositoryAdapter, SessionService, TokenService (replaced by clean architecture)
 
-    // Legacy Presentation Services
-    // Removed: PassportAuthAdapter (file was deleted)
+    // Presentation
     JwtStrategy,
     GoogleStrategy,
 
-    // Legacy Token Providers (for backward compatibility)
+    // Compatibility token
     {
       provide: 'TOKEN_GENERATOR',
-      useClass: VerificationTokenService,
+      useExisting: VerificationTokenService,
     },
-    // {
-    //   provide: 'REFRESH_TOKEN_PARSER',
-    //   useClass: RefreshTokenParserService,
-    // },
   ],
   exports: [
     // New Clean Architecture Exports

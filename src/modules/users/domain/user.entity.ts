@@ -446,6 +446,26 @@ export class User extends Entity<string> {
   }
 
   /**
+   * Update user password
+   */
+  public updatePassword(hashedPassword: string): void {
+    if (!hashedPassword || hashedPassword.length === 0) {
+      throw new DomainException('Password hash cannot be empty');
+    }
+
+    this._passwordHash = hashedPassword;
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Update last profile update timestamp (temporary method for verification email tracking)
+   */
+  public updateLastProfileUpdateTimestamp(timestamp: Date): void {
+    this._lastProfileUpdate = timestamp;
+    this._updatedAt = new Date();
+  }
+
+  /**
    * Get user statistics with enhanced metrics
    */
   public getStats() {

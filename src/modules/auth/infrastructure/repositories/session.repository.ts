@@ -3,6 +3,8 @@ import { ISessionRepository } from '../../application/interfaces/session.reposit
 import { AuthSession } from '../../domain/entities/session.entity';
 import { Token } from '../../domain/value-objects/token.vo';
 import { PrismaService } from '../../../../database/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { JWT } from '../../../../config/jwt.config';
 
 /**
  * Prisma Session Repository Implementation
@@ -10,7 +12,10 @@ import { PrismaService } from '../../../../database/prisma.service';
  */
 @Injectable()
 export class SessionRepository implements ISessionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   // Overload: create from AuthSession entity
   async create(session: AuthSession): Promise<AuthSession>;
@@ -310,14 +315,11 @@ export class SessionRepository implements ISessionRepository {
       sub: userId,
       sessionId: sessionId,
       type: 'refresh',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
     };
 
-    const header = Buffer.from(
-      JSON.stringify({ typ: 'JWT', alg: 'HS256' }),
-    ).toString('base64');
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64');
-    return `${header}.${payloadStr}.refresh_signature`;
+    return this.jwtService.sign(payload, {
+      secret: JWT.REFRESH_SECRET || JWT.SECRET,
+      expiresIn: JWT.REFRESH_EXPIRES_IN,
+    });
   }
 }

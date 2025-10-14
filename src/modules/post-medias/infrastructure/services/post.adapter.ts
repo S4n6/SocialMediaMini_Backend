@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { PostService } from '../domain/services/post-media-domain.service';
+import { PrismaService } from '../../../../database/prisma.service';
+import { PostService } from '../../application/ports/services/post.service';
 
 @Injectable()
 export class PostServiceAdapter implements PostService {

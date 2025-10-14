@@ -260,8 +260,8 @@ export class AuthController {
     } catch (error) {
       console.error('Logout error:', error);
       return {
-        success: true,
-        message: 'Logged out successfully',
+        success: false,
+        message: 'Logout failed',
       };
     }
   }

@@ -25,52 +25,49 @@ import { UnfollowUserUseCase } from './application/use-cases/follow-user.use-cas
 // Presentation Layer
 import { UsersController } from './presentation/users.controller';
 
-// Repository interface token
-export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
-export const EVENT_BUS_TOKEN = 'EVENT_BUS';
+// Repository / event tokens
+import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [
-    // UsersController, // temporarily disabled
-  ],
+  controllers: [UsersController],
   providers: [
-    // Application Layer
-    // UserApplicationService, // Temporarily disabled
-
-    // Use Cases - User Management
-    // CreateUserUseCase, // Temporarily disabled
-    // UpdateProfileUseCase,
-    // VerifyEmailUseCase,
-
-    // Use Cases - Follow Management
-    // FollowUserUseCase,
-    // UnfollowUserUseCase,
-
-    // Use Cases - User Queries
-    // GetUserProfileUseCase,
-    // SearchUsersUseCase,
-    // GetUserFollowersUseCase,
-    // GetUserFollowingUseCase,
-
-    // Domain Layer
-    UserFactory,
-    UserDomainService,
-
-    // Infrastructure Layer - Repository
+    // Infrastructure Layer - Repository (provide early)
     {
       provide: USER_REPOSITORY_TOKEN,
       useClass: UserPrismaRepository,
     },
 
-    // Event Bus
+    // Event Bus (provide early)
     {
       provide: EVENT_BUS_TOKEN,
       useClass: InMemoryEventBus,
     },
+
+    // Domain Layer
+    UserFactory,
+    UserDomainService,
+
+    // Application Layer
+    UserApplicationService,
+
+    // Use Cases - User Management
+    CreateUserUseCase,
+    UpdateProfileUseCase,
+    VerifyEmailUseCase,
+
+    // Use Cases - Follow Management
+    FollowUserUseCase,
+    UnfollowUserUseCase,
+
+    // Use Cases - User Queries
+    GetUserProfileUseCase,
+    SearchUsersUseCase,
+    GetUserFollowersUseCase,
+    GetUserFollowingUseCase,
   ],
   exports: [
-    // UserApplicationService, // Temporarily disabled
+    UserApplicationService,
     USER_REPOSITORY_TOKEN, // Export for other modules to use
     UserFactory, // Export for other modules to use
     UserDomainService,

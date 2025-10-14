@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { PostMediaRepository } from '../domain/repositories/post-media.repository';
-import { PostMediaEntity, PostMediaType } from '../domain/post-media.entity';
-import { PostMediaFactory } from '../domain/factories/post-media.factory';
+import { PrismaService } from '../../../../database/prisma.service';
+import { PostMediaRepository } from '../../application/ports/repositories/post-media.repository';
+import { PostMediaEntity, PostMediaType } from '../../domain/post-media.entity';
+import { PostMediaFactory } from '../factories/post-media.factory';
 
 @Injectable()
 export class PostMediaPrismaRepository implements PostMediaRepository {

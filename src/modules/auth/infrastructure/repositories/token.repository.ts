@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { ITokenRepository } from '../../application/interfaces/token.repository.interface';
 import { AuthToken, TokenType } from '../../domain/entities/token.entity';
 import { Token } from '../../domain/value-objects/token.vo';
@@ -6,6 +6,8 @@ import { Email } from '../../domain/value-objects/email.vo';
 import { PrismaService } from '../../../../database/prisma.service';
 import { VerificationTokenService } from '../services/verification-token.service';
 import { AuthSession } from '../../domain/entities/session.entity';
+import { JwtService } from '@nestjs/jwt';
+import { JWT } from '../../../../config/jwt.config';
 
 /**
  * Prisma Token Repository Implementation
@@ -16,6 +18,7 @@ export class TokenRepository implements ITokenRepository {
   constructor(
     private readonly prisma: PrismaService,
     private readonly verificationTokenService: VerificationTokenService,
+    private readonly jwtService: JwtService,
   ) {}
 
   // NOTE: CRUD/lifecycle token methods removed - TokenRepository only exposes
@@ -34,22 +37,19 @@ export class TokenRepository implements ITokenRepository {
     email: string,
     role: string,
   ): string {
-    // Generate JWT access token with user claims
     const payload = {
       sub: userId,
       email: email,
       role: role,
       type: 'access',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 15 * 60, // 15 minutes
     };
 
-    // Simple JWT-like token (in production, use proper JWT library with signing)
-    const header = Buffer.from(
-      JSON.stringify({ typ: 'JWT', alg: 'HS256' }),
-    ).toString('base64');
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64');
-    return `${header}.${payloadStr}.signature`;
+    // Use JwtService to sign the token so JwtStrategy can verify it using the
+    // same secret configured in JwtModule.register(...)
+    return this.jwtService.sign(payload, {
+      secret: JWT.SECRET,
+      expiresIn: JWT.EXPIRES_IN,
+    });
   }
 
   generateRefreshToken(userId: string, sessionId: string): string {
@@ -58,15 +58,12 @@ export class TokenRepository implements ITokenRepository {
       sub: userId,
       sessionId: sessionId,
       type: 'refresh',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60, // 7 days
     };
 
-    const header = Buffer.from(
-      JSON.stringify({ typ: 'JWT', alg: 'HS256' }),
-    ).toString('base64');
-    const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64');
-    return `${header}.${payloadStr}.refresh_signature`;
+    return this.jwtService.sign(payload, {
+      secret: JWT.REFRESH_SECRET || JWT.SECRET,
+      expiresIn: JWT.REFRESH_EXPIRES_IN,
+    });
   }
 
   async createTokensForUser(
@@ -109,10 +106,24 @@ export class TokenRepository implements ITokenRepository {
     userId: string;
     email: string;
   }> {
-    // Validate refresh token
-    const tokenData = this.validateRefreshToken(refreshToken);
+    // Validate and verify refresh token signature and payload
+    let tokenData;
+    try {
+      const verified = this.jwtService.verify(refreshToken, {
+        secret: JWT.REFRESH_SECRET || JWT.SECRET,
+      }) as any;
 
-    if (!tokenData) {
+      // Basic checks
+      if (!verified || verified.type !== 'refresh' || !verified.sub) {
+        throw new Error('Invalid refresh token');
+      }
+
+      tokenData = {
+        userId: verified.sub,
+        email: verified.email || 'unknown@example.com',
+        sessionId: verified.sessionId,
+      };
+    } catch (err) {
       throw new Error('Invalid or expired refresh token');
     }
 
@@ -165,20 +176,27 @@ export class TokenRepository implements ITokenRepository {
   }
 
   async revokeRefreshToken(refreshToken: string): Promise<void> {
-    const tokenData = this.validateRefreshToken(refreshToken);
+    try {
+      const verified = this.jwtService.verify(refreshToken, {
+        secret: JWT.REFRESH_SECRET || JWT.SECRET,
+      }) as any;
 
-    if (tokenData) {
-      // Use the new sessionId hashing approach to find and revoke session
+      if (!verified || verified.type !== 'refresh' || !verified.sub) {
+        return;
+      }
+
       const sessionId = AuthSession.generateSessionId(refreshToken);
       await this.prisma.session.updateMany({
         where: {
           sessionId: sessionId,
-          userId: tokenData.userId,
+          userId: verified.sub,
         },
         data: {
           isRevoked: true,
         },
       });
+    } catch (err) {
+      // ignore invalid tokens
     }
   }
 
@@ -203,40 +221,6 @@ export class TokenRepository implements ITokenRepository {
     return Promise.resolve(token);
   }
 
-  // Helper method to validate refresh token
-  private validateRefreshToken(
-    refreshToken: string,
-  ): { userId: string; email: string; sessionId: string } | null {
-    try {
-      if (!refreshToken.includes('.')) {
-        return null;
-      }
-
-      const parts = refreshToken.split('.');
-      if (parts.length < 2) {
-        return null;
-      }
-
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-
-      // Check expiration
-      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-        return null;
-      }
-
-      // Check token type
-      if (payload.type !== 'refresh') {
-        return null;
-      }
-
-      return {
-        userId: payload.sub,
-        email: payload.email || 'unknown@example.com',
-        sessionId: payload.sessionId,
-      };
-    } catch (error) {
-      console.error('Error validating refresh token:', error);
-      return null;
-    }
-  }
+  // Note: refresh token verification is done via JwtService.verify in refreshAccessToken
+  // and revokeRefreshToken, so no separate manual parsing is required.
 }

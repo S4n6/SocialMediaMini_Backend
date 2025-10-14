@@ -12,14 +12,14 @@ import {
 } from './dto/post-media.dto';
 
 // Use cases imports
-import { UploadPostMediasUseCase } from './use-cases/upload-post-medias.use-case';
-import { GetAllPostMediasUseCase } from './use-cases/get-all-post-medias.use-case';
-import { GetPostMediaByIdUseCase } from './use-cases/get-post-media-by-id.use-case';
-import { GetPostMediasByPostIdUseCase } from './use-cases/get-post-medias-by-post-id.use-case';
-import { UpdatePostMediaUseCase } from './use-cases/update-post-media.use-case';
-import { DeletePostMediaUseCase } from './use-cases/delete-post-media.use-case';
-import { ReorderPostMediasUseCase } from './use-cases/reorder-post-medias.use-case';
-import { GenerateCloudinarySignatureUseCase } from './use-cases/generate-cloudinary-signature.use-case';
+import { UploadPostMediasUseCase } from './use-cases/upload-post-medias/upload-post-medias.use-case';
+import { GetAllPostMediasUseCase } from './use-cases/get-all-post-medias/get-all-post-medias.use-case';
+import { GetPostMediaByIdUseCase } from './use-cases/get-post-media-by-id/get-post-media-by-id.use-case';
+import { GetPostMediasByPostIdUseCase } from './use-cases/get-post-medias-by-post-id/get-post-medias-by-post-id.use-case';
+import { UpdatePostMediaUseCase } from './use-cases/update-post-media/update-post-media.use-case';
+import { DeletePostMediaUseCase } from './use-cases/delete-post-media/delete-post-media.use-case';
+import { ReorderPostMediasUseCase } from './use-cases/reorder-post-medias/reorder-post-medias.use-case';
+import { GenerateCloudinarySignatureUseCase } from './use-cases/generate-cloudinary-signature/generate-cloudinary-signature.use-case';
 
 @Injectable()
 export class PostMediaApplicationServiceImpl
