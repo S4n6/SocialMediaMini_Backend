@@ -33,7 +33,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     // For web clients, check for token in cookie if no Authorization header
     if (isWeb && (!authHeader || !authHeader.startsWith('Bearer '))) {
       const accessTokenCookie = request.cookies?.['access_token'];
-      console.log('Access token from cookie:', accessTokenCookie);
       if (!accessTokenCookie) {
         throw new UnauthorizedException(
           'Access token not found in cookies or Authorization header',

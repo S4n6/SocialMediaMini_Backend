@@ -150,14 +150,18 @@ export class PostMediaEntity extends Entity<string> {
   }
 
   public static fromPersistence(props: PostMediaProps): PostMediaEntity {
-    const entity = Object.create(PostMediaEntity.prototype);
-    Entity.call(entity, props.id);
-    entity._url = props.url;
-    entity._type = props.type;
-    entity._postId = props.postId;
-    entity._order = props.order;
-    entity._createdAt = props.createdAt;
-    entity._updatedAt = props.updatedAt;
+    const entity = new PostMediaEntity({
+      id: props.id,
+      url: props.url,
+      type: props.type,
+      postId: props.postId,
+      order: props.order,
+      createdAt: props.createdAt,
+      updatedAt: props.updatedAt,
+    });
+
+    // Clear domain events since this is from persistence
+    entity.clearEvents();
     return entity;
   }
 

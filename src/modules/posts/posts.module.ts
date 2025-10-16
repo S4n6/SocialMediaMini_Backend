@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
+import { PostMediasModule } from '../post-medias/postMedias.module';
 
 // Clean Architecture imports
 import { PostApplicationService } from './application/post-application.service';
@@ -38,7 +39,7 @@ import { PostsController } from './presentation/posts.controller';
 export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PostMediasModule],
   controllers: [PostsController],
   providers: [
     // Application Layer

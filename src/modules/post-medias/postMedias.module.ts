@@ -14,6 +14,8 @@ import { UpdatePostMediaUseCase } from './application/use-cases/update-post-medi
 import { DeletePostMediaUseCase } from './application/use-cases/delete-post-media/delete-post-media.use-case';
 import { ReorderPostMediasUseCase } from './application/use-cases/reorder-post-medias/reorder-post-medias.use-case';
 import { GenerateCloudinarySignatureUseCase } from './application/use-cases/generate-cloudinary-signature/generate-cloudinary-signature.use-case';
+import { CreatePostMediasFromUrlsUseCase } from './application/use-cases/create-post-medias-from-urls/create-post-medias-from-urls.use-case';
+import { CleanupMediaUseCase } from './application/use-cases/cleanup-media/cleanup-media.use-case';
 
 // Application Services
 import { PostMediaApplicationServiceImpl } from './application/post-media-application.service';
@@ -44,6 +46,9 @@ import {
     DeletePostMediaUseCase,
     ReorderPostMediasUseCase,
     GenerateCloudinarySignatureUseCase,
+    CreatePostMediasFromUrlsUseCase,
+    CleanupMediaUseCase,
+    CreatePostMediasFromUrlsUseCase,
 
     // Application Services
     PostMediaApplicationServiceImpl,
@@ -65,6 +70,6 @@ import {
       useClass: PostMediaPrismaRepository,
     },
   ],
-  exports: [POST_MEDIA_REPOSITORY],
+  exports: [POST_MEDIA_REPOSITORY, CreatePostMediasFromUrlsUseCase],
 })
 export class PostMediasModule {}

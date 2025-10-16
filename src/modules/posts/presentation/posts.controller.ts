@@ -77,6 +77,11 @@ export class PostsController {
       content: createPostRequest.content,
       privacy: this.mapPrivacyToApplicationEnum(createPostRequest.privacy),
       hashtags: createPostRequest.hashtags,
+      media: createPostRequest.media?.map((m) => ({
+        url: m.url,
+        type: m.type,
+        order: m.order,
+      })),
       authorId,
     };
 

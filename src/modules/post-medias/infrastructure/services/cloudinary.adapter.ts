@@ -28,4 +28,12 @@ export class CloudinaryAdapter implements ICloudinaryService {
   async generateSignature(params: any): Promise<string> {
     return await this.cloudinaryService.generateSignature(params);
   }
+
+  async deleteFile(publicId: string): Promise<any> {
+    return await this.cloudinaryService.deleteFile(publicId);
+  }
+
+  async deleteMultipleFiles(publicIds: string[]): Promise<any> {
+    return await this.cloudinaryService.deleteMultipleFiles(publicIds);
+  }
 }

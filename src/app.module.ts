@@ -37,7 +37,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     PostsModule,
     MailerModule,
     RedisCacheModule,
-    NotificationModule,
+    // NotificationModule,
     // SearchHistoryModule,
     // MessagingModule,
     PrismaModule,

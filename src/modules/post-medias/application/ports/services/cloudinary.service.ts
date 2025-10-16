@@ -11,4 +11,8 @@ export interface CloudinaryService {
   ): Promise<UploadedFile[]>;
 
   generateSignature(params: any): Promise<string>;
+
+  deleteFile(publicId: string): Promise<any>;
+
+  deleteMultipleFiles(publicIds: string[]): Promise<any>;
 }
