@@ -1,387 +1,216 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisCacheService } from './cache.service';
-import { CacheConfigName, DEFAULT_CACHE_CONFIGS } from './cache.interfaces';
+import {
+  CacheConfigName,
+  generateCacheKey,
+  getCacheTTL,
+} from './cache.interfaces';
 
+/**
+ * Utility service đơn giản cho các use case cache thường gặp
+ * Phù hợp cho fresher level
+ */
 @Injectable()
 export class CacheUtils {
   private readonly logger = new Logger(CacheUtils.name);
 
   constructor(private readonly cacheService: RedisCacheService) {}
 
-  // User-related caching utilities
+  // ===== USER PROFILE CACHE =====
+
+  /**
+   * Cache user profile data
+   */
   async cacheUserProfile(userId: string, userData: any): Promise<void> {
-    const key = `user:profile:${userId}`;
-    await this.cacheService.set(key, userData, 'USER_PROFILE');
+    const key = generateCacheKey('USER_PROFILE', userId);
+    const ttl = getCacheTTL('USER_PROFILE');
+    await this.cacheService.set(key, userData, ttl);
+    this.logger.debug(`Cached user profile for user ${userId}`);
   }
 
+  /**
+   * Get cached user profile
+   */
   async getCachedUserProfile(userId: string): Promise<any | null> {
-    const key = `user:profile:${userId}`;
-    return this.cacheService.get(key, 'USER_PROFILE');
+    const key = generateCacheKey('USER_PROFILE', userId);
+    return await this.cacheService.get(key);
   }
 
+  /**
+   * Remove user profile from cache
+   */
   async invalidateUserProfile(userId: string): Promise<void> {
-    await this.cacheService.del(`user:profile:${userId}`, 'USER_PROFILE');
+    const key = generateCacheKey('USER_PROFILE', userId);
+    await this.cacheService.del(key);
+    this.logger.debug(`Invalidated user profile for user ${userId}`);
   }
 
-  // Post-related caching utilities
+  // ===== POST CACHE =====
+
+  /**
+   * Cache single post data
+   */
   async cachePost(postId: string, postData: any): Promise<void> {
-    const key = `post:${postId}`;
-    await this.cacheService.set(key, postData, 'POST');
+    const key = generateCacheKey('POST', postId);
+    const ttl = getCacheTTL('POST');
+    await this.cacheService.set(key, postData, ttl);
+    this.logger.debug(`Cached post ${postId}`);
   }
 
+  /**
+   * Get cached post
+   */
   async getCachedPost(postId: string): Promise<any | null> {
-    const key = `post:${postId}`;
-    return this.cacheService.get(key, 'POST');
+    const key = generateCacheKey('POST', postId);
+    return await this.cacheService.get(key);
   }
 
-  async cacheUserPosts(
-    userId: string,
-    posts: any[],
-    page: number = 1,
-    limit: number = 20,
-  ): Promise<void> {
-    const key = `post:list:user:${userId}:${page}:${limit}`;
-    await this.cacheService.set(key, posts, 'POST_LIST');
+  /**
+   * Remove post from cache
+   */
+  async invalidatePost(postId: string): Promise<void> {
+    const key = generateCacheKey('POST', postId);
+    await this.cacheService.del(key);
+    this.logger.debug(`Invalidated post ${postId}`);
   }
 
-  async getCachedUserPosts(
-    userId: string,
-    page: number = 1,
-    limit: number = 20,
-  ): Promise<any[] | null> {
-    const key = `post:list:user:${userId}:${page}:${limit}`;
-    return this.cacheService.get(key, 'POST_LIST');
-  }
+  // ===== USER FEED CACHE =====
 
-  // Feed-related caching utilities
+  /**
+   * Cache user feed với pagination
+   */
   async cacheUserFeed(
     userId: string,
     feedData: any[],
     page: number = 1,
-    limit: number = 20,
   ): Promise<void> {
-    const key = `user:feed:${userId}:${page}:${limit}`;
-    await this.cacheService.set(key, feedData, 'USER_FEED');
+    const key = generateCacheKey('USER_FEED', `${userId}:page:${page}`);
+    const ttl = getCacheTTL('USER_FEED');
+    await this.cacheService.set(key, feedData, ttl);
+    this.logger.debug(`Cached feed for user ${userId}, page ${page}`);
   }
 
+  /**
+   * Get cached user feed
+   */
   async getCachedUserFeed(
     userId: string,
     page: number = 1,
-    limit: number = 20,
   ): Promise<any[] | null> {
-    const key = `user:feed:${userId}:${page}:${limit}`;
-    return this.cacheService.get(key, 'USER_FEED');
+    const key = generateCacheKey('USER_FEED', `${userId}:page:${page}`);
+    return await this.cacheService.get(key);
   }
 
+  /**
+   * Invalidate user feed (tất cả pages)
+   */
   async invalidateUserFeed(userId: string): Promise<void> {
-    await this.cacheService.invalidateByPattern(`user:feed:${userId}:*`);
+    // Xóa nhiều pages của feed (tạm thời xóa 5 pages đầu)
+    const keys: string[] = [];
+    for (let page = 1; page <= 5; page++) {
+      keys.push(generateCacheKey('USER_FEED', `${userId}:page:${page}`));
+    }
+
+    await Promise.all(keys.map((key) => this.cacheService.del(key)));
+    this.logger.debug(`Invalidated feed for user ${userId}`);
   }
 
-  // Search-related caching utilities
+  // ===== SEARCH CACHE =====
+
+  /**
+   * Cache search results
+   */
   async cacheSearchResults(
     query: string,
-    results: any,
-    type: string = 'all',
-    page: number = 1,
+    results: any[],
+    type: string = 'general',
   ): Promise<void> {
-    const normalizedQuery = this.normalizeSearchQuery(query);
-    const key = `search:${normalizedQuery}:${type}:${page}`;
-    await this.cacheService.set(key, results, 'SEARCH_RESULTS');
+    const searchKey = `${type}:${query.toLowerCase()}`;
+    const key = generateCacheKey('SEARCH', searchKey);
+    const ttl = getCacheTTL('SEARCH');
+    await this.cacheService.set(key, results, ttl);
+    this.logger.debug(`Cached search results for query: ${query}`);
   }
 
+  /**
+   * Get cached search results
+   */
   async getCachedSearchResults(
     query: string,
-    type: string = 'all',
-    page: number = 1,
-  ): Promise<any | null> {
-    const normalizedQuery = this.normalizeSearchQuery(query);
-    const key = `search:${normalizedQuery}:${type}:${page}`;
-    return this.cacheService.get(key, 'SEARCH_RESULTS');
+    type: string = 'general',
+  ): Promise<any[] | null> {
+    const searchKey = `${type}:${query.toLowerCase()}`;
+    const key = generateCacheKey('SEARCH', searchKey);
+    return await this.cacheService.get(key);
   }
 
-  async cachePopularSearches(searches: any[]): Promise<void> {
-    const key = 'search:popular';
-    await this.cacheService.set(key, searches, 'SEARCH_RESULTS');
-  }
+  // ===== NOTIFICATIONS CACHE =====
 
-  async getCachedPopularSearches(): Promise<any[] | null> {
-    const key = 'search:popular';
-    return this.cacheService.get(key, 'SEARCH_RESULTS');
-  }
-
-  // Authentication-related caching utilities
-  async cacheUserSession(
-    userId: string,
-    sessionData: any,
-    expiresIn: number = 3600,
-  ): Promise<void> {
-    const key = `auth:session:${userId}`;
-    await this.cacheService.set(key, sessionData, {
-      ttl: expiresIn,
-      serialize: true,
-    });
-  }
-
-  async getCachedUserSession(userId: string): Promise<any | null> {
-    const key = `auth:session:${userId}`;
-    return this.cacheService.get(key, 'AUTH_STATE');
-  }
-
-  async invalidateUserSession(userId: string): Promise<void> {
-    await this.cacheService.del(`auth:session:${userId}`, 'AUTH_STATE');
-  }
-
-  async cacheUserPermissions(
-    userId: string,
-    permissions: string[],
-  ): Promise<void> {
-    const key = `auth:permissions:${userId}`;
-    await this.cacheService.set(key, permissions, 'AUTH_STATE');
-  }
-
-  async getCachedUserPermissions(userId: string): Promise<string[] | null> {
-    const key = `auth:permissions:${userId}`;
-    return this.cacheService.get(key, 'AUTH_STATE');
-  }
-
-  // Notification-related caching utilities
+  /**
+   * Cache user notifications
+   */
   async cacheUserNotifications(
     userId: string,
     notifications: any[],
-    page: number = 1,
   ): Promise<void> {
-    const key = `notifications:${userId}:${page}`;
-    await this.cacheService.set(key, notifications, 'NOTIFICATION_LIST');
+    const key = generateCacheKey('NOTIFICATIONS', userId);
+    const ttl = getCacheTTL('NOTIFICATIONS');
+    await this.cacheService.set(key, notifications, ttl);
+    this.logger.debug(`Cached notifications for user ${userId}`);
   }
 
-  async getCachedUserNotifications(
-    userId: string,
-    page: number = 1,
-  ): Promise<any[] | null> {
-    const key = `notifications:${userId}:${page}`;
-    return this.cacheService.get(key, 'NOTIFICATION_LIST');
+  /**
+   * Get cached user notifications
+   */
+  async getCachedUserNotifications(userId: string): Promise<any[] | null> {
+    const key = generateCacheKey('NOTIFICATIONS', userId);
+    return await this.cacheService.get(key);
   }
 
-  async cacheUnreadNotificationCount(
-    userId: string,
-    count: number,
-  ): Promise<void> {
-    const key = `notifications:unread:${userId}`;
-    await this.cacheService.set(key, count, { ttl: 300 }); // 5 minutes
+  /**
+   * Invalidate user notifications
+   */
+  async invalidateUserNotifications(userId: string): Promise<void> {
+    const key = generateCacheKey('NOTIFICATIONS', userId);
+    await this.cacheService.del(key);
+    this.logger.debug(`Invalidated notifications for user ${userId}`);
   }
 
-  async getCachedUnreadNotificationCount(
-    userId: string,
-  ): Promise<number | null> {
-    const key = `notifications:unread:${userId}`;
-    return this.cacheService.get(key, { ttl: 300 });
-  }
+  // ===== UTILITY METHODS =====
 
-  // Follow-related caching utilities
-  async cacheUserFollowers(
-    userId: string,
-    followers: any[],
-    page: number = 1,
-  ): Promise<void> {
-    const key = `user:followers:${userId}:${page}`;
-    await this.cacheService.set(key, followers, 'USER_LIST');
-  }
+  /**
+   * Invalidate multiple related caches khi user tạo post mới
+   */
+  async invalidateAfterNewPost(userId: string, postId: string): Promise<void> {
+    // Xóa feed của user
+    await this.invalidateUserFeed(userId);
 
-  async getCachedUserFollowers(
-    userId: string,
-    page: number = 1,
-  ): Promise<any[] | null> {
-    const key = `user:followers:${userId}:${page}`;
-    return this.cacheService.get(key, 'USER_LIST');
-  }
-
-  async cacheUserFollowing(
-    userId: string,
-    following: any[],
-    page: number = 1,
-  ): Promise<void> {
-    const key = `user:following:${userId}:${page}`;
-    await this.cacheService.set(key, following, 'USER_LIST');
-  }
-
-  async getCachedUserFollowing(
-    userId: string,
-    page: number = 1,
-  ): Promise<any[] | null> {
-    const key = `user:following:${userId}:${page}`;
-    return this.cacheService.get(key, 'USER_LIST');
-  }
-
-  // Reaction/Like caching utilities
-  async cachePostLikeCount(postId: string, count: number): Promise<void> {
-    const key = `post:likes:${postId}`;
-    await this.cacheService.set(key, count, { ttl: 300 }); // 5 minutes
-  }
-
-  async getCachedPostLikeCount(postId: string): Promise<number | null> {
-    const key = `post:likes:${postId}`;
-    return this.cacheService.get(key, { ttl: 300 });
-  }
-
-  async cachePostCommentCount(postId: string, count: number): Promise<void> {
-    const key = `post:comments:${postId}`;
-    await this.cacheService.set(key, count, { ttl: 300 }); // 5 minutes
-  }
-
-  async getCachedPostCommentCount(postId: string): Promise<number | null> {
-    const key = `post:comments:${postId}`;
-    return this.cacheService.get(key, { ttl: 300 });
-  }
-
-  // Comment caching utilities
-  async cachePostComments(
-    postId: string,
-    comments: any[],
-    page: number = 1,
-  ): Promise<void> {
-    const key = `post:comments:${postId}:${page}`;
-    await this.cacheService.set(key, comments, 'POST_LIST');
-  }
-
-  async getCachedPostComments(
-    postId: string,
-    page: number = 1,
-  ): Promise<any[] | null> {
-    const key = `post:comments:${postId}:${page}`;
-    return this.cacheService.get(key, 'POST_LIST');
-  }
-
-  // Trending/Popular content caching
-  async cacheTrendingPosts(
-    posts: any[],
-    timeframe: string = 'day',
-  ): Promise<void> {
-    const key = `trending:posts:${timeframe}`;
-    await this.cacheService.set(key, posts, 'POST_LIST');
-  }
-
-  async getCachedTrendingPosts(
-    timeframe: string = 'day',
-  ): Promise<any[] | null> {
-    const key = `trending:posts:${timeframe}`;
-    return this.cacheService.get(key, 'POST_LIST');
-  }
-
-  async cachePopularUsers(users: any[]): Promise<void> {
-    const key = 'users:popular';
-    await this.cacheService.set(key, users, 'USER_LIST');
-  }
-
-  async getCachedPopularUsers(): Promise<any[] | null> {
-    const key = 'users:popular';
-    return this.cacheService.get(key, 'USER_LIST');
-  }
-
-  // Batch operations
-  async cacheBatchUserProfiles(
-    userProfiles: Array<[string, any]>,
-  ): Promise<void> {
-    const promises = userProfiles.map(([userId, profile]) =>
-      this.cacheUserProfile(userId, profile),
+    // Có thể thêm logic xóa feed của followers sau này
+    this.logger.debug(
+      `Invalidated caches after new post ${postId} by user ${userId}`,
     );
-    await Promise.all(promises);
   }
 
-  async getCachedBatchUserProfiles(
-    userIds: string[],
-  ): Promise<Array<any | null>> {
-    const promises = userIds.map((userId) => this.getCachedUserProfile(userId));
-    return Promise.all(promises);
+  /**
+   * Invalidate multiple related caches khi user update profile
+   */
+  async invalidateAfterProfileUpdate(userId: string): Promise<void> {
+    // Xóa profile cache
+    await this.invalidateUserProfile(userId);
+
+    // Có thể thêm logic xóa các cache khác liên quan đến user
+    this.logger.debug(
+      `Invalidated caches after profile update for user ${userId}`,
+    );
   }
 
-  // Cache invalidation utilities
-  async invalidateAllUserRelatedCache(userId: string): Promise<void> {
-    await Promise.all([
-      this.cacheService.invalidateByPattern(`user:profile:${userId}`),
-      this.cacheService.invalidateByPattern(`user:feed:${userId}:*`),
-      this.cacheService.invalidateByPattern(`user:followers:${userId}:*`),
-      this.cacheService.invalidateByPattern(`user:following:${userId}:*`),
-      this.cacheService.invalidateByPattern(`auth:*:${userId}`),
-      this.cacheService.invalidateByPattern(`notifications:${userId}:*`),
-    ]);
-  }
-
-  async invalidateAllPostRelatedCache(postId: string): Promise<void> {
-    await Promise.all([
-      this.cacheService.invalidateByPattern(`post:${postId}`),
-      this.cacheService.invalidateByPattern(`post:likes:${postId}`),
-      this.cacheService.invalidateByPattern(`post:comments:${postId}:*`),
-      this.cacheService.invalidateByPattern(`user:feed:*`), // Invalidate all feeds
-    ]);
-  }
-
-  // Cache warming utilities
-  async warmUserCache(userId: string, userData: any): Promise<void> {
-    await Promise.all([
-      this.cacheUserProfile(userId, userData),
-      // Pre-warm related caches if needed
-    ]);
-  }
-
-  async warmPopularContent(): Promise<void> {
-    try {
-      // This would typically fetch and cache popular content
-      // Implementation depends on your business logic
-      this.logger.log('Warming popular content cache...');
-
-      // Example: Cache popular searches, trending posts, etc.
-      // await this.cachePopularSearches(await this.getPopularSearches());
-      // await this.cacheTrendingPosts(await this.getTrendingPosts());
-    } catch (error) {
-      this.logger.error('Error warming popular content cache', error);
-    }
-  }
-
-  // Helper methods
-  private normalizeSearchQuery(query: string): string {
-    return query.toLowerCase().trim().replace(/\s+/g, '_');
-  }
-
-  // Cache statistics for monitoring
-  async getCacheStatistics(): Promise<any> {
-    const stats = this.cacheService.getStats();
-    const isHealthy = await this.cacheService.ping();
-
-    return {
-      ...stats,
-      healthy: isHealthy,
-      timestamp: new Date(),
-    };
-  }
-
-  // Clear cache by type/pattern
-  async clearCacheByType(
-    type: 'user' | 'post' | 'feed' | 'search' | 'auth' | 'notification' | 'all',
-  ): Promise<void> {
-    switch (type) {
-      case 'user':
-        await this.cacheService.invalidateByTag('user');
-        break;
-      case 'post':
-        await this.cacheService.invalidateByTag('post');
-        break;
-      case 'feed':
-        await this.cacheService.invalidateByTag('feed');
-        break;
-      case 'search':
-        await this.cacheService.invalidateByTag('search');
-        break;
-      case 'auth':
-        await this.cacheService.invalidateByTag('auth');
-        break;
-      case 'notification':
-        await this.cacheService.invalidateByTag('notification');
-        break;
-      case 'all':
-        await this.cacheService.clear();
-        break;
-      default:
-        throw new Error(`Unknown cache type: ${type}`);
-    }
+  /**
+   * Clear all cache (emergency use only!)
+   */
+  async clearAllCache(): Promise<void> {
+    await this.cacheService.clear();
+    this.logger.warn(
+      'ALL CACHE CLEARED - This should only be used in emergencies!',
+    );
   }
 }

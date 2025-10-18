@@ -1,93 +1,68 @@
-import { Injectable } from '@nestjs/common';
-
-// Cache configuration interfaces
-export interface CacheConfig {
-  ttl?: number; // Time to live in seconds
-  prefix?: string; // Key prefix
-  tags?: string[]; // Tags for invalidation
-  serialize?: boolean; // Whether to serialize data
-  compress?: boolean; // Whether to compress data
+/**
+ * Interface đơn giản cho cache configuration
+ * Phù hợp cho fresher level
+ */
+export interface SimpleCacheConfig {
+  /** Thời gian sống của cache tính bằng giây */
+  ttl?: number;
+  /** Prefix cho cache key để tránh conflict */
+  prefix?: string;
 }
 
-export interface CacheStats {
-  hits: number;
-  misses: number;
-  hitRate: number;
-  totalOperations: number;
-  lastReset: Date;
-}
-
-export enum CacheEvent {
-  USER_CREATED = 'user.created',
-  USER_UPDATED = 'user.updated',
-  USER_DELETED = 'user.deleted',
-  POST_CREATED = 'post.created',
-  POST_UPDATED = 'post.updated',
-  POST_DELETED = 'post.deleted',
-  FOLLOW_CREATED = 'follow.created',
-  FOLLOW_DELETED = 'follow.deleted',
-}
-
-// Predefined cache configurations for common use cases
-export const DEFAULT_CACHE_CONFIGS = {
+/**
+ * Các config cache thường dùng trong social media app
+ */
+export const CACHE_CONFIGS = {
+  // Cache cho user profile - 30 phút
   USER_PROFILE: {
     ttl: 1800, // 30 minutes
     prefix: 'user:profile',
-    tags: ['user'],
-    serialize: true,
-  } as CacheConfig,
+  } as SimpleCacheConfig,
 
+  // Cache cho posts - 10 phút
   POST: {
     ttl: 600, // 10 minutes
     prefix: 'post',
-    tags: ['post'],
-    serialize: true,
-  } as CacheConfig,
+  } as SimpleCacheConfig,
 
+  // Cache cho feed - 5 phút (cần fresh data)
   USER_FEED: {
     ttl: 300, // 5 minutes
     prefix: 'user:feed',
-    tags: ['user', 'feed'],
-    serialize: true,
-    compress: true, // Feeds can be large
-  } as CacheConfig,
+  } as SimpleCacheConfig,
 
-  POST_LIST: {
-    ttl: 600, // 10 minutes
-    prefix: 'post:list',
-    tags: ['post', 'list'],
-    serialize: true,
-    compress: true,
-  } as CacheConfig,
-
-  USER_LIST: {
-    ttl: 900, // 15 minutes
-    prefix: 'user:list',
-    tags: ['user', 'list'],
-    serialize: true,
-  } as CacheConfig,
-
-  SEARCH_RESULTS: {
+  // Cache cho search results - 10 phút
+  SEARCH: {
     ttl: 600, // 10 minutes
     prefix: 'search',
-    tags: ['search'],
-    serialize: true,
-    compress: true,
-  } as CacheConfig,
+  } as SimpleCacheConfig,
 
-  AUTH_STATE: {
-    ttl: 300, // 5 minutes
-    prefix: 'auth:state',
-    tags: ['auth'],
-    serialize: true,
-  } as CacheConfig,
-
-  NOTIFICATION_LIST: {
+  // Cache cho notifications - 3 phút
+  NOTIFICATIONS: {
     ttl: 180, // 3 minutes
     prefix: 'notifications',
-    tags: ['notification'],
-    serialize: true,
-  } as CacheConfig,
+  } as SimpleCacheConfig,
 } as const;
 
-export type CacheConfigName = keyof typeof DEFAULT_CACHE_CONFIGS;
+/**
+ * Type helper cho cache config names
+ */
+export type CacheConfigName = keyof typeof CACHE_CONFIGS;
+
+/**
+ * Helper function để generate cache key với prefix
+ */
+export function generateCacheKey(
+  configName: CacheConfigName,
+  identifier: string,
+): string {
+  const config = CACHE_CONFIGS[configName];
+  return `${config.prefix}:${identifier}`;
+}
+
+/**
+ * Helper function để lấy TTL từ config
+ */
+export function getCacheTTL(configName: CacheConfigName): number {
+  return CACHE_CONFIGS[configName].ttl || 3600; // Default 1 hour
+}
