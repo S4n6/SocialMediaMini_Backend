@@ -44,36 +44,6 @@ export class GetUserPostsDto {
   limit: number;
 }
 
-export class CreateReactionDto {
-  postId: string;
-  userId: string;
-  type: ReactionType;
-}
-
-export class RemoveReactionDto {
-  postId: string;
-  userId: string;
-}
-
-export class CreateCommentDto {
-  postId: string;
-  content: string;
-  authorId: string;
-  parentId?: string;
-}
-
-export class UpdateCommentDto {
-  commentId: string;
-  content: string;
-  authorId: string; // For authorization
-}
-
-export class DeleteCommentDto {
-  commentId: string;
-  postId: string;
-  authorId: string; // For authorization
-}
-
 // ===== USE CASE OUTPUT DTOs =====
 
 export class PostStatsDto {

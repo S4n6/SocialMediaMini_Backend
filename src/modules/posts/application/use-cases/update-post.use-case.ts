@@ -9,7 +9,8 @@ import { PostEntity } from '../../domain/post.entity';
 import { PostDomainService } from '../../domain/services/post-domain.service';
 import { IPostRepository } from '../interfaces/post-repository.interface';
 import { UpdatePostDto, PostResponseDto } from '../dto/post.dto';
-import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
+import { POST_REPOSITORY_TOKEN } from '../../constants';
+// Use literal token string to avoid circular import with PostsModule
 
 /**
  * Use case for updating an existing post

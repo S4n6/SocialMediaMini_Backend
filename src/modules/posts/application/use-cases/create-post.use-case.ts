@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PostEntity } from '../../domain/post.entity';
 import { PostFactory } from '../../domain/factories/post.factory';
 import { IPostRepository } from '../interfaces/post-repository.interface';
+import { POST_REPOSITORY_TOKEN } from '../../constants';
 import { CreatePostDto, PostResponseDto } from '../dto/post.dto';
 import { CreatePostMediasFromUrlsUseCase } from '../../../post-medias/application/use-cases/create-post-medias-from-urls/create-post-medias-from-urls.use-case';
 import {
@@ -9,8 +10,7 @@ import {
   PostMediaEntity,
 } from '../../../post-medias/domain/post-media.entity';
 import { PrismaService } from '../../../../database/prisma.service';
-
-export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
+// Use literal token string to avoid circular import with PostsModule
 
 /**
  * Use case for creating a new post

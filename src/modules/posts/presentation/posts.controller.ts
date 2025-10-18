@@ -40,7 +40,7 @@ import {
 } from './dto/post-request.dto';
 
 import {
-  GetFeedDto,
+  GetTimelineFeedDto,
   PostDetailResponseDto,
   PostListResponseDto,
   PostResponseDto,
@@ -112,7 +112,7 @@ export class PostsController {
   async updatePost(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePostRequest: UpdatePostRequestDto,
-    @CurrentUser('userId') userId: string,
+    @CurrentUser('id') userId: string,
   ): Promise<PostResponseDto> {
     // Map presentation DTO to application DTO
     const updatePostDto: UpdatePostDto = {
@@ -141,7 +141,7 @@ export class PostsController {
   @ApiBearerAuth()
   async deletePost(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('userId') userId: string,
+    @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
   ): Promise<void> {
     return this.postApplicationService.deletePost(id, userId, userRole);
@@ -160,7 +160,7 @@ export class PostsController {
   @ApiParam({ name: 'id', description: 'Post ID', type: 'string' })
   async getPost(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('userId') viewerId?: string,
+    @CurrentUser('id') viewerId?: string,
   ): Promise<PostDetailResponseDto> {
     const isFollowing = false; // TODO: Implement following check
     return this.postApplicationService.getPostById(id, viewerId, isFollowing);
@@ -206,23 +206,23 @@ export class PostsController {
   })
   async getPosts(
     @Query() query: GetPostsQueryDto,
-    @CurrentUser('userId') viewerId?: string,
+    @CurrentUser('id') viewerId?: string,
   ): Promise<PostListResponseDto> {
     return this.postApplicationService.getPosts(query, viewerId);
   }
 
   @Get('feed/timeline')
-  @ApiOperation({ summary: 'Get user timeline/feed' })
+  @ApiOperation({ summary: 'Get user timeline feed' })
   @ApiResponse({
     status: 200,
-    description: 'Feed retrieved successfully',
+    description: 'Timeline feed retrieved successfully',
     type: PostListResponseDto,
   })
   @ApiBearerAuth()
-  async getFeed(
-    @Query() query: GetFeedDto,
-    @CurrentUser('userId') userId: string,
+  async getTimelineFeed(
+    @Query() query: GetTimelineFeedDto,
+    @CurrentUser('id') userId: string,
   ): Promise<PostListResponseDto> {
-    return this.postApplicationService.getUserFeed(userId, query);
+    return this.postApplicationService.getTimelineFeed(userId, query);
   }
 }

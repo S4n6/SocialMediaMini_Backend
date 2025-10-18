@@ -67,11 +67,14 @@ export class CacheExampleService {
   }
 
   /**
-   * Ví dụ 3: Cache user feed với pagination
+   * Ví dụ 3: Cache timeline feed với pagination
    */
-  async getUserFeedExample(userId: string, page: number = 1) {
+  async getTimelineFeedExample(userId: string, page: number = 1) {
     // Check cache first
-    const cachedFeed = await this.cacheUtils.getCachedUserFeed(userId, page);
+    const cachedFeed = await this.cacheUtils.getCachedTimelineFeed(
+      userId,
+      page,
+    );
 
     if (cachedFeed) {
       this.logger.log(`Found cached feed for user ${userId}, page ${page}`);
@@ -88,8 +91,8 @@ export class CacheExampleService {
     }));
 
     // Cache the feed
-    await this.cacheUtils.cacheUserFeed(userId, feedFromDB, page);
-    this.logger.log(`Cached feed for user ${userId}, page ${page}`);
+    await this.cacheUtils.cacheTimelineFeed(userId, feedFromDB, page);
+    this.logger.log(`Cached timeline feed for user ${userId}, page ${page}`);
 
     return feedFromDB;
   }
@@ -133,8 +136,8 @@ export class CacheExampleService {
     // Cache the new post
     await this.cacheUtils.cachePost(newPost.id, newPost);
 
-    // Invalidate user's feed since they have a new post
-    await this.cacheUtils.invalidateUserFeed(userId);
+    // Invalidate user's timeline feed since they have a new post
+    await this.cacheUtils.invalidateTimelineFeed(userId);
 
     this.logger.log(
       `Created and cached post ${newPost.id}, invalidated user feed`,

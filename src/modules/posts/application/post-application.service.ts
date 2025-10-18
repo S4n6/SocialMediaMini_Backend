@@ -5,30 +5,19 @@ import { DeletePostUseCase } from './use-cases/delete-post.use-case';
 import {
   GetPostByIdUseCase,
   GetPostsUseCase,
-  GetUserFeedUseCase,
+  GetTimelineFeedUseCase,
 } from './use-cases/get-post.use-case';
-import {
-  AddReactionUseCase,
-  RemoveReactionUseCase,
-  ToggleReactionUseCase,
-} from './use-cases/react-post.use-case';
-import {
-  AddCommentUseCase,
-  UpdateCommentUseCase,
-  DeleteCommentUseCase,
-} from './use-cases/comment-post.use-case';
+import { RedisCacheService } from '../../cache/cache.service';
+import { generateCacheKey, getCacheTTL } from '../../cache/cache.interfaces';
+
 import {
   CreatePostDto,
   UpdatePostDto,
   GetPostsQueryDto,
-  CreateReactionDto,
-  CreateCommentDto,
-  UpdateCommentDto,
-  GetFeedDto,
+  GetTimelineFeedDto,
   PostResponseDto,
   PostDetailResponseDto,
   PostListResponseDto,
-  PostCommentResponseDto,
 } from './dto/post.dto';
 
 /**
@@ -46,17 +35,10 @@ export class PostApplicationService {
     // Post retrieval use cases
     private readonly getPostByIdUseCase: GetPostByIdUseCase,
     private readonly getPostsUseCase: GetPostsUseCase,
-    private readonly getUserFeedUseCase: GetUserFeedUseCase,
+    private readonly getTimelineFeedUseCase: GetTimelineFeedUseCase,
 
-    // Reaction use cases
-    private readonly addReactionUseCase: AddReactionUseCase,
-    private readonly removeReactionUseCase: RemoveReactionUseCase,
-    private readonly toggleReactionUseCase: ToggleReactionUseCase,
-
-    // Comment use cases
-    private readonly addCommentUseCase: AddCommentUseCase,
-    private readonly updateCommentUseCase: UpdateCommentUseCase,
-    private readonly deleteCommentUseCase: DeleteCommentUseCase,
+    // Cache service
+    private readonly cacheService: RedisCacheService,
   ) {}
 
   // ===== POST MANAGEMENT =====
@@ -66,6 +48,10 @@ export class PostApplicationService {
     dto: CreatePostDto,
   ): Promise<PostResponseDto> {
     const result = await this.createPostUseCase.execute(authorId, dto);
+
+    // Invalidate user's timeline feed cache after creating a new post
+    await this.invalidateTimelineFeedCache(authorId);
+
     return this.enrichPostResponse(result);
   }
 
@@ -75,6 +61,10 @@ export class PostApplicationService {
     dto: UpdatePostDto,
   ): Promise<PostResponseDto> {
     const result = await this.updatePostUseCase.execute(postId, userId, dto);
+
+    // Invalidate user's timeline feed cache after updating a post
+    await this.invalidateTimelineFeedCache(userId);
+
     return this.enrichPostResponse(result);
   }
 
@@ -83,7 +73,16 @@ export class PostApplicationService {
     userId: string,
     userRole?: string,
   ): Promise<void> {
-    return this.deletePostUseCase.execute(postId, userId, userRole);
+    const result = await this.deletePostUseCase.execute(
+      postId,
+      userId,
+      userRole,
+    );
+
+    // Invalidate user's timeline feed cache after deleting a post
+    await this.invalidateTimelineFeedCache(userId);
+
+    return result;
   }
 
   // ===== POST RETRIEVAL =====
@@ -118,90 +117,70 @@ export class PostApplicationService {
     };
   }
 
-  async getUserFeed(
+  async getTimelineFeed(
     userId: string,
-    dto: GetFeedDto,
+    dto: GetTimelineFeedDto,
   ): Promise<PostListResponseDto> {
-    const result = await this.getUserFeedUseCase.execute(
-      userId,
-      dto.page || 1,
-      dto.limit || 10,
+    // Generate cache key with user ID and pagination params
+    const cacheKey = generateCacheKey(
+      'TIMELINE_FEED',
+      `${userId}:page:${dto.page || 1}:limit:${dto.limit || 10}`,
     );
 
-    // Enrich each post with user information
-    const enrichedPosts = await Promise.all(
-      result.posts.map((post) => this.enrichPostResponse(post)),
+    // Try to get from cache first
+    const cachedResult = await this.cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        const result = await this.getTimelineFeedUseCase.execute(
+          userId,
+          dto.page || 1,
+          dto.limit || 10,
+        );
+
+        // Enrich each post with user information
+        const enrichedPosts = await Promise.all(
+          result.posts.map((post) => this.enrichPostResponse(post)),
+        );
+
+        return {
+          ...result,
+          posts: enrichedPosts,
+        };
+      },
+      getCacheTTL('TIMELINE_FEED'), // 5 minutes as defined in cache config
     );
 
-    return {
-      ...result,
-      posts: enrichedPosts,
-    };
+    return cachedResult;
   }
 
-  // ===== REACTIONS =====
+  // ===== CACHE MANAGEMENT =====
 
-  async addReaction(
-    postId: string,
-    userId: string,
-    dto: CreateReactionDto,
-  ): Promise<void> {
-    return this.addReactionUseCase.execute(postId, userId, dto);
-  }
+  /**
+   * Invalidate user's timeline feed cache when posts change
+   */
+  private async invalidateTimelineFeedCache(userId: string): Promise<void> {
+    try {
+      // Since we cache with pagination params, we need to invalidate multiple keys
+      // For simplicity, we'll use a pattern-based approach or clear specific common combinations
+      const commonPages = [1, 2, 3]; // Most common pages
+      const commonLimits = [10, 20]; // Common limits
+      const feedTypes = ['timeline', 'following', 'trending'];
 
-  async removeReaction(postId: string, userId: string): Promise<void> {
-    return this.removeReactionUseCase.execute(postId, userId);
-  }
-
-  async toggleReaction(
-    postId: string,
-    userId: string,
-    dto: CreateReactionDto,
-  ): Promise<{
-    action: 'added' | 'removed' | 'changed';
-    reactionType?: string;
-  }> {
-    return this.toggleReactionUseCase.execute(postId, userId, dto);
-  }
-
-  // ===== COMMENTS =====
-
-  async addComment(
-    postId: string,
-    authorId: string,
-    dto: CreateCommentDto,
-  ): Promise<PostCommentResponseDto> {
-    const result = await this.addCommentUseCase.execute(postId, authorId, dto);
-    return this.enrichCommentResponse(result);
-  }
-
-  async updateComment(
-    postId: string,
-    commentId: string,
-    userId: string,
-    dto: UpdateCommentDto,
-  ): Promise<PostCommentResponseDto> {
-    const result = await this.updateCommentUseCase.execute(
-      postId,
-      commentId,
-      userId,
-      dto,
-    );
-    return this.enrichCommentResponse(result);
-  }
-
-  async deleteComment(
-    postId: string,
-    commentId: string,
-    userId: string,
-    userRole?: string,
-  ): Promise<void> {
-    return this.deleteCommentUseCase.execute(
-      postId,
-      commentId,
-      userId,
-      userRole,
-    );
+      for (const page of commonPages) {
+        for (const limit of commonLimits) {
+          for (const feedType of feedTypes) {
+            const cacheKey = generateCacheKey(
+              'TIMELINE_FEED',
+              `${userId}:page:${page}:limit:${limit}:type:${feedType}`,
+            );
+            await this.cacheService.del(cacheKey);
+          }
+        }
+      }
+    } catch (error) {
+      // Log error but don't fail the operation
+      console.error('Failed to invalidate timeline feed cache:', error);
+    }
   }
 
   // ===== PRIVATE HELPER METHODS =====
@@ -249,19 +228,6 @@ export class PostApplicationService {
       },
       comments: enrichedComments,
       reactions: enrichedReactions,
-    });
-  }
-
-  /**
-   * Enriches comment response with additional user information
-   */
-  private enrichCommentResponse(
-    comment: PostCommentResponseDto,
-  ): Promise<PostCommentResponseDto> {
-    // TODO: Integrate with UserApplicationService to fetch user details
-    return Promise.resolve({
-      ...comment,
-      authorFullName: 'User ' + comment.authorId.substring(0, 8), // Placeholder
     });
   }
 }

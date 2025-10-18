@@ -12,8 +12,8 @@ import {
   PostListResponseDto,
   PostDetailResponseDto,
 } from '../dto/post.dto';
-import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
 import { PostEntity } from '../../domain/post.entity';
+import { POST_REPOSITORY_TOKEN } from '../../constants';
 
 /**
  * Use case for getting a single post by ID
@@ -168,12 +168,12 @@ export class GetPostsUseCase {
 }
 
 /**
- * Use case for getting user's feed
+ * Use case for getting user's timeline feed
  */
 @Injectable()
-export class GetUserFeedUseCase {
+export class GetTimelineFeedUseCase {
   constructor(
-    @Inject(POST_REPOSITORY_TOKEN)
+    @Inject('POST_REPOSITORY')
     private readonly postRepository: IPostRepository,
   ) {}
 
@@ -182,8 +182,8 @@ export class GetUserFeedUseCase {
     page: number = 1,
     limit: number = 10,
   ): Promise<PostListResponseDto> {
-    // Get user feed from repository
-    const { posts, total } = await this.postRepository.getUserFeed(
+    // Get timeline feed from repository
+    const { posts, total } = await this.postRepository.getTimelineFeed(
       userId,
       page,
       limit,

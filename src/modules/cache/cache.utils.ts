@@ -77,42 +77,42 @@ export class CacheUtils {
   // ===== USER FEED CACHE =====
 
   /**
-   * Cache user feed với pagination
+   * Cache timeline feed với pagination
    */
-  async cacheUserFeed(
+  async cacheTimelineFeed(
     userId: string,
     feedData: any[],
     page: number = 1,
   ): Promise<void> {
-    const key = generateCacheKey('USER_FEED', `${userId}:page:${page}`);
-    const ttl = getCacheTTL('USER_FEED');
+    const key = generateCacheKey('TIMELINE_FEED', `${userId}:page:${page}`);
+    const ttl = getCacheTTL('TIMELINE_FEED');
     await this.cacheService.set(key, feedData, ttl);
-    this.logger.debug(`Cached feed for user ${userId}, page ${page}`);
+    this.logger.debug(`Cached timeline feed for user ${userId}, page ${page}`);
   }
 
   /**
-   * Get cached user feed
+   * Get cached timeline feed
    */
-  async getCachedUserFeed(
+  async getCachedTimelineFeed(
     userId: string,
     page: number = 1,
   ): Promise<any[] | null> {
-    const key = generateCacheKey('USER_FEED', `${userId}:page:${page}`);
+    const key = generateCacheKey('TIMELINE_FEED', `${userId}:page:${page}`);
     return await this.cacheService.get(key);
   }
 
   /**
-   * Invalidate user feed (tất cả pages)
+   * Invalidate timeline feed (tất cả pages)
    */
-  async invalidateUserFeed(userId: string): Promise<void> {
+  async invalidateTimelineFeed(userId: string): Promise<void> {
     // Xóa nhiều pages của feed (tạm thời xóa 5 pages đầu)
     const keys: string[] = [];
     for (let page = 1; page <= 5; page++) {
-      keys.push(generateCacheKey('USER_FEED', `${userId}:page:${page}`));
+      keys.push(generateCacheKey('TIMELINE_FEED', `${userId}:page:${page}`));
     }
 
     await Promise.all(keys.map((key) => this.cacheService.del(key)));
-    this.logger.debug(`Invalidated feed for user ${userId}`);
+    this.logger.debug(`Invalidated timeline feed for user ${userId}`);
   }
 
   // ===== SEARCH CACHE =====
@@ -182,8 +182,8 @@ export class CacheUtils {
    * Invalidate multiple related caches khi user tạo post mới
    */
   async invalidateAfterNewPost(userId: string, postId: string): Promise<void> {
-    // Xóa feed của user
-    await this.invalidateUserFeed(userId);
+    // Xóa timeline feed của user
+    await this.invalidateTimelineFeed(userId);
 
     // Có thể thêm logic xóa feed của followers sau này
     this.logger.debug(

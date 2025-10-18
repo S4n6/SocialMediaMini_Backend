@@ -5,6 +5,5 @@ export * from './use-cases/create-post.use-case';
 export * from './use-cases/update-post.use-case';
 export * from './use-cases/delete-post.use-case';
 export * from './use-cases/get-post.use-case';
-export * from './use-cases/react-post.use-case';
-export * from './use-cases/comment-post.use-case';
+
 export * from './post-application.service';

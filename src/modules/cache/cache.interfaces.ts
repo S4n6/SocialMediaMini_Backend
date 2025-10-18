@@ -25,10 +25,16 @@ export const CACHE_CONFIGS = {
     prefix: 'post',
   } as SimpleCacheConfig,
 
-  // Cache cho feed - 5 phút (cần fresh data)
-  USER_FEED: {
+  // Cache cho timeline feed - 5 phút (cần fresh data)
+  TIMELINE_FEED: {
     ttl: 300, // 5 minutes
-    prefix: 'user:feed',
+    prefix: 'timeline:feed',
+  } as SimpleCacheConfig,
+
+  // Cache cho explore feed - 10 phút
+  EXPLORE_FEED: {
+    ttl: 600, // 10 minutes
+    prefix: 'explore:feed',
   } as SimpleCacheConfig,
 
   // Cache cho search results - 10 phút

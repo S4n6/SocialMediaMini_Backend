@@ -48,7 +48,7 @@ export interface IPostRepository {
   findByIds(ids: string[]): Promise<PostEntity[]>;
 
   // Feed operations
-  getUserFeed(
+  getTimelineFeed(
     userId: string,
     page: number,
     limit: number,
@@ -73,24 +73,10 @@ export interface IPostRepository {
   }>;
 
   // Reactions
-  addReaction(
-    postId: string,
-    userId: string,
-    reactionType: string,
-  ): Promise<void>;
-  removeReaction(postId: string, userId: string): Promise<void>;
-  getUserReaction(postId: string, userId: string): Promise<string | null>;
+  // Reactions are handled by the reactions module via a dedicated repository
 
   // Comments
-  addComment(
-    postId: string,
-    commentId: string,
-    content: string,
-    authorId: string,
-    parentId?: string,
-  ): Promise<void>;
-  removeComment(postId: string, commentId: string): Promise<void>;
-  updateComment(commentId: string, content: string): Promise<void>;
+  // Comments are handled by the comments module via a dedicated repository
 
   // Search operations
   searchPosts(

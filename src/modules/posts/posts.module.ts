@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 import { PostMediasModule } from '../post-medias/postMedias.module';
+import { RedisCacheModule } from '../cache/cache.module';
 
 // Clean Architecture imports
 import { PostApplicationService } from './application/post-application.service';
@@ -12,18 +13,8 @@ import { DeletePostUseCase } from './application/use-cases/delete-post.use-case'
 import {
   GetPostByIdUseCase,
   GetPostsUseCase,
-  GetUserFeedUseCase,
+  GetTimelineFeedUseCase,
 } from './application/use-cases/get-post.use-case';
-import {
-  AddReactionUseCase,
-  RemoveReactionUseCase,
-  ToggleReactionUseCase,
-} from './application/use-cases/react-post.use-case';
-import {
-  AddCommentUseCase,
-  UpdateCommentUseCase,
-  DeleteCommentUseCase,
-} from './application/use-cases/comment-post.use-case';
 
 // Domain Layer
 import { PostFactory } from './domain/factories/post.factory';
@@ -36,10 +27,10 @@ import { PostPrismaRepository } from './infrastructure/post.prisma.repository';
 import { PostsController } from './presentation/posts.controller';
 
 // Repository interface token
-export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
+import { POST_REPOSITORY_TOKEN } from './constants';
 
 @Module({
-  imports: [PrismaModule, PostMediasModule],
+  imports: [PrismaModule, PostMediasModule, RedisCacheModule],
   controllers: [PostsController],
   providers: [
     // Application Layer
@@ -53,17 +44,7 @@ export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
     // Use Cases - Post Retrieval
     GetPostByIdUseCase,
     GetPostsUseCase,
-    GetUserFeedUseCase,
-
-    // Use Cases - Reactions
-    AddReactionUseCase,
-    RemoveReactionUseCase,
-    ToggleReactionUseCase,
-
-    // Use Cases - Comments
-    AddCommentUseCase,
-    UpdateCommentUseCase,
-    DeleteCommentUseCase,
+    GetTimelineFeedUseCase,
 
     // Domain Layer
     PostFactory,
@@ -74,6 +55,7 @@ export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
       provide: POST_REPOSITORY_TOKEN,
       useClass: PostPrismaRepository,
     },
+    // Reaction/comment repositories are provided by their respective modules.
   ],
   exports: [
     PostApplicationService,
