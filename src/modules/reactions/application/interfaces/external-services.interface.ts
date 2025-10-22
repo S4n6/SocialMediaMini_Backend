@@ -10,6 +10,12 @@ export interface ExternalCommentService {
   ): Promise<{ id: string; authorId: string; content: string } | null>;
 }
 
+export interface ExternalUserService {
+  findById(
+    userId: string,
+  ): Promise<{ id: string; fullName: string; avatar: string | null } | null>;
+}
+
 export interface NotificationService {
   createReactionNotification(data: {
     reactorId: string;

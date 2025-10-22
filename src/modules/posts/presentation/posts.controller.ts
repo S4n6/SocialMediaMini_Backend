@@ -218,6 +218,12 @@ export class PostsController {
     description: 'Timeline feed retrieved successfully',
     type: PostListResponseDto,
   })
+  @ApiQuery({
+    name: 'algorithm',
+    required: false,
+    enum: ['chronological', 'smart', 'diversified'],
+    description: 'Timeline algorithm to use',
+  })
   @ApiBearerAuth()
   async getTimelineFeed(
     @Query() query: GetTimelineFeedDto,

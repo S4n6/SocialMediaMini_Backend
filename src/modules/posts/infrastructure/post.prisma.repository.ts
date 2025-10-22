@@ -3,13 +3,16 @@ import { PrismaService } from '../../../database/prisma.service';
 import { PostEntity, PostPrivacy, ReactionType } from '../domain/post.entity';
 import { PostFactory } from '../domain/factories/post.factory';
 import { IPostRepository } from '../application/interfaces/post-repository.interface';
+import { ITimelineRepository } from '../application/interfaces/timeline-repository.interface';
 
 /**
  * Prisma implementation of Post repository
  * Handles persistence operations using Prisma ORM
  */
 @Injectable()
-export class PostPrismaRepository implements IPostRepository {
+export class PostPrismaRepository
+  implements IPostRepository, ITimelineRepository
+{
   constructor(
     private readonly prisma: PrismaService,
     private readonly postFactory: PostFactory,
@@ -295,74 +298,25 @@ export class PostPrismaRepository implements IPostRepository {
     page: number,
     limit: number,
   ): Promise<{ posts: PostEntity[]; total: number }> {
-    // Timeline: User's own posts + posts from followed users
-    // Strategy: Get mixed posts with user's posts having higher priority
+    // Improved Timeline Algorithm:
+    // 1. Fetch chronologically mixed posts (user + followed users)
+    // 2. Use database-level sorting and pagination
+    // 3. Natural timeline experience (không ưu tiên posts của user)
 
-    // Get user's own posts (first priority)
-    const userPosts = await this.prisma.post.findMany({
-      where: {
-        authorId: userId,
-        privacy: {
-          in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'], // User can see all their posts
-        },
-      },
-      include: {
-        author: true,
-        reactions: { include: { reactor: true } },
-        comments: { include: { author: true } },
-        postMedia: { orderBy: { order: 'asc' } },
-        hashtags: { include: { hashtag: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: Math.ceil(limit * 0.4), // 40% of limit for user's posts
-    });
+    const offset = (page - 1) * limit;
 
-    console.log('User posts count:', userPosts.length, userId);
-
-    // Get followed users' posts (second priority)
-    const followedPosts = await this.prisma.post.findMany({
-      where: {
-        author: {
-          followers: {
-            some: {
-              followerId: userId,
-            },
-          },
-        },
-        authorId: { not: userId }, // Exclude user's own posts to avoid duplicates
-        privacy: {
-          in: ['public', 'followers'],
-        },
-      },
-      include: {
-        author: true,
-        reactions: { include: { reactor: true } },
-        comments: { include: { author: true } },
-        postMedia: { orderBy: { order: 'asc' } },
-        hashtags: { include: { hashtag: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: Math.ceil(limit * 0.6), // 60% for followed users' posts
-    });
-
-    // Mix posts: user's posts get priority, then followed posts
-    // Sort by creation time within each group
-    const allPosts = [...userPosts, ...followedPosts].sort((a, b) => {
-      // User's posts first, then by creation time
-      if (a.authorId === userId && b.authorId !== userId) return -1;
-      if (a.authorId !== userId && b.authorId === userId) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    });
-
-    // Apply pagination to mixed results
-    const startIndex = (page - 1) * limit;
-    const paginatedPosts = allPosts.slice(startIndex, startIndex + limit);
-
-    // Get total count for pagination
-    const totalCount = await this.prisma.post.count({
+    // Single query with proper pagination and mixed timeline
+    const posts = await this.prisma.post.findMany({
       where: {
         OR: [
-          { authorId: userId },
+          // User's own posts
+          {
+            authorId: userId,
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
+            },
+          },
+          // Followed users' posts
           {
             author: {
               followers: {
@@ -372,16 +326,53 @@ export class PostPrismaRepository implements IPostRepository {
               },
             },
             authorId: { not: userId },
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS'],
+            },
           },
         ],
-        privacy: {
-          in: ['public', 'followers', 'private'],
-        },
+      },
+      include: {
+        author: true,
+        reactions: { include: { reactor: true } },
+        comments: { include: { author: true } },
+        postMedia: { orderBy: { order: 'asc' } },
+        hashtags: { include: { hashtag: true } },
+      },
+      orderBy: { createdAt: 'desc' }, // Pure chronological order
+      skip: offset,
+      take: limit,
+    });
+
+    // Get total count for pagination
+    const totalCount = await this.prisma.post.count({
+      where: {
+        OR: [
+          {
+            authorId: userId,
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
+            },
+          },
+          {
+            author: {
+              followers: {
+                some: {
+                  followerId: userId,
+                },
+              },
+            },
+            authorId: { not: userId },
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS'],
+            },
+          },
+        ],
       },
     });
 
     return {
-      posts: paginatedPosts.map((post) => this.mapToEntity(post)),
+      posts: posts.map((post) => this.mapToEntity(post)),
       total: totalCount,
     };
   }

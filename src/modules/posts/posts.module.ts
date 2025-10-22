@@ -22,12 +22,17 @@ import { PostDomainService } from './domain/services/post-domain.service';
 
 // Infrastructure Layer
 import { PostPrismaRepository } from './infrastructure/post.prisma.repository';
+import { AdvancedTimelineRepository } from './infrastructure/advanced-timeline.repository';
+
+// Services
+import { TimelineService } from './application/services/timeline.service';
 
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
 
-// Repository interface token
+// Repository interface tokens
 import { POST_REPOSITORY_TOKEN } from './constants';
+import { TIMELINE_REPOSITORY_TOKEN } from './application/interfaces/timeline-repository.interface';
 
 @Module({
   imports: [PrismaModule, PostMediasModule, RedisCacheModule],
@@ -50,16 +55,26 @@ import { POST_REPOSITORY_TOKEN } from './constants';
     PostFactory,
     PostDomainService,
 
-    // Infrastructure Layer - Repository
+    // Services
+    TimelineService,
+
+    // Infrastructure Layer - Repositories
     {
       provide: POST_REPOSITORY_TOKEN,
       useClass: PostPrismaRepository,
+    },
+    {
+      provide: TIMELINE_REPOSITORY_TOKEN,
+      useClass: AdvancedTimelineRepository, // Use advanced algorithms
+      // Alternative: useClass: PostPrismaRepository, // Use basic chronological
     },
     // Reaction/comment repositories are provided by their respective modules.
   ],
   exports: [
     PostApplicationService,
     POST_REPOSITORY_TOKEN,
+    TIMELINE_REPOSITORY_TOKEN,
+    TimelineService,
     PostFactory,
     PostDomainService,
   ],

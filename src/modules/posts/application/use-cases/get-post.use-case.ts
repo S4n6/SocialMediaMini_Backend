@@ -14,6 +14,10 @@ import {
 } from '../dto/post.dto';
 import { PostEntity } from '../../domain/post.entity';
 import { POST_REPOSITORY_TOKEN } from '../../constants';
+import {
+  TimelineService,
+  TimelineAlgorithm,
+} from '../services/timeline.service';
 
 /**
  * Use case for getting a single post by ID
@@ -172,21 +176,20 @@ export class GetPostsUseCase {
  */
 @Injectable()
 export class GetTimelineFeedUseCase {
-  constructor(
-    @Inject('POST_REPOSITORY')
-    private readonly postRepository: IPostRepository,
-  ) {}
+  constructor(private readonly timelineService: TimelineService) {}
 
   async execute(
     userId: string,
     page: number = 1,
     limit: number = 10,
+    algorithm: TimelineAlgorithm = 'chronological',
   ): Promise<PostListResponseDto> {
-    // Get timeline feed from repository
-    const { posts, total } = await this.postRepository.getTimelineFeed(
+    // Get timeline feed using specified algorithm
+    const { posts, total } = await this.timelineService.getTimelineFeed(
       userId,
       page,
       limit,
+      algorithm,
     );
 
     // Convert to response DTOs

@@ -121,10 +121,10 @@ export class PostApplicationService {
     userId: string,
     dto: GetTimelineFeedDto,
   ): Promise<PostListResponseDto> {
-    // Generate cache key with user ID and pagination params
+    // Generate cache key with user ID, pagination params, and algorithm
     const cacheKey = generateCacheKey(
       'TIMELINE_FEED',
-      `${userId}:page:${dto.page || 1}:limit:${dto.limit || 10}`,
+      `${userId}:page:${dto.page || 1}:limit:${dto.limit || 10}:algo:${dto.algorithm || 'chronological'}`,
     );
 
     // Try to get from cache first
@@ -135,6 +135,7 @@ export class PostApplicationService {
           userId,
           dto.page || 1,
           dto.limit || 10,
+          dto.algorithm || 'chronological',
         );
 
         // Enrich each post with user information

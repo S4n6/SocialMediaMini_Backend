@@ -22,17 +22,20 @@ import { ReactionDomainService } from './domain/services/reaction-domain.service
 import { PrismaReactionRepository } from './infrastructure/prisma-reaction.repository';
 import { PrismaPostService } from './infrastructure/external-services';
 import { PrismaCommentService } from './infrastructure/external-services';
+import { PrismaUserService } from './infrastructure/external-services';
 import { QueueNotificationService } from './infrastructure/queue-notification.service';
 
 // Application Interfaces
 import {
   ExternalPostService,
   ExternalCommentService,
+  ExternalUserService,
   NotificationService,
 } from './application/interfaces/external-services.interface';
 import {
   EXTERNAL_POST_SERVICE,
   EXTERNAL_COMMENT_SERVICE,
+  EXTERNAL_USER_SERVICE,
   NOTIFICATION_SERVICE,
 } from './application/interfaces/tokens';
 
@@ -67,6 +70,10 @@ import {
     {
       provide: EXTERNAL_COMMENT_SERVICE,
       useClass: PrismaCommentService,
+    },
+    {
+      provide: EXTERNAL_USER_SERVICE,
+      useClass: PrismaUserService,
     },
     {
       provide: NOTIFICATION_SERVICE,

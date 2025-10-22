@@ -3,6 +3,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import {
   ExternalPostService,
   ExternalCommentService,
+  ExternalUserService,
 } from '../application/interfaces/external-services.interface';
 
 @Injectable()
@@ -52,5 +53,25 @@ export class PrismaCommentService implements ExternalCommentService {
           content: comment.content || '',
         }
       : null;
+  }
+}
+
+@Injectable()
+export class PrismaUserService implements ExternalUserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findById(
+    userId: string,
+  ): Promise<{ id: string; fullName: string; avatar: string | null } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        avatar: true,
+      },
+    });
+
+    return user;
   }
 }

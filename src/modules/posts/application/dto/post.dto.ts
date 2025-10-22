@@ -210,6 +210,10 @@ export class GetTimelineFeedDto {
   @Min(1)
   @Max(20)
   limit?: number = 10;
+
+  @IsOptional()
+  @IsEnum(['chronological', 'smart', 'diversified'])
+  algorithm?: 'chronological' | 'smart' | 'diversified' = 'chronological';
 }
 
 export class GetExploreFeedDto {
