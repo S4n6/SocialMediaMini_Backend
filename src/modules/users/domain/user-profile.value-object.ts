@@ -1,5 +1,5 @@
-import { ValueObject } from '../../../shared/domain/value-object.base';
-import { ValidationException } from '../../../shared/exceptions/domain.exception';
+import { ValueObject } from './value-objects/value-object.base';
+import { ValidationException } from './exceptions/domain.exceptions';
 
 interface UserProfileProps {
   fullName: string;
@@ -23,39 +23,39 @@ export class UserProfile extends ValueObject<UserProfileProps> {
   }
 
   get fullName(): string {
-    return this.value.fullName;
+    return this._value.fullName;
   }
 
   get bio(): string | undefined {
-    return this.value.bio;
+    return this._value.bio;
   }
 
   get avatar(): string | undefined {
-    return this.value.avatar;
+    return this._value.avatar;
   }
 
   get location(): string | undefined {
-    return this.value.location;
+    return this._value.location;
   }
 
   get websiteUrl(): string | undefined {
-    return this.value.websiteUrl;
+    return this._value.websiteUrl;
   }
 
   get dateOfBirth(): Date | undefined {
-    return this.value.dateOfBirth;
+    return this._value.dateOfBirth;
   }
 
   get phoneNumber(): string | undefined {
-    return this.value.phoneNumber;
+    return this._value.phoneNumber;
   }
 
   get gender(): string | undefined {
-    return this.value.gender;
+    return this._value.gender;
   }
 
   get lastProfileUpdate(): Date | undefined {
-    return this.value.lastProfileUpdate;
+    return this._value.lastProfileUpdate;
   }
 
   /**
@@ -63,7 +63,7 @@ export class UserProfile extends ValueObject<UserProfileProps> {
    */
   public update(updates: Partial<UserProfileProps>): UserProfile {
     return new UserProfile({
-      ...this.value,
+      ...this._value,
       ...updates,
     });
   }
@@ -72,7 +72,7 @@ export class UserProfile extends ValueObject<UserProfileProps> {
    * Check if profile is complete (has required fields)
    */
   public isComplete(): boolean {
-    return !!(this.value.fullName && this.value.bio && this.value.avatar);
+    return !!(this._value.fullName && this._value.bio && this._value.avatar);
   }
 
   protected validateInvariants(props: UserProfileProps): void {
@@ -108,21 +108,21 @@ export class UserProfile extends ValueObject<UserProfileProps> {
     }
 
     if (Object.keys(errors).length > 0) {
-      throw new ValidationException('Invalid user profile data', errors);
+      throw new ValidationException('Invalid user profile data');
     }
   }
 
   protected isEqual(vo: ValueObject<UserProfileProps>): boolean {
     const other = vo as UserProfile;
     return (
-      this.value.fullName === other.value.fullName &&
-      this.value.bio === other.value.bio &&
-      this.value.avatar === other.value.avatar &&
-      this.value.location === other.value.location &&
-      this.value.websiteUrl === other.value.websiteUrl &&
-      this.value.phoneNumber === other.value.phoneNumber &&
-      this.value.gender === other.value.gender &&
-      this.value.dateOfBirth?.getTime() === other.value.dateOfBirth?.getTime()
+      this._value.fullName === other._value.fullName &&
+      this._value.bio === other._value.bio &&
+      this._value.avatar === other._value.avatar &&
+      this._value.location === other._value.location &&
+      this._value.websiteUrl === other._value.websiteUrl &&
+      this._value.phoneNumber === other._value.phoneNumber &&
+      this._value.gender === other._value.gender &&
+      this._value.dateOfBirth?.getTime() === other._value.dateOfBirth?.getTime()
     );
   }
 

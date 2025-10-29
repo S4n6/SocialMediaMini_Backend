@@ -1,6 +1,5 @@
 // Application Layer exports
 export * from './dto/post.dto';
-export * from './interfaces/post-repository.interface';
 export * from './use-cases/create-post.use-case';
 export * from './use-cases/update-post.use-case';
 export * from './use-cases/delete-post.use-case';

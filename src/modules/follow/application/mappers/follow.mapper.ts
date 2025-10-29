@@ -1,4 +1,4 @@
-import { FollowEntity } from '../../domain/follow.entity';
+import { FollowEntity } from '../../domain/entities/follow.entity';
 import {
   FollowResponseDto,
   FollowersResponseDto,
@@ -11,7 +11,7 @@ import {
   FollowersResult,
   FollowingResult,
   FollowStatusResult,
-} from '../../domain/repositories/follow.repository';
+} from '../interfaces/follow-query.interface';
 
 export class FollowMapper {
   static toResponseDto(entity: FollowEntity): FollowResponseDto {
@@ -26,7 +26,11 @@ export class FollowMapper {
 
   static toResponseDtoWithUsers(data: FollowWithUsers): FollowResponseDto {
     return {
-      ...this.toResponseDto(data.follow),
+      id: data.followId,
+      followerId: data.followerId,
+      followingId: data.followingId,
+      createdAt: data.createdAt,
+      updatedAt: data.createdAt, // Fallback since we don't track separate updatedAt
       follower: data.follower,
       following: data.following,
     };

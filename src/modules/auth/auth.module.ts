@@ -9,6 +9,7 @@ import {
   PASSWORD_HASHER_TOKEN,
   TOKEN_GENERATOR_TOKEN,
   EMAIL_SENDER_TOKEN,
+  USER_REPOSITORY_TOKEN,
 } from './auth.constants';
 
 // Application Layer
@@ -17,6 +18,7 @@ import { AuthApplicationService } from './application/services/auth.service';
 // Infrastructure Layer - Repository Implementations
 import { SessionRepository } from './infrastructure/repositories/session.repository';
 import { TokenRepository } from './infrastructure/repositories/token.repository';
+import { AuthUserRepository } from './infrastructure/repositories/auth-user.repository';
 
 // Infrastructure Layer - Service Implementations
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
@@ -27,7 +29,7 @@ import { MailerEmailSender } from './infrastructure/services/mailer-email.servic
 import { AuthController } from './presentation/auth.controller';
 
 // Legacy Components (will be phased out)
-import { AuthUserService } from './application/auth-user.service';
+
 import { AuthApplicationService as LegacyAuthApplicationService } from './application/auth-application.service';
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
@@ -76,6 +78,10 @@ import { PrismaModule } from '../../database/prisma.module';
       provide: TOKEN_REPOSITORY_TOKEN,
       useClass: TokenRepository,
     },
+    {
+      provide: USER_REPOSITORY_TOKEN,
+      useClass: AuthUserRepository,
+    },
 
     // Services
     {
@@ -95,11 +101,6 @@ import { PrismaModule } from '../../database/prisma.module';
     {
       provide: 'LEGACY_AUTH_APPLICATION_SERVICE',
       useClass: LegacyAuthApplicationService,
-    },
-    AuthUserService,
-    {
-      provide: 'AUTH_USER_SERVICE',
-      useExisting: AuthUserService,
     },
 
     // Legacy use-cases
@@ -136,13 +137,13 @@ import { PrismaModule } from '../../database/prisma.module';
     AuthApplicationService,
     SESSION_REPOSITORY_TOKEN,
     TOKEN_REPOSITORY_TOKEN,
+    USER_REPOSITORY_TOKEN,
     PASSWORD_HASHER_TOKEN,
     TOKEN_GENERATOR_TOKEN,
     EMAIL_SENDER_TOKEN,
 
     // Legacy Exports (for backward compatibility)
     'LEGACY_AUTH_APPLICATION_SERVICE',
-    AuthUserService,
     'TOKEN_GENERATOR',
     'AUTHENTICATION_SERVICE',
     // Removed: PassportAuthAdapter (file was deleted)

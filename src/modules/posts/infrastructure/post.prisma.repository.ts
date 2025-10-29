@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { PostEntity, PostPrivacy, ReactionType } from '../domain/post.entity';
+import {
+  PostEntity,
+  PostPrivacy,
+  ReactionType,
+} from '../domain/entities/post.entity';
 import { PostFactory } from '../domain/factories/post.factory';
-import { IPostRepository } from '../application/interfaces/post-repository.interface';
-import { ITimelineRepository } from '../application/interfaces/timeline-repository.interface';
+import { IPostRepository } from '../domain/repositories/post.repository';
+import { ITimelineRepository } from '../domain/repositories/timeline.repository';
 
 /**
  * Prisma implementation of Post repository

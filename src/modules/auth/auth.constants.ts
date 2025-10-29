@@ -5,6 +5,7 @@
 // Repository Interface Tokens
 export const SESSION_REPOSITORY_TOKEN = 'SESSION_REPOSITORY';
 export const TOKEN_REPOSITORY_TOKEN = 'TOKEN_REPOSITORY';
+export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
 
 // Domain Service Interface Tokens
 export const PASSWORD_HASHER_TOKEN = 'PASSWORD_HASHER';

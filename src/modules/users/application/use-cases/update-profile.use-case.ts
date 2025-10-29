@@ -1,8 +1,9 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 import { User, UserProfile } from '../../domain';
-import { IUserRepository } from '../interfaces/user-repository.interface';
+import { IUserRepository } from '../../domain/repositories';
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
+import { DomainEventAdapter } from '../adapters/event.adapter';
 import { UpdateProfileDto, UserResponseDto } from '../dto/user.dto';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 
@@ -51,29 +52,31 @@ export class UpdateProfileUseCase {
     user.updateProfile(updatedProfile);
 
     // Save changes
-    const updatedUser = await this.userRepository.save(user);
+    // Save the updated user
+    await this.userRepository.save(user);
 
     // Publish domain events
-    await this.eventBus.publishAll(updatedUser.domainEvents);
-    updatedUser.clearEvents();
+    const adaptedEvents = DomainEventAdapter.adaptAll(user.getDomainEvents());
+    await this.eventBus.publishAll(adaptedEvents);
+    user.clearDomainEvents();
 
     this.logger.log(`Profile updated successfully for user: ${userId}`);
 
     // Return response DTO
     return new UserResponseDto({
-      id: updatedUser.id,
-      username: updatedUser.username,
-      email: updatedUser.email,
-      fullName: updatedUser.profile.fullName,
-      bio: updatedUser.profile.bio,
-      avatar: updatedUser.profile.avatar,
-      location: updatedUser.profile.location,
-      websiteUrl: updatedUser.profile.websiteUrl,
-      isEmailVerified: updatedUser.isEmailVerified,
-      followersCount: updatedUser.followersCount,
-      followingCount: updatedUser.followingCount,
-      createdAt: updatedUser.createdAt,
-      updatedAt: updatedUser.updatedAt,
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      fullName: user.profile.fullName,
+      bio: user.profile.bio,
+      avatar: user.profile.avatar,
+      location: user.profile.location,
+      websiteUrl: user.profile.websiteUrl,
+      isEmailVerified: user.isEmailVerified,
+      followersCount: user.followersCount,
+      followingCount: user.followingCount,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     });
   }
 }

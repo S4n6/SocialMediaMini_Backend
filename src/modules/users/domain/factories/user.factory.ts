@@ -1,4 +1,4 @@
-import { User, UserRole, UserStatus } from '../user.entity';
+import { User, UserRole, UserStatus } from '../entities/user.entity';
 import {
   UserId,
   UserEmail,

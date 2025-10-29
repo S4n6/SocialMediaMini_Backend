@@ -1,20 +1,17 @@
 // Domain entities
-export * from './user.entity';
+export * from './entities';
 
 // Value objects
 export * from './value-objects';
 
 // Domain events
-export * from './user.events';
+export * from './events';
 
 // Domain exceptions
-export * from './user.exceptions';
+export * from './exceptions';
 
 // Repository interfaces
 export * from './repositories';
-
-// Domain services
-export * from './services';
 
 // Factories
 export * from './factories';

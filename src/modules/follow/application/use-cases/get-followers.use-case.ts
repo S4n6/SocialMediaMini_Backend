@@ -1,27 +1,25 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { FollowRepository } from '../../domain/repositories/follow.repository';
+import { Injectable } from '@nestjs/common';
 import { FollowersResponseDto } from '../dto/follow-response.dto';
 import { FollowMapper } from '../mappers/follow.mapper';
-import { ExternalUserService } from '../interfaces/external-services.interface';
-import { EXTERNAL_USER_SERVICE } from '../interfaces/tokens';
+import { FollowEnrichmentService } from '../services/follow-enrichment.service';
 import { UserNotFoundException } from '../../domain/follow.exceptions';
 
 @Injectable()
 export class GetFollowersUseCase {
   constructor(
-    private readonly followRepository: FollowRepository,
-    @Inject(EXTERNAL_USER_SERVICE)
-    private readonly userService: ExternalUserService,
+    private readonly followEnrichmentService: FollowEnrichmentService,
   ) {}
 
   async execute(userId: string): Promise<FollowersResponseDto> {
-    // Validate user exists
-    const userExists = await this.userService.exists(userId);
-    if (!userExists) {
+    // Validate user exists using enrichment service
+    try {
+      await this.followEnrichmentService.validateUserExists(userId);
+    } catch (error) {
       throw new UserNotFoundException(userId);
     }
 
-    const result = await this.followRepository.getFollowers(userId);
+    // Use enrichment service to get followers with user data
+    const result = await this.followEnrichmentService.getFollowers(userId);
     return FollowMapper.toFollowersResponseDto(result);
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ISessionRepository } from '../../application/interfaces/session.repository.interface';
+import { ISessionRepository } from '../../domain/repositories/session.repository';
 import { AuthSession } from '../../domain/entities/session.entity';
 import { Token } from '../../domain/value-objects/token.vo';
 import { PrismaService } from '../../../../database/prisma.service';

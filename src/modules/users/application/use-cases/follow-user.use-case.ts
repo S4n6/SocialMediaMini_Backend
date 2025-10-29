@@ -1,7 +1,8 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { User, UserDomainService, IUserRepository, UserId } from '../../domain';
+import { User, IUserRepository, UserId } from '../../domain';
 import { IEventBus } from '../../../../shared/events/event-bus.interface';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
+import { DomainEventAdapter } from '../adapters/event.adapter';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 
 /**
@@ -15,7 +16,6 @@ export class FollowUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
-    private readonly userDomainService: UserDomainService,
     @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
@@ -31,8 +31,8 @@ export class FollowUserUseCase {
 
     // Load both users
     const [follower, followee] = await Promise.all([
-      this.userRepository.findById(followerUserId),
-      this.userRepository.findById(followeeUserId),
+      this.userRepository.findById(followerUserId.getValue()),
+      this.userRepository.findById(followeeUserId.getValue()),
     ]);
 
     if (!follower) {
@@ -43,8 +43,10 @@ export class FollowUserUseCase {
       throw new EntityNotFoundException('User', followeeId);
     }
 
-    // Validate business rules using domain service
-    await this.userDomainService.validateFollowRules(follower, followee);
+    // Validate business rules - cannot follow yourself
+    if (followerId === followeeId) {
+      throw new Error('Cannot follow yourself');
+    }
 
     // Execute domain logic
     follower.follow(followeeId, followee.username);
@@ -64,10 +66,11 @@ export class FollowUserUseCase {
     ]);
 
     // Publish domain events
-    for (const event of follower.domainEvents) {
-      await this.eventBus.publish(event);
+    for (const event of follower.getDomainEvents()) {
+      const adaptedEvent = DomainEventAdapter.adapt(event);
+      await this.eventBus.publish(adaptedEvent);
     }
-    follower.clearEvents();
+    follower.clearDomainEvents();
 
     this.logger.log(
       `User ${followerId} successfully followed user ${followeeId}`,
@@ -85,7 +88,6 @@ export class UnfollowUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
-    private readonly userDomainService: UserDomainService,
     @Inject(EVENT_BUS_TOKEN)
     private readonly eventBus: IEventBus,
   ) {}
@@ -101,8 +103,8 @@ export class UnfollowUserUseCase {
 
     // Load both users
     const [follower, followee] = await Promise.all([
-      this.userRepository.findById(followerUserId),
-      this.userRepository.findById(followeeUserId),
+      this.userRepository.findById(followerUserId.getValue()),
+      this.userRepository.findById(followeeUserId.getValue()),
     ]);
 
     if (!follower) {
@@ -114,7 +116,10 @@ export class UnfollowUserUseCase {
     }
 
     // Validate business rules using domain service
-    this.userDomainService.validateUnfollowRules(follower, followee);
+    // Validate business rules - cannot unfollow yourself
+    if (followerId === followeeId) {
+      throw new Error('Cannot unfollow yourself');
+    }
 
     // Execute domain logic
     follower.unfollow(followeeId, followee.username);
@@ -134,10 +139,11 @@ export class UnfollowUserUseCase {
     ]);
 
     // Publish domain events
-    for (const event of follower.domainEvents) {
-      await this.eventBus.publish(event);
+    for (const event of follower.getDomainEvents()) {
+      const adaptedEvent = DomainEventAdapter.adapt(event);
+      await this.eventBus.publish(adaptedEvent);
     }
-    follower.clearEvents();
+    follower.clearDomainEvents();
 
     this.logger.log(
       `User ${followerId} successfully unfollowed user ${followeeId}`,

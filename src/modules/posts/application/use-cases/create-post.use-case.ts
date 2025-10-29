@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostEntity } from '../../domain/post.entity';
+import { PostEntity } from '../../domain/entities/post.entity';
 import { PostFactory } from '../../domain/factories/post.factory';
-import { IPostRepository } from '../interfaces/post-repository.interface';
+import { IPostRepository } from '../../domain/repositories/post.repository';
 import { POST_REPOSITORY_TOKEN } from '../../constants';
 import { CreatePostDto, PostResponseDto } from '../dto/post.dto';
 import { CreatePostMediasFromUrlsUseCase } from '../../../post-medias/application/use-cases/create-post-medias-from-urls/create-post-medias-from-urls.use-case';

@@ -26,13 +26,23 @@ import { AdvancedTimelineRepository } from './infrastructure/advanced-timeline.r
 
 // Services
 import { TimelineService } from './application/services/timeline.service';
+import { PostEnrichmentService } from './application/services/post-enrichment.service';
+
+// Infrastructure Adapters
+import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapter';
+
+// Event Handlers
+import { PostEventHandler } from './application/events/post-event.handler';
 
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
 
 // Repository interface tokens
 import { POST_REPOSITORY_TOKEN } from './constants';
-import { TIMELINE_REPOSITORY_TOKEN } from './application/interfaces/timeline-repository.interface';
+import { TIMELINE_REPOSITORY_TOKEN } from './domain/repositories/timeline.repository';
+
+// Token for User Adapter
+export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
 
 @Module({
   imports: [PrismaModule, PostMediasModule, RedisCacheModule],
@@ -57,6 +67,16 @@ import { TIMELINE_REPOSITORY_TOKEN } from './application/interfaces/timeline-rep
 
     // Services
     TimelineService,
+    PostEnrichmentService,
+
+    // Event Handlers
+    PostEventHandler,
+
+    // Infrastructure Adapters
+    {
+      provide: USER_ADAPTER_TOKEN,
+      useClass: UserServiceAdapter,
+    },
 
     // Infrastructure Layer - Repositories
     {

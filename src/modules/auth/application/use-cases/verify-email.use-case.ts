@@ -8,14 +8,18 @@ import { BaseUseCase } from './base.use-case';
 import { VerifyEmailRequest } from './auth.dtos';
 import { EmailVerificationResult } from '../../domain/entities';
 import * as bcrypt from 'bcrypt';
-import { AuthUserService } from '../auth-user.service';
+import { UserApplicationService } from '../../../users/application/user-application.service';
+import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
 
 @Injectable()
 export class VerifyEmailUseCase extends BaseUseCase<
   VerifyEmailRequest,
   EmailVerificationResult
 > {
-  constructor(private authUserService: AuthUserService) {
+  constructor(
+    private userApplicationService: UserApplicationService,
+    private verificationTokenService: VerificationTokenService,
+  ) {
     super();
   }
 
@@ -25,7 +29,27 @@ export class VerifyEmailUseCase extends BaseUseCase<
     console.log('Verifying email with token:', token, password); // --- IGNORE ---
 
     // Find user by verification token
-    const user = await this.authUserService.verifyEmailByToken(token);
+    // Verify the email verification token
+    const tokenPayload =
+      await this.verificationTokenService.verifyEmailVerificationToken(token);
+    if (!tokenPayload) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    // Find user by ID from token payload
+    const user = await this.userApplicationService.findUserEntityById(
+      tokenPayload.userId,
+    );
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify that the email in token matches user's email (security check)
+    if (user.email !== tokenPayload.email) {
+      throw new BadRequestException(
+        'Token email mismatch - possible security breach',
+      );
+    }
     if (!user) {
       throw new NotFoundException('Invalid or expired verification token');
     }
@@ -56,11 +80,14 @@ export class VerifyEmailUseCase extends BaseUseCase<
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      await this.authUserService.updateUserPassword(user.id, hashedPassword);
-      await this.authUserService.verifyUserEmail(user.id);
+      await this.userApplicationService.updateUserPassword(
+        user.id,
+        hashedPassword,
+      );
+      await this.userApplicationService.verifyEmail(user.id);
     } else {
       // Just verify email without setting password
-      await this.authUserService.verifyUserEmail(user.id);
+      await this.userApplicationService.verifyEmail(user.id);
     }
 
     return {

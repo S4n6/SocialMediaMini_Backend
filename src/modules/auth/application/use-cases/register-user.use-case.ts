@@ -9,15 +9,16 @@ import { RegisterUserRequest } from './auth.dtos';
 import { RegisterResult } from '../../domain/entities';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { MailerService } from '../../../mailer/mailer.service';
-import { IUserRepository } from 'src/modules/users/application';
+import { IUserRepository } from 'src/modules/users/domain/repositories/user.repository';
 import { UserFactory } from '../../../users/domain/factories/user.factory';
 import { console } from 'inspector';
 import { UserRole } from 'src/modules/users/domain';
-import { AuthUserService } from '../auth-user.service';
-import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { UserApplicationService } from '../../../users/application/user-application.service';
+import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
-import { IEmailSender } from '../interfaces';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { Email } from '../../domain';
 
 @Injectable()
@@ -30,7 +31,8 @@ export class RegisterUserUseCase extends BaseUseCase<
     private userRepository: IUserRepository,
     @Inject(EMAIL_SENDER_TOKEN)
     private mailerService: IEmailSender,
-    private authUserService: AuthUserService,
+    private userApplicationService: UserApplicationService,
+    private verificationTokenService: VerificationTokenService,
     @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenRepository: ITokenRepository,
   ) {

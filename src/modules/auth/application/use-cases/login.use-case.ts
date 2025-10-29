@@ -7,22 +7,21 @@ import {
 import { BaseUseCase } from './base.use-case';
 import { LoginRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
-import { IUserRepository } from '../../../users/application';
-import { ITokenRepository } from '../interfaces/token.repository.interface';
-import { ISessionRepository } from '../interfaces/session.repository.interface';
+import { IUserRepository } from '../../../users/domain/repositories/user.repository';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
+import { ISessionRepository } from '../../domain/repositories/session.repository';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
   TOKEN_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,
 } from '../../auth.constants';
-import { AuthUserService } from '../auth-user.service';
+import { UserApplicationService } from '../../../users/application/user-application.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
   constructor(
-    @Inject('AUTH_USER_SERVICE') // Use token for consistency
-    private authUserService: AuthUserService, // Use auth service wrapper
+    private userApplicationService: UserApplicationService,
     @Inject(SESSION_REPOSITORY_TOKEN)
     private sessionService: ISessionRepository, // Use interface with DI token
     @Inject(TOKEN_REPOSITORY_TOKEN)
@@ -42,7 +41,9 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
 
     // Try to find user by email first, then by username
     const user =
-      await this.authUserService.findUserByEmailOrUsername(identifier);
+      await this.userApplicationService.findUserEntityByEmailOrUsername(
+        identifier,
+      );
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -104,7 +105,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      sessionId: sessionInfo.sessionId, // Extract sessionId from refresh token for compatibility
+      sessionId: sessionInfo?.sessionId || 'unknown', // Extract sessionId from refresh token for compatibility
     };
   }
 }

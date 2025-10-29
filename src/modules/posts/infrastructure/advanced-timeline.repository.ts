@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { PostEntity, PostPrivacy, ReactionType } from '../domain/post.entity';
+import {
+  PostEntity,
+  PostPrivacy,
+  ReactionType,
+} from '../domain/entities/post.entity';
 import { PostFactory } from '../domain/factories/post.factory';
-import { ITimelineRepository } from '../application/interfaces/timeline-repository.interface';
+import { ITimelineRepository } from '../domain/repositories/timeline.repository';
 
 /**
  * Advanced Timeline Algorithm

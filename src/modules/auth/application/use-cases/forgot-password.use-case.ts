@@ -7,11 +7,11 @@ import {
 import { BaseUseCase } from './base.use-case';
 import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
-import { AuthUserService } from '../auth-user.service';
-import { IEmailSender } from '../interfaces/email-sender.interface';
+import { UserApplicationService } from '../../../users/application/user-application.service';
+import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
-import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
 
 @Injectable()
 export class ForgotPasswordUseCase extends BaseUseCase<
@@ -22,9 +22,9 @@ export class ForgotPasswordUseCase extends BaseUseCase<
   private readonly minIntervalSeconds = 60;
 
   constructor(
-    private authUserService: AuthUserService,
-    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
+    private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
+    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
   }
@@ -33,7 +33,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     const { email } = request;
 
     // Check if user exists
-    const user = await this.authUserService.findByEmail(email);
+    const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
       throw new NotFoundException('No account found with this email address');
     }
@@ -58,7 +58,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
       );
     }
 
-    // Generate JWT reset token using VerificationTokenService (no need to store in database)
+    // Generate JWT reset token using VerificationTokenService
     const resetToken = this.verificationTokenService.generatePasswordResetToken(
       user.id,
       user.email,
@@ -77,7 +77,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     }
 
     // Update last password reset sent timestamp
-    await this.authUserService.updateLastVerificationSentAt(
+    await this.userApplicationService.updateVerificationTimestamp(
       user.id,
       new Date(),
     );

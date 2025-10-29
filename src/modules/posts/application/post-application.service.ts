@@ -9,6 +9,7 @@ import {
 } from './use-cases/get-post.use-case';
 import { RedisCacheService } from '../../cache/cache.service';
 import { generateCacheKey, getCacheTTL } from '../../cache/cache.interfaces';
+import { PostEnrichmentService } from './services/post-enrichment.service';
 
 import {
   CreatePostDto,
@@ -39,6 +40,9 @@ export class PostApplicationService {
 
     // Cache service
     private readonly cacheService: RedisCacheService,
+
+    // Enrichment service
+    private readonly postEnrichmentService: PostEnrichmentService,
   ) {}
 
   // ===== POST MANAGEMENT =====
@@ -52,7 +56,7 @@ export class PostApplicationService {
     // Invalidate user's timeline feed cache after creating a new post
     await this.invalidateTimelineFeedCache(authorId);
 
-    return this.enrichPostResponse(result);
+    return this.postEnrichmentService.enrichPost(result);
   }
 
   async updatePost(
@@ -65,7 +69,7 @@ export class PostApplicationService {
     // Invalidate user's timeline feed cache after updating a post
     await this.invalidateTimelineFeedCache(userId);
 
-    return this.enrichPostResponse(result);
+    return this.postEnrichmentService.enrichPost(result);
   }
 
   async deletePost(
@@ -97,7 +101,7 @@ export class PostApplicationService {
       viewerId,
       isFollowing,
     );
-    return this.enrichPostDetailResponse(result);
+    return this.postEnrichmentService.enrichDetailedPost(result);
   }
 
   async getPosts(
@@ -107,8 +111,8 @@ export class PostApplicationService {
     const result = await this.getPostsUseCase.execute(query, viewerId);
 
     // Enrich each post with user information
-    const enrichedPosts = await Promise.all(
-      result.posts.map((post) => this.enrichPostResponse(post)),
+    const enrichedPosts = await this.postEnrichmentService.enrichPosts(
+      result.posts,
     );
 
     return {
@@ -139,8 +143,8 @@ export class PostApplicationService {
         );
 
         // Enrich each post with user information
-        const enrichedPosts = await Promise.all(
-          result.posts.map((post) => this.enrichPostResponse(post)),
+        const enrichedPosts = await this.postEnrichmentService.enrichPosts(
+          result.posts,
         );
 
         return {
@@ -182,53 +186,5 @@ export class PostApplicationService {
       // Log error but don't fail the operation
       console.error('Failed to invalidate timeline feed cache:', error);
     }
-  }
-
-  // ===== PRIVATE HELPER METHODS =====
-
-  /**
-   * Enriches post response with additional user information
-   * In a real implementation, this would fetch user data from UserApplicationService
-   */
-  private enrichPostResponse(post: PostResponseDto): Promise<PostResponseDto> {
-    // TODO: Integrate with UserApplicationService to fetch user details
-    // For now, return the post as-is (wrapped in a resolved promise to keep callers consistent)
-    return Promise.resolve({
-      ...post,
-      author: {
-        ...post.author,
-        fullName: 'User ' + post.author.id.substring(0, 8), // Placeholder
-        username: '@user' + post.author.id.substring(0, 4), // Placeholder
-      },
-    });
-  }
-
-  /**
-   * Enriches post detail response with additional user information
-   */
-  private enrichPostDetailResponse(
-    post: PostDetailResponseDto,
-  ): Promise<PostDetailResponseDto> {
-    // TODO: Integrate with UserApplicationService to fetch user details
-    const enrichedComments = post.comments.map((comment) => ({
-      ...comment,
-      authorFullName: 'User ' + comment.authorId.substring(0, 8), // Placeholder
-    }));
-
-    const enrichedReactions = post.reactions.map((reaction) => ({
-      ...reaction,
-      userFullName: 'User ' + reaction.userId.substring(0, 8), // Placeholder
-    }));
-
-    return Promise.resolve({
-      ...post,
-      author: {
-        ...post.author,
-        fullName: 'User ' + post.author.id.substring(0, 8), // Placeholder
-        username: '@user' + post.author.id.substring(0, 4), // Placeholder
-      },
-      comments: enrichedComments,
-      reactions: enrichedReactions,
-    });
   }
 }

@@ -27,7 +27,7 @@ import {
   ResetPasswordRequestDto,
   VerifyEmailRequestDto,
   ResendVerificationRequestDto,
-} from './dto/auth-request.dto';
+} from './dto';
 import { RegisterUserDto } from '../application';
 
 @Controller('auth')

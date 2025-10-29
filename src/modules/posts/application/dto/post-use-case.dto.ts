@@ -1,4 +1,4 @@
-import { PostPrivacy, ReactionType } from '../../domain/post.entity';
+import { PostPrivacy, ReactionType } from '../../domain/entities/post.entity';
 
 // ===== USE CASE INPUT DTOs =====
 // These DTOs are used for use case inputs/outputs and business logic

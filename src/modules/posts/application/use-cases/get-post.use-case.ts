@@ -5,14 +5,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostRepository } from '../interfaces/post-repository.interface';
+import { IPostRepository } from '../../domain/repositories/post.repository';
 import {
   GetPostsQueryDto,
   PostResponseDto,
   PostListResponseDto,
   PostDetailResponseDto,
 } from '../dto/post.dto';
-import { PostEntity } from '../../domain/post.entity';
+import { PostEntity } from '../../domain/entities/post.entity';
 import { POST_REPOSITORY_TOKEN } from '../../constants';
 import {
   TimelineService,

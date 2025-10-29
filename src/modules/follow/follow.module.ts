@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 
+// Constants
+import { FOLLOW_MODULE_TOKENS } from './constants';
+
 // Presentation Layer
 import { FollowsController } from './presentation/follows.controller';
 
 // Application Layer
 import { FollowApplicationService } from './application/follow-application.service';
+import { FollowEnrichmentService } from './application/services/follow-enrichment.service';
 import { FollowUserUseCase } from './application/use-cases/follow-user.use-case';
 import { UnfollowUserUseCase } from './application/use-cases/unfollow-user.use-case';
 import { GetFollowersUseCase } from './application/use-cases/get-followers.use-case';
@@ -14,27 +18,31 @@ import { GetFollowStatusUseCase } from './application/use-cases/get-follow-statu
 import { GetFollowsUseCase } from './application/use-cases/get-follows.use-case';
 
 // Domain Layer
-import { FollowRepository } from './domain/repositories/follow.repository';
 import { FollowFactory } from './domain/factories/follow.factory';
-import { FollowDomainService } from './domain/services/follow-domain.service';
 
 // Infrastructure Layer
 import { PrismaFollowRepository } from './infrastructure/prisma-follow.repository';
-import { PrismaUserService } from './infrastructure/external-services';
-import { QueueNotificationService } from './infrastructure/queue-notification.service';
+import { UserAdapter } from './infrastructure/adapters/user-adapter';
+import { NotificationAdapter } from './infrastructure/adapters/notification-adapter';
 
-// Application Interfaces
-import {
-  EXTERNAL_USER_SERVICE,
-  NOTIFICATION_SERVICE,
-} from './application/interfaces/tokens';
-
+/**
+ * Follow Module - Clean Architecture Implementation
+ *
+ * Dependencies flow: Presentation → Application → Domain ← Infrastructure
+ * - Domain layer has no dependencies
+ * - Application layer depends only on domain interfaces
+ * - Infrastructure implements domain interfaces
+ * - Presentation uses application services
+ */
 @Module({
   imports: [PrismaModule],
   controllers: [FollowsController],
   providers: [
-    // Application Layer
+    // Application Layer Services
     FollowApplicationService,
+    FollowEnrichmentService,
+
+    // Application Layer Use Cases
     FollowUserUseCase,
     UnfollowUserUseCase,
     GetFollowersUseCase,
@@ -42,26 +50,25 @@ import {
     GetFollowStatusUseCase,
     GetFollowsUseCase,
 
-    // Domain Layer
+    // Domain Layer Services & Factories
     FollowFactory,
-    FollowDomainService,
 
-    // Infrastructure Layer - Repository
+    // Infrastructure Layer - Repository Implementation
     {
-      provide: FollowRepository,
+      provide: FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY,
       useClass: PrismaFollowRepository,
     },
 
-    // Infrastructure Layer - External Services
+    // Infrastructure Layer - External Service Adapters
     {
-      provide: EXTERNAL_USER_SERVICE,
-      useClass: PrismaUserService,
+      provide: FOLLOW_MODULE_TOKENS.EXTERNAL_USER_SERVICE,
+      useClass: UserAdapter,
     },
     {
-      provide: NOTIFICATION_SERVICE,
-      useClass: QueueNotificationService,
+      provide: FOLLOW_MODULE_TOKENS.NOTIFICATION_SERVICE,
+      useClass: NotificationAdapter,
     },
   ],
-  exports: [FollowApplicationService, FollowRepository],
+  exports: [FollowApplicationService, FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY],
 })
 export class FollowsModule {}

@@ -4,17 +4,16 @@ import { GoogleAuthRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
 import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
-import { IUserRepository } from '../../../users/domain/repositories/user.repository.interface';
-import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { IUserRepository } from '../../../users/domain/repositories/user.repository';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import {
   UserEmail,
   Username,
   UserId,
 } from '../../../users/domain/value-objects';
-import { UserProfile } from '../../../users/domain/user-profile.value-object';
-import { User } from '../../../users/domain/user.entity';
-import { UserRole } from '../../../users/domain/user.entity';
+import { UserProfile } from '../../../users/domain/value-objects/user-profile.value-object';
+import { User, UserRole } from '../../../users/domain/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -34,11 +33,8 @@ export class GoogleAuthUseCase extends BaseUseCase<
   async execute(request: GoogleAuthRequest): Promise<LoginResult> {
     const { googleId, email, fullName, profilePicture } = request;
 
-    // Create value objects
-    const userEmail = new UserEmail(email);
-
     // Check if user exists
-    let user = await this.userRepository.findByEmail(userEmail);
+    let user = await this.userRepository.findByEmail(email);
 
     if (user) {
       // User exists, generate tokens and return
@@ -68,9 +64,8 @@ export class GoogleAuthUseCase extends BaseUseCase<
       let userName = email.split('@')[0]; // Generate username from email
 
       // Check if username already exists
-      const existingUserByUsername = await this.userRepository.findByUsername(
-        new Username(userName),
-      );
+      const existingUserByUsername =
+        await this.userRepository.findByUsername(userName);
       if (existingUserByUsername) {
         // Use email prefix with random number if username taken
         const randomSuffix = Math.floor(Math.random() * 1000);

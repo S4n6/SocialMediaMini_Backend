@@ -1,10 +1,10 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IUserRepository } from '../../../users/application';
-import { ISessionRepository } from '../interfaces/session.repository.interface';
-import { ITokenRepository } from '../interfaces/token.repository.interface';
-import { IPasswordHasher } from '../interfaces/password-hasher.interface';
-import { ITokenGenerator } from '../interfaces/token-generator.interface';
-import { IEmailSender } from '../interfaces/email-sender.interface';
+import { IUserRepository } from '../../../users/domain/repositories/user.repository';
+import { ISessionRepository } from '../../domain/repositories/session.repository';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
+import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
+import { ITokenGenerator } from '../../infrastructure/adapters/token-generator.interface';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
   SESSION_REPOSITORY_TOKEN,

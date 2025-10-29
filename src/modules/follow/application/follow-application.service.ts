@@ -55,7 +55,12 @@ export class FollowApplicationService {
     return this.getFollowStatusUseCase.execute(userId, targetUserId);
   }
 
-  async getFollows(query?: GetFollowsQuery): Promise<FollowResponseDto[]> {
+  async getFollows(query?: {
+    followerId?: string;
+    followingId?: string;
+    limit?: number;
+    offset?: number;
+  }) {
     return this.getFollowsUseCase.execute(query);
   }
 }

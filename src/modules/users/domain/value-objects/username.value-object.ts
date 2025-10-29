@@ -1,5 +1,5 @@
-import { ValueObject } from '../../../../shared/domain/value-object.base';
-import { ValidationException } from '../../../../shared/exceptions/domain.exception';
+import { ValueObject } from './value-object.base';
+import { ValidationException } from '../exceptions/domain.exceptions';
 
 /**
  * Username Value Object

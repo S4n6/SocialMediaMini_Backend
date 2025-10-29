@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { USER_REPOSITORY_TOKEN } from '../../users.constants';
 import { User } from '../../domain';
-import { IUserRepository } from '../interfaces/user-repository.interface';
+import { IUserRepository } from '../../domain/repositories';
 import {
   UserResponseDto,
   UserProfileResponseDto,

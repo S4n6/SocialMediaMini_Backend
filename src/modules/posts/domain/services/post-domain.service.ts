@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PostEntity, PostPrivacy, ReactionType } from '../post.entity';
+import { PostEntity, PostPrivacy, ReactionType } from '../entities/post.entity';
 import {
   PostAlreadyLikedException,
   PostNotLikedException,
@@ -7,7 +7,7 @@ import {
   InvalidPostContentException,
   PostContentTooLongException,
   PostMediaLimitExceededException,
-} from '../post.exceptions';
+} from '../exceptions/post.exceptions';
 
 /**
  * Domain service for Post business logic

@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { PostPrivacy, ReactionType } from '../../domain/post.entity';
+import { PostPrivacy, ReactionType } from '../../domain/entities/post.entity';
 import { Type } from 'class-transformer';
 
 // ===== USE CASE INPUT DTOs =====

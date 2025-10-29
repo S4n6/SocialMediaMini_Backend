@@ -30,7 +30,7 @@ import {
 } from '../application/dto/post-use-case.dto';
 
 // Domain enums
-import { PostPrivacy } from '../domain/post.entity';
+import { PostPrivacy } from '../domain/entities/post.entity';
 
 // Presentation DTOs
 import {

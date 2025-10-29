@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { FollowEntity } from '../follow.entity';
+import { FollowEntity } from '../entities/follow.entity';
 
 @Injectable()
 export class FollowFactory {

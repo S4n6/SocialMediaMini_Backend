@@ -1,37 +1,4 @@
-import { FollowEntity } from '../follow.entity';
-
-export interface UserSummary {
-  id: string;
-  username: string;
-  fullName: string;
-  avatar: string | null;
-  bio?: string | null;
-}
-
-export interface FollowWithUsers {
-  follow: FollowEntity;
-  follower: UserSummary;
-  following: UserSummary;
-}
-
-export interface FollowersResult {
-  userId: string;
-  totalFollowers: number;
-  followers: UserSummary[];
-}
-
-export interface FollowingResult {
-  userId: string;
-  totalFollowing: number;
-  following: UserSummary[];
-}
-
-export interface FollowStatusResult {
-  userId: string;
-  targetUserId: string;
-  isFollowing: boolean;
-  followId: string | null;
-}
+import { FollowEntity } from '../entities/follow.entity';
 
 export interface FindFollowsOptions {
   followerId?: string;
@@ -40,24 +7,31 @@ export interface FindFollowsOptions {
   offset?: number;
 }
 
+/**
+ * Pure Domain Repository Interface
+ * Contains only essential CRUD operations
+ * Complex queries should be handled in Application Layer
+ */
 export abstract class FollowRepository {
+  // Core CRUD Operations
   abstract save(follow: FollowEntity): Promise<FollowEntity>;
   abstract findById(id: string): Promise<FollowEntity | null>;
   abstract findByFollowerAndFollowing(
     followerId: string,
     followingId: string,
   ): Promise<FollowEntity | null>;
+
+  // Basic Queries
   abstract findAll(options?: FindFollowsOptions): Promise<FollowEntity[]>;
-  abstract findAllWithUsers(
-    options?: FindFollowsOptions,
-  ): Promise<FollowWithUsers[]>;
   abstract delete(id: string): Promise<void>;
-  abstract getFollowers(userId: string): Promise<FollowersResult>;
-  abstract getFollowing(userId: string): Promise<FollowingResult>;
-  abstract getFollowStatus(
-    userId: string,
-    targetUserId: string,
-  ): Promise<FollowStatusResult>;
+
+  // Simple Aggregations
   abstract countFollowers(userId: string): Promise<number>;
   abstract countFollowing(userId: string): Promise<number>;
+
+  // Batch Operations
+  abstract existsByFollowerAndFollowing(
+    followerId: string,
+    followingId: string,
+  ): Promise<boolean>;
 }
