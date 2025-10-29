@@ -3,7 +3,7 @@ import { CloudinaryService } from '../../../cloudinary/cloudinary.service';
 import {
   CloudinaryService as ICloudinaryService,
   UploadedFile,
-} from '../../application/ports/services/cloudinary.service';
+} from '../../domain/services/cloudinary.service';
 
 @Injectable()
 export class CloudinaryAdapter implements ICloudinaryService {

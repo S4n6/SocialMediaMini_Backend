@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { CloudinaryService } from '../../ports/services/cloudinary.service';
+import { CloudinaryService } from '../../../domain/services/cloudinary.service';
 import { CLOUDINARY_SERVICE } from '../../../tokens';
 
 export interface GenerateCloudinarySignatureCommand {

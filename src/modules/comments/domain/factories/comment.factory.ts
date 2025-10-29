@@ -1,8 +1,13 @@
-import { CommentEntity, CommentProps, ReactionType } from '../comment.entity';
+import {
+  CommentEntity,
+  CommentProps,
+  ReactionType,
+} from '../entities/comment.entity';
 import {
   InvalidCommentException,
+  CommentDepthLimitException,
   CommentContentException,
-} from '../comment.exceptions';
+} from '../exceptions/comment.exceptions';
 
 export interface CreateCommentParams {
   content: string;

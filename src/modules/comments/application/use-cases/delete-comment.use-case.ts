@@ -1,44 +1,42 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
-import { CommentNotFoundException } from '../../domain/comment.exceptions';
+import { Injectable } from '@nestjs/common';
+import { CommentDomainService } from '../../domain/services/comment-domain.service';
 
 export interface DeleteCommentCommand {
   commentId: string;
   userId: string;
 }
 
+/**
+ * Delete Comment Use Case
+ *
+ * Responsibility: Orchestrate the deletion of a comment
+ * - Validate command input
+ * - Delegate to domain service for business logic and authorization
+ * - Handle application-level concerns
+ */
 @Injectable()
 export class DeleteCommentUseCase {
-  constructor(
-    @Inject('COMMENT_REPOSITORY')
-    private readonly commentRepository: CommentRepository,
-  ) {}
+  constructor(private readonly commentDomainService: CommentDomainService) {}
 
   async execute(command: DeleteCommentCommand): Promise<void> {
-    const existingComment = await this.commentRepository.findById(
+    // Input validation
+    this.validateCommand(command);
+
+    // Delegate to domain service for business logic
+    await this.commentDomainService.deleteComment(
       command.commentId,
+      command.userId,
     );
 
-    if (!existingComment) {
-      throw new CommentNotFoundException(command.commentId);
+    // Application-level post-processing could go here
+  }
+
+  private validateCommand(command: DeleteCommentCommand): void {
+    if (!command.commentId?.trim()) {
+      throw new Error('Comment ID is required');
     }
-
-    // Authorization check - only comment author can delete
-    if (existingComment.authorId !== command.userId) {
-      throw new Error('Unauthorized to delete this comment');
-    }
-
-    // Check if comment has replies - if so, use soft delete
-    const repliesCount = await this.commentRepository.countRepliesByCommentId(
-      command.commentId,
-    );
-
-    if (repliesCount > 0) {
-      // Soft delete to preserve reply structure
-      await this.commentRepository.softDelete(command.commentId);
-    } else {
-      // Hard delete if no replies
-      await this.commentRepository.deleteById(command.commentId);
+    if (!command.userId?.trim()) {
+      throw new Error('User ID is required');
     }
   }
 }

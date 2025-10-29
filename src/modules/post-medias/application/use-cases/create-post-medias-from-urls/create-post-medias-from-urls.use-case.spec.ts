@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreatePostMediasFromUrlsUseCase } from './create-post-medias-from-urls.use-case';
-import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
+import { PostMediaRepository } from '../../../domain/repositories/post-media.repository';
 import { POST_MEDIA_REPOSITORY } from '../../../tokens';
 import {
   PostMediaType,

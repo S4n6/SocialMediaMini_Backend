@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { ReactionRepository } from '../../domain/repositories/reaction.repository';
+import { ReactionRepository, ReactionNotFoundException } from '../../domain';
 import { ReactionResponseDto } from '../dto/reaction-response.dto';
 import { ReactionMapper } from '../mappers/reaction.mapper';
-import { ReactionNotFoundException } from '../../domain/reaction.exceptions';
 
 @Injectable()
 export class GetReactionUseCase {

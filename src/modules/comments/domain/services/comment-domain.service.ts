@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { CommentEntity, ReactionType } from '../comment.entity';
+import { CommentEntity, ReactionType } from '../entities/comment.entity';
 import { CommentRepository } from '../repositories/comment.repository';
 import {
   CommentNotFoundException,
@@ -8,26 +8,23 @@ import {
   ParentCommentMismatchException,
   CommentReactionException,
   UnauthorizedCommentActionException,
-} from '../comment.exceptions';
-
-export interface UserService {
-  exists(userId: string): Promise<boolean>;
-  isAdmin(userId: string): Promise<boolean>;
-}
-
-export interface PostService {
-  exists(postId: string): Promise<boolean>;
-}
+} from '../exceptions/comment.exceptions';
+import {
+  IUserDomainPort,
+  IPostDomainPort,
+  INotificationDomainPort,
+} from '../interfaces/domain-ports.interface';
+import { COMMENT_TOKENS, INFRASTRUCTURE_TOKENS } from '../../constants';
 
 @Injectable()
 export class CommentDomainService {
   constructor(
-    @Inject('COMMENT_REPOSITORY')
+    @Inject(COMMENT_TOKENS.COMMENT_REPOSITORY)
     private readonly commentRepository: CommentRepository,
-    @Inject('USER_SERVICE')
-    private readonly userService: UserService,
-    @Inject('POST_SERVICE')
-    private readonly postService: PostService,
+    @Inject(INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER)
+    private readonly userDomainPort: IUserDomainPort,
+    @Inject(INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER)
+    private readonly postDomainPort: IPostDomainPort,
   ) {}
 
   async createComment(
@@ -38,13 +35,13 @@ export class CommentDomainService {
     maxDepth: number = 3,
   ): Promise<CommentEntity> {
     // Validate user exists
-    const userExists = await this.userService.exists(authorId);
+    const userExists = await this.userDomainPort.exists(authorId);
     if (!userExists) {
       throw new Error('User not found');
     }
 
     // Validate post exists
-    const postExists = await this.postService.exists(postId);
+    const postExists = await this.postDomainPort.exists(postId);
     if (!postExists) {
       throw new Error('Post not found');
     }
@@ -105,7 +102,7 @@ export class CommentDomainService {
     }
 
     // Check if user is admin or comment author
-    const isAdmin = await this.userService.isAdmin(userId);
+    const isAdmin = await this.userDomainPort.isAdmin(userId);
     const isAuthorOrAdmin = isAdmin || comment.authorId === userId;
 
     if (!isAuthorOrAdmin) {

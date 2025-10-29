@@ -8,8 +8,7 @@ export * from './search-history.events';
 export * from './search-history.exceptions';
 
 // Repository exports
-export * from './repositories/search-history-domain-repository.interface';
-export * from './repositories/search-history.repository';
+export * from './search-history.repository';
 
 // Domain service exports
-export * from './services/search-history-domain.service';
+export * from './search-history-domain.service';

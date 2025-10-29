@@ -1,8 +1,6 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
-import { CommentNotFoundException } from '../../domain/comment.exceptions';
-import { CommentFactory } from '../../domain/factories/comment.factory';
-import { CommentEntity } from '../../domain/comment.entity';
+import { Injectable } from '@nestjs/common';
+import { CommentDomainService } from '../../domain/services/comment-domain.service';
+import { ReactionType } from '../../domain/entities/comment.entity';
 
 export interface AddReactionCommand {
   commentId: string;
@@ -10,46 +8,49 @@ export interface AddReactionCommand {
   reactionType: string;
 }
 
+/**
+ * Add Reaction Use Case
+ *
+ * Responsibility: Orchestrate adding a reaction to a comment
+ * - Validate command input
+ * - Delegate to domain service for business logic
+ * - Handle application-level concerns
+ */
 @Injectable()
 export class AddReactionUseCase {
-  constructor(
-    @Inject('COMMENT_REPOSITORY')
-    private readonly commentRepository: CommentRepository,
-  ) {}
+  constructor(private readonly commentDomainService: CommentDomainService) {}
 
-  async execute(command: AddReactionCommand): Promise<CommentEntity> {
-    const comment = await this.commentRepository.findById(command.commentId);
+  async execute(command: AddReactionCommand): Promise<void> {
+    // Input validation
+    this.validateCommand(command);
 
-    if (!comment) {
-      throw new CommentNotFoundException(command.commentId);
-    }
-
-    // Validate reaction type
-    const validReactionType = CommentFactory.validateReactionType(
-      command.reactionType,
-    );
-
-    // Check if user already reacted with this type
-    const hasReacted = await this.commentRepository.hasUserReacted(
+    // Delegate to domain service for business logic
+    await this.commentDomainService.addReaction(
       command.commentId,
       command.userId,
-      validReactionType,
+      command.reactionType as ReactionType,
     );
 
-    if (hasReacted) {
-      throw new Error(`User already reacted with ${validReactionType}`);
+    // Application-level post-processing could go here
+  }
+
+  private validateCommand(command: AddReactionCommand): void {
+    if (!command.commentId?.trim()) {
+      throw new Error('Comment ID is required');
+    }
+    if (!command.userId?.trim()) {
+      throw new Error('User ID is required');
+    }
+    if (!command.reactionType?.trim()) {
+      throw new Error('Reaction type is required');
     }
 
-    // Add reaction through repository
-    await this.commentRepository.addReaction(
-      command.commentId,
-      command.userId,
-      validReactionType,
-    );
-
-    // Add domain event through entity
-    comment.addReaction(command.userId, validReactionType);
-
-    return comment;
+    // Validate reaction type enum
+    const validReactionTypes = ['like', 'love', 'laugh', 'angry', 'sad'];
+    if (!validReactionTypes.includes(command.reactionType.toLowerCase())) {
+      throw new Error(
+        `Invalid reaction type. Must be one of: ${validReactionTypes.join(', ')}`,
+      );
+    }
   }
 }

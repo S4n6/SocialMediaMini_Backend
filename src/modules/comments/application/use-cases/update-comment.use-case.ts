@@ -1,40 +1,50 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
-import { CommentNotFoundException } from '../../domain/comment.exceptions';
-import { CommentFactory } from '../../domain/factories/comment.factory';
-import { CommentEntity } from '../../domain/comment.entity';
+import { Injectable } from '@nestjs/common';
+import { CommentDomainService } from '../../domain/services/comment-domain.service';
+import { CommentEntity } from '../../domain/entities/comment.entity';
 
 export interface UpdateCommentCommand {
   commentId: string;
   userId: string;
-  content?: string;
+  content: string;
 }
 
+/**
+ * Update Comment Use Case
+ *
+ * Responsibility: Orchestrate the update of an existing comment
+ * - Validate command input
+ * - Delegate to domain service for business logic and authorization
+ * - Handle application-level concerns
+ */
 @Injectable()
 export class UpdateCommentUseCase {
-  constructor(
-    @Inject('COMMENT_REPOSITORY')
-    private readonly commentRepository: CommentRepository,
-  ) {}
+  constructor(private readonly commentDomainService: CommentDomainService) {}
 
   async execute(command: UpdateCommentCommand): Promise<CommentEntity> {
-    const existingComment = await this.commentRepository.findById(
+    // Input validation
+    this.validateCommand(command);
+
+    // Delegate to domain service for business logic
+    const updatedComment = await this.commentDomainService.updateComment(
       command.commentId,
+      command.content,
+      command.userId,
     );
 
-    if (!existingComment) {
-      throw new CommentNotFoundException(command.commentId);
+    // Application-level post-processing could go here
+
+    return updatedComment;
+  }
+
+  private validateCommand(command: UpdateCommentCommand): void {
+    if (!command.commentId?.trim()) {
+      throw new Error('Comment ID is required');
     }
-
-    // Authorization check - only comment author can update
-    if (existingComment.authorId !== command.userId) {
-      throw new Error('Unauthorized to update this comment');
+    if (!command.userId?.trim()) {
+      throw new Error('User ID is required');
     }
-
-    const updatedComment = CommentFactory.updateComment(existingComment, {
-      content: command.content ?? existingComment.content,
-    });
-
-    return await this.commentRepository.update(updatedComment);
+    if (!command.content?.trim()) {
+      throw new Error('Content is required');
+    }
   }
 }

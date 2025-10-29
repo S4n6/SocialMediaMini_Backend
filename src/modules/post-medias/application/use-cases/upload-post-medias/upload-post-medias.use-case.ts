@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
-import { CloudinaryService } from '../../ports/services/cloudinary.service';
-import { PostService } from '../../ports/services/post.service';
+import { PostMediaRepository } from '../../../domain/repositories/post-media.repository';
+import { CloudinaryService } from '../../../domain/services/cloudinary.service';
+import { PostService } from '../../../domain/services/post.service';
 import { PostMediaEntity } from '../../../domain/post-media.entity';
 import {
   PostMediaUploadFailedException,

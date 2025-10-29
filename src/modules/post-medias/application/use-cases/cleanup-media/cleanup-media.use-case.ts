@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CLOUDINARY_SERVICE } from '../../../tokens';
-import { CloudinaryService } from '../../ports/services/cloudinary.service';
+import { CloudinaryService } from '../../../domain/services/cloudinary.service';
 import { CleanupMediaCommand } from './cleanup-media.command';
 import { CleanupMediaResponse } from './cleanup-media.response';
 

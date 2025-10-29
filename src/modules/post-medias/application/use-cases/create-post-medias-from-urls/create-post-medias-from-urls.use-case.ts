@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { POST_MEDIA_REPOSITORY } from '../../../tokens';
-import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
+import { PostMediaRepository } from '../../../domain/repositories/post-media.repository';
 import {
   PostMediaEntity,
   PostMediaType,

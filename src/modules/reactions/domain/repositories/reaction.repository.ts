@@ -1,10 +1,11 @@
-import { ReactionEntity } from '../reaction.entity';
+import { ReactionEntity } from '../entities/reaction.entity';
+import { TargetType } from '../../constants';
 
 export interface FindReactionsOptions {
   postId?: string;
   commentId?: string;
   reactorId?: string;
-  targetType?: 'post' | 'comment';
+  targetType?: TargetType;
   limit?: number;
   offset?: number;
 }
@@ -32,13 +33,51 @@ export interface ReactionStatusResult {
   reactionType: string | null;
 }
 
-export abstract class ReactionRepository {
+// Base repository for basic CRUD operations
+export interface IReactionBaseRepository {
+  save(reaction: ReactionEntity): Promise<ReactionEntity>;
+  findById(id: string): Promise<ReactionEntity | null>;
+  delete(id: string): Promise<void>;
+}
+
+// Repository for finding reactions
+export interface IReactionFinderRepository {
+  findByUserAndTarget(
+    userId: string,
+    targetId: string,
+    targetType: TargetType,
+  ): Promise<ReactionEntity | null>;
+  findAll(options?: FindReactionsOptions): Promise<ReactionEntity[]>;
+  findAllWithReactor(
+    options?: FindReactionsOptions,
+  ): Promise<ReactionWithReactor[]>;
+}
+
+// Repository for statistics and aggregations
+export interface IReactionStatsRepository {
+  getPostReactions(postId: string): Promise<PostReactionsResult>;
+  getReactionStatus(
+    targetId: string,
+    userId: string,
+    targetType: TargetType,
+  ): Promise<ReactionStatusResult>;
+  countByTarget(targetId: string, targetType: TargetType): Promise<number>;
+}
+
+// Main repository interface combining all capabilities
+export interface IReactionRepository
+  extends IReactionBaseRepository,
+    IReactionFinderRepository,
+    IReactionStatsRepository {}
+
+// Keep the abstract class for backward compatibility
+export abstract class ReactionRepository implements IReactionRepository {
   abstract save(reaction: ReactionEntity): Promise<ReactionEntity>;
   abstract findById(id: string): Promise<ReactionEntity | null>;
   abstract findByUserAndTarget(
     userId: string,
     targetId: string,
-    targetType: 'post' | 'comment',
+    targetType: TargetType,
   ): Promise<ReactionEntity | null>;
   abstract findAll(options?: FindReactionsOptions): Promise<ReactionEntity[]>;
   abstract findAllWithReactor(
@@ -49,10 +88,10 @@ export abstract class ReactionRepository {
   abstract getReactionStatus(
     targetId: string,
     userId: string,
-    targetType: 'post' | 'comment',
+    targetType: TargetType,
   ): Promise<ReactionStatusResult>;
   abstract countByTarget(
     targetId: string,
-    targetType: 'post' | 'comment',
+    targetType: TargetType,
   ): Promise<number>;
 }

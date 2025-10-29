@@ -1,2 +1,2 @@
-// Controller exports
+// Controllers
 export * from './search-history.controller';

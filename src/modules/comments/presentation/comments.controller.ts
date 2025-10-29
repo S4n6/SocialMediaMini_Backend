@@ -22,12 +22,13 @@ import {
   GetRepliesDto,
 } from '../application/dto/comment.dto';
 import { ApiResponse } from '../../../shared/common/interfaces/api-response.interface';
+import { APPLICATION_TOKENS } from '../constants';
 
 @Controller('comments')
 @UseGuards(JwtAuthGuard)
 export class CommentsController {
   constructor(
-    @Inject('CommentApplicationService')
+    @Inject(APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE)
     private readonly commentService: CommentApplicationService,
   ) {}
 
