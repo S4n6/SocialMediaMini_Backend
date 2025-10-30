@@ -22,8 +22,9 @@ import {
 } from './dto/notification.dto';
 
 /**
- * Application service that orchestrates notification use cases
+ * Application service that orchestrates complex notification workflows
  * This is the main entry point for the notification module's application layer
+ * Coordinates multiple use cases and handles cross-cutting concerns
  */
 @Injectable()
 export class NotificationApplicationService {
@@ -235,5 +236,142 @@ export class NotificationApplicationService {
       userId,
       olderThanDays,
     );
+  }
+
+  // =================================================================
+  // ORCHESTRATION METHODS - Complex workflows coordinating multiple use cases
+  // =================================================================
+
+  /**
+   * Complex workflow: Create notification and immediately mark related ones as read
+   * Orchestrates multiple use cases in a single transaction-like operation
+   */
+  async createAndMarkRelatedAsRead(
+    dto: CreateNotificationDto,
+    markAsReadEntityId?: string,
+  ): Promise<{
+    createdNotification: NotificationResponseDto;
+    markedAsReadCount: number;
+  }> {
+    // 1. Create the new notification
+    const createdNotification =
+      await this.createNotificationUseCase.execute(dto);
+
+    let markedAsReadCount = 0;
+
+    // 2. If related entity specified, mark similar notifications as read
+    if (markAsReadEntityId && dto.entityType) {
+      // This would require a new use case for marking notifications by entity as read
+      // For now, just mark all unread notifications of same type as read
+      const unreadNotifications = await this.getNotifications(dto.userId, {
+        isRead: false,
+        type: dto.type,
+        page: 1,
+        limit: 100,
+      });
+
+      if (unreadNotifications.notifications.length > 0) {
+        const notificationIds = unreadNotifications.notifications.map(
+          (n) => n.id,
+        );
+        await this.markAsReadBulk(notificationIds, dto.userId);
+        markedAsReadCount = notificationIds.length;
+      }
+    }
+
+    return {
+      createdNotification,
+      markedAsReadCount,
+    };
+  }
+
+  /**
+   * Complex workflow: Get user dashboard data
+   * Orchestrates multiple use cases to provide comprehensive notification overview
+   */
+  async getUserNotificationDashboard(userId: string): Promise<{
+    stats: NotificationStatsDto;
+    recentNotifications: NotificationResponseDto[];
+    unreadNotifications: NotificationResponseDto[];
+    summary: {
+      hasUnread: boolean;
+      totalCount: number;
+      unreadCount: number;
+      lastNotificationAt?: Date;
+    };
+  }> {
+    // Execute multiple use cases in parallel for better performance
+    const [stats, recentNotifications, unreadNotifications] = await Promise.all(
+      [
+        this.getNotificationStats(userId),
+        this.getNotifications(userId, { page: 1, limit: 10, sortBy: 'newest' }),
+        this.getUnreadNotifications(userId, 5),
+      ],
+    );
+
+    // Calculate summary data
+    const summary = {
+      hasUnread: stats.unreadCount > 0,
+      totalCount: stats.totalCount,
+      unreadCount: stats.unreadCount,
+      lastNotificationAt: recentNotifications.notifications[0]?.createdAt,
+    };
+
+    return {
+      stats,
+      recentNotifications: recentNotifications.notifications,
+      unreadNotifications,
+      summary,
+    };
+  }
+
+  /**
+   * Complex workflow: Intelligent cleanup based on user behavior
+   * Orchestrates cleanup with user-specific logic
+   */
+  async intelligentCleanup(userId: string): Promise<{
+    cleanupResult: CleanupResult;
+    recommendations: string[];
+    nextCleanupDate: Date;
+  }> {
+    // 1. Get user stats to determine cleanup strategy
+    const stats = await this.getNotificationStats(userId);
+    const cleanupStats = await this.getCleanupStats(userId);
+
+    // 2. Determine cleanup parameters based on user behavior
+    let olderThanDays = 30; // default
+    const cleanupRecommendations: string[] = [];
+
+    if (stats.totalCount > 1000) {
+      olderThanDays = 14; // More aggressive cleanup for heavy users
+      cleanupRecommendations.push(
+        'Reduced cleanup interval due to high notification volume',
+      );
+    } else if (stats.totalCount < 50) {
+      olderThanDays = 90; // More conservative for light users
+      cleanupRecommendations.push(
+        'Extended cleanup interval due to low notification volume',
+      );
+    }
+
+    // 3. Perform cleanup
+    const cleanupResult = await this.cleanupUserReadNotifications(
+      userId,
+      olderThanDays,
+    );
+
+    // 4. Calculate next cleanup date
+    const nextCleanupDate = new Date();
+    nextCleanupDate.setDate(nextCleanupDate.getDate() + olderThanDays);
+
+    cleanupRecommendations.push(
+      `Next cleanup scheduled for ${nextCleanupDate.toLocaleDateString()}`,
+    );
+
+    return {
+      cleanupResult,
+      recommendations: cleanupRecommendations,
+      nextCleanupDate,
+    };
   }
 }

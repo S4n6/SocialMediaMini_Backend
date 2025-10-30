@@ -1,5 +1,11 @@
+// Domain shared
+export * from './shared/base-entity';
+
+// Domain enums
+export * from './enums/notification.enums';
+
 // Domain entities
-export * from './notification.entity';
+export * from './entities/notification.entity';
 
 // Domain events
 export * from './notification.events';

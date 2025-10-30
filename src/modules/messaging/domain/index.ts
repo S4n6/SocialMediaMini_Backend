@@ -5,14 +5,19 @@ export * from './enums';
 export * from './value-objects';
 
 // Entities
-export * from './message.entity';
-export * from './conversation.entity';
+export * from './entities';
 
 // Domain Events
 export * from './events';
 
-// Domain Services (if any)
+// Domain Services
 export * from './services';
 
 // Repositories (interfaces)
 export * from './repositories';
+
+// Exceptions
+export * from './exceptions';
+
+// Factories
+export * from './factories';

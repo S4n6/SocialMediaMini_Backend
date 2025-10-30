@@ -34,6 +34,12 @@ import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapt
 // Event Handlers
 import { PostEventHandler } from './application/events/post-event.handler';
 
+// WebSocket Services
+import {
+  PostWebSocketService,
+  PostWebSocketRegistrationService,
+} from './application/services';
+
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
 
@@ -72,6 +78,10 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     // Event Handlers
     PostEventHandler,
 
+    // WebSocket Services
+    PostWebSocketService,
+    PostWebSocketRegistrationService,
+
     // Infrastructure Adapters
     {
       provide: USER_ADAPTER_TOKEN,
@@ -97,6 +107,7 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     TimelineService,
     PostFactory,
     PostDomainService,
+    PostWebSocketService,
   ],
 })
 export class PostsModule {}

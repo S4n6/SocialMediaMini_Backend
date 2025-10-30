@@ -6,7 +6,7 @@ import {
   UnauthorizedNotificationAccessException,
 } from '../../domain/notification.exceptions';
 import { NotificationResponseDto } from '../dto/notification.dto';
-import { NOTIFICATION_REPOSITORY_TOKEN } from './create-notification.use-case';
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../constants';
 
 /**
  * Use case for getting a single notification

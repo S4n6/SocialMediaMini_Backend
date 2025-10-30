@@ -9,7 +9,7 @@ import {
   UpdateNotificationDto,
   NotificationResponseDto,
 } from '../dto/notification.dto';
-import { NOTIFICATION_REPOSITORY_TOKEN } from './create-notification.use-case';
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../constants';
 
 /**
  * Use case for updating a notification

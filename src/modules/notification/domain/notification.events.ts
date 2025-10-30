@@ -1,10 +1,11 @@
-// Temporary DomainEvent interface until shared domain is available
-export interface DomainEvent {
-  getAggregateId(): string;
-  getEventName(): string;
-}
+import { IDomainEvent } from './shared/base-entity';
 
-export class NotificationCreatedEvent implements DomainEvent {
+export class NotificationCreatedEvent implements IDomainEvent {
+  public readonly aggregateId: string;
+  public readonly eventName: string = 'NotificationCreated';
+  public readonly occurredOn: Date;
+  public readonly eventData: Record<string, unknown>;
+
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
@@ -13,78 +14,127 @@ export class NotificationCreatedEvent implements DomainEvent {
     public readonly content: string,
     public readonly entityId?: string,
     public readonly entityType?: string,
-    public readonly occurredAt: Date = new Date(),
-  ) {}
+    occurredAt: Date = new Date(),
+  ) {
+    this.aggregateId = notificationId;
+    this.occurredOn = occurredAt;
+    this.eventData = {
+      notificationId,
+      userId,
+      type,
+      title,
+      content,
+      entityId,
+      entityType,
+    };
+  }
 
+  // Backward compatibility methods
   getAggregateId(): string {
-    return this.notificationId;
+    return this.aggregateId;
   }
 
   getEventName(): string {
-    return 'NotificationCreated';
+    return this.eventName;
   }
 }
 
-export class NotificationReadEvent implements DomainEvent {
+export class NotificationReadEvent implements IDomainEvent {
+  public readonly aggregateId: string;
+  public readonly eventName: string = 'NotificationRead';
+  public readonly occurredOn: Date;
+  public readonly eventData: Record<string, unknown>;
+
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
-    public readonly occurredAt: Date = new Date(),
-  ) {}
+    occurredAt: Date = new Date(),
+  ) {
+    this.aggregateId = notificationId;
+    this.occurredOn = occurredAt;
+    this.eventData = { notificationId, userId };
+  }
 
   getAggregateId(): string {
-    return this.notificationId;
+    return this.aggregateId;
   }
 
   getEventName(): string {
-    return 'NotificationRead';
+    return this.eventName;
   }
 }
 
-export class NotificationUnreadEvent implements DomainEvent {
+export class NotificationUnreadEvent implements IDomainEvent {
+  public readonly aggregateId: string;
+  public readonly eventName: string = 'NotificationUnread';
+  public readonly occurredOn: Date;
+  public readonly eventData: Record<string, unknown>;
+
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
-    public readonly occurredAt: Date = new Date(),
-  ) {}
+    occurredAt: Date = new Date(),
+  ) {
+    this.aggregateId = notificationId;
+    this.occurredOn = occurredAt;
+    this.eventData = { notificationId, userId };
+  }
 
   getAggregateId(): string {
-    return this.notificationId;
+    return this.aggregateId;
   }
 
   getEventName(): string {
-    return 'NotificationUnread';
+    return this.eventName;
   }
 }
 
-export class NotificationDeletedEvent implements DomainEvent {
+export class NotificationDeletedEvent implements IDomainEvent {
+  public readonly aggregateId: string;
+  public readonly eventName: string = 'NotificationDeleted';
+  public readonly occurredOn: Date;
+  public readonly eventData: Record<string, unknown>;
+
   constructor(
     public readonly notificationId: string,
     public readonly userId: string,
-    public readonly occurredAt: Date = new Date(),
-  ) {}
+    occurredAt: Date = new Date(),
+  ) {
+    this.aggregateId = notificationId;
+    this.occurredOn = occurredAt;
+    this.eventData = { notificationId, userId };
+  }
 
   getAggregateId(): string {
-    return this.notificationId;
+    return this.aggregateId;
   }
 
   getEventName(): string {
-    return 'NotificationDeleted';
+    return this.eventName;
   }
 }
 
-export class BulkNotificationsReadEvent implements DomainEvent {
+export class BulkNotificationsReadEvent implements IDomainEvent {
+  public readonly aggregateId: string;
+  public readonly eventName: string = 'BulkNotificationsRead';
+  public readonly occurredOn: Date;
+  public readonly eventData: Record<string, unknown>;
+
   constructor(
     public readonly userId: string,
     public readonly notificationIds: string[],
-    public readonly occurredAt: Date = new Date(),
-  ) {}
+    occurredAt: Date = new Date(),
+  ) {
+    this.aggregateId = userId;
+    this.occurredOn = occurredAt;
+    this.eventData = { userId, notificationIds };
+  }
 
   getAggregateId(): string {
-    return this.userId;
+    return this.aggregateId;
   }
 
   getEventName(): string {
-    return 'BulkNotificationsRead';
+    return this.eventName;
   }
 }

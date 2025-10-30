@@ -13,6 +13,7 @@ import { RedisCacheModule } from './modules/cache/cache.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { SearchHistoryModule } from './modules/search-history/search-history.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { WebSocketModule } from './shared/websocket/websocket.module';
 import {
   CorsMiddleware,
   RateLimitMiddleware,
@@ -21,7 +22,6 @@ import {
   CookieParserMiddleware,
   SecurityHeadersMiddleware,
   FileUploadSecurityMiddleware,
-  WebSocketSecurityMiddleware,
 } from './shared/middlewares';
 import { ErrorMonitoringService } from './shared/services/error-monitoring.service';
 
@@ -37,9 +37,10 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     PostsModule,
     MailerModule,
     RedisCacheModule,
-    // NotificationModule,
+    NotificationModule,
     // SearchHistoryModule,
-    // MessagingModule,
+    MessagingModule,
+    WebSocketModule,
     PrismaModule,
   ],
   controllers: [],
@@ -69,8 +70,5 @@ export class AppModule implements NestModule {
 
     // 7. File upload security - apply globally but middleware will only act on upload/cloudinary paths
     consumer.apply(FileUploadSecurityMiddleware).forRoutes('*');
-
-    // 8. WebSocket security - Socket.IO routes
-    consumer.apply(WebSocketSecurityMiddleware).forRoutes('/socket.io/*path');
   }
 }

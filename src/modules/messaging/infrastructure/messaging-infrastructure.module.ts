@@ -1,34 +1,30 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../../database/prisma.module';
+import { MESSAGING_TOKENS } from '../constants';
 import { ConversationRepositoryImpl } from './repositories/conversation.repository';
 import { MessageRepositoryImpl } from './repositories/message.repository';
 import { MessagingUnitOfWorkImpl } from './repositories/messaging-unit-of-work';
-
-// Repository tokens
-export const CONVERSATION_REPOSITORY = 'CONVERSATION_REPOSITORY';
-export const MESSAGE_REPOSITORY = 'MESSAGE_REPOSITORY';
-export const MESSAGING_UNIT_OF_WORK = 'MESSAGING_UNIT_OF_WORK';
 
 @Module({
   imports: [PrismaModule],
   providers: [
     {
-      provide: CONVERSATION_REPOSITORY,
+      provide: MESSAGING_TOKENS.CONVERSATION_REPOSITORY,
       useClass: ConversationRepositoryImpl,
     },
     {
-      provide: MESSAGE_REPOSITORY,
+      provide: MESSAGING_TOKENS.MESSAGE_REPOSITORY,
       useClass: MessageRepositoryImpl,
     },
     {
-      provide: MESSAGING_UNIT_OF_WORK,
+      provide: MESSAGING_TOKENS.MESSAGING_UNIT_OF_WORK,
       useClass: MessagingUnitOfWorkImpl,
     },
   ],
   exports: [
-    CONVERSATION_REPOSITORY,
-    MESSAGE_REPOSITORY,
-    MESSAGING_UNIT_OF_WORK,
+    MESSAGING_TOKENS.CONVERSATION_REPOSITORY,
+    MESSAGING_TOKENS.MESSAGE_REPOSITORY,
+    MESSAGING_TOKENS.MESSAGING_UNIT_OF_WORK,
   ],
 })
 export class MessagingInfrastructureModule {}

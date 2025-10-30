@@ -1,8 +1,8 @@
+import { NotificationEntity } from '../entities/notification.entity';
 import {
-  NotificationEntity,
   NotificationType,
   NotificationEntityType,
-} from '../notification.entity';
+} from '../enums/notification.enums';
 
 /**
  * Domain repository interface for Notification aggregate

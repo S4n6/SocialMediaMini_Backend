@@ -7,21 +7,15 @@ import {
   IsInt,
   Min,
   Max,
+  IsUUID,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
-import {
-  NotificationType,
-  NotificationEntityType,
-} from '../../domain/notification.entity';
+import { Transform, Type } from 'class-transformer';
+import { NotificationType, NotificationEntityType } from '../../domain';
 
-export enum NotificationTypeDto {
-  LIKE = 'like',
-  COMMENT = 'comment',
-  FOLLOW = 'follow',
-  MESSAGE = 'message',
-}
-
+/**
+ * Presentation layer enums (can be subset of domain enums)
+ */
 export enum SortByDto {
   NEWEST = 'newest',
   OLDEST = 'oldest',

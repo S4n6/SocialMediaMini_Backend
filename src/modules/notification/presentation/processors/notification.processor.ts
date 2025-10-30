@@ -4,7 +4,7 @@ import { Job } from 'bullmq';
 import Redis from 'ioredis';
 import { NotificationApplicationService } from '../../application/notification-application.service';
 import { PrismaService } from '../../../../database/prisma.service';
-import { NotificationType } from '../../domain/notification.entity';
+import { NotificationType } from '../../domain';
 
 interface NotificationJobData {
   reactorId: string;

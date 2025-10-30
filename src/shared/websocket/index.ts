@@ -1,15 +1,46 @@
-// Core services
-export * from './core/connection-manager.service';
-export * from './core/room-manager.service';
-export * from './core/websocket-gateway.service';
+// Main WebSocket module index - Re-export everything
+export * from './constants';
+export * from './dto';
+export * from './domain/entities';
+export * from './application/interfaces';
+export * from './application/services';
+export * from './application/handlers';
 
-// Feature-specific services
-export * from './services/messaging-websocket.service';
-export * from './services/social-websocket.service';
-export * from './services/presence-websocket.service';
+// Re-export decorators with explicit naming to avoid conflicts
+export {
+  WebSocketHandler,
+  WebSocketEvent as WebSocketEventDecorator,
+  WebSocketModule as WebSocketModuleDecorator,
+  WebSocketMiddleware as WebSocketMiddlewareDecorator,
+  InjectWebSocketGateway,
+  ValidatePayload,
+  RequireAuth,
+  RateLimit as RateLimitDecorator,
+  RequireRoomAccess,
+  WEBSOCKET_HANDLER_METADATA,
+  WEBSOCKET_MODULE_METADATA,
+  type WebSocketHandlerMetadata,
+  type WebSocketModuleMetadata,
+} from './decorators';
 
-// Interfaces and types
-export * from './interfaces/websocket.interface';
+// Main module and gateway
+export { WebSocketModule } from './websocket.module';
+export { MainWebSocketGateway } from './websocket.gateway';
 
-// Module
-export * from './websocket.module';
+// Re-export types with explicit naming to avoid conflicts
+export type {
+  AuthenticatedSocket,
+  ConnectionMetadata,
+  ConnectionStats,
+  RoomStats,
+  NotificationEventPayload,
+  MessagingEventPayload,
+  PostsEventPayload,
+  WebSocketEventPayload,
+  WebSocketModuleConfig,
+  HandlerConfig,
+  RateLimit,
+  WebSocketMiddleware,
+  WebSocketError,
+  HealthStatus,
+} from './types';

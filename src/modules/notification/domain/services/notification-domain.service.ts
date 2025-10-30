@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
 import {
   NotificationEntity,
+  NotificationProps,
+} from '../entities/notification.entity';
+import {
   NotificationType,
   NotificationEntityType,
-} from '../notification.entity';
+} from '../enums/notification.enums';
 import {
   NotificationNotFoundException,
   UnauthorizedNotificationAccessException,
@@ -11,8 +13,8 @@ import {
 
 /**
  * Domain service for complex notification business logic
+ * Pure domain service without framework dependencies
  */
-@Injectable()
 export class NotificationDomainService {
   /**
    * Validates if a user can access a notification

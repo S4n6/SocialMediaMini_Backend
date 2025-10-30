@@ -10,8 +10,7 @@ export * from './events/event-bus.interface';
 export * from './exceptions/domain.exception';
 export * from './exceptions/error-response.interface';
 
-// WebSocket exports
-export * from './websocket';
+// WebSocket exports removed for cleanup
 
 // Constants exports
 export * from './constants';
