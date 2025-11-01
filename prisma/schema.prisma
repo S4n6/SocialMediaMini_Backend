@@ -61,6 +61,7 @@ model User {
   conversations     UserConversation[]
   sentMessages      Message[]
   stories           Story[]
+  storyViews        StoryView[] @relation("UserStoryViews")
   reportsSubmitted  Report[]  @relation("ReportSubmitter")
   reportsReceived   Report[]  @relation("ReportTarget")
   notifications     Notification[]
@@ -198,16 +199,36 @@ model UserConversation {
 
 model Story {
   id          String   @id @default(uuid()) @map("StoryId")
-  content     String?  @map("Content")
-  mediaUrl    String   @map("MediaUrl")
-  mediaType   String   @map("MediaType") // image, video
-  expiresAt   DateTime @map("ExpiresAt")
+  content     String?  @map("Content") // Text content (optional)
+  mediaUrl    String?  @map("MediaUrl") // Image URL from Cloudinary (optional)
+  mediaType   String?  @map("MediaType") // 'image' or 'text'
+  expiresAt   DateTime @map("ExpiresAt") // 24 hours from creation
+  isActive    Boolean  @default(true) @map("IsActive")
   createdAt   DateTime @default(now()) @map("CreatedAt")
+  updatedAt   DateTime @updatedAt @map("UpdatedAt")
 
   authorId    String   @map("AuthorId")
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
+  // Story views
+  views       StoryView[]
+
   @@map("Stories")
+}
+
+model StoryView {
+  id        String   @id @default(uuid()) @map("StoryViewId")
+  viewedAt  DateTime @default(now()) @map("ViewedAt")
+
+  storyId   String   @map("StoryId")
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  viewerId  String   @map("ViewerId")
+  viewer    User     @relation("UserStoryViews", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  // Prevent duplicate views from same user
+  @@unique([storyId, viewerId])
+  @@map("StoryViews")
 }
 
 model Report {

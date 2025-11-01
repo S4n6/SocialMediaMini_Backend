@@ -1,4 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './database/prisma.module';
 import { UsersModule } from './modules/users/users.module';
 import { CommentsModule } from './modules/comments/comments.module';
@@ -14,6 +15,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { SearchHistoryModule } from './modules/search-history/search-history.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
 import { WebSocketModule } from './shared/websocket/websocket.module';
+import { StoryModule } from './modules/story/story.module';
 import {
   CorsMiddleware,
   RateLimitMiddleware,
@@ -27,6 +29,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     UsersModule,
     AuthModule,
     // CommentsModule,
@@ -41,6 +44,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     // SearchHistoryModule,
     MessagingModule,
     WebSocketModule,
+    StoryModule,
     PrismaModule,
   ],
   controllers: [],
