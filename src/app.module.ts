@@ -8,13 +8,13 @@ import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { FollowsModule } from './modules/follow/follow.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
-import { PostsModule } from './modules/posts/posts.module';
+// import { PostsModule } from './modules/posts/posts.module'; // TODO: Moved to posts_old/ - refactor later
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
-import { NotificationModule } from './modules/notification/notification.module';
+// import { NotificationModule } from './modules/notification/notification.module'; // TODO: Moved to notification_old/ - refactor later
 import { SearchHistoryModule } from './modules/search-history/search-history.module';
-import { MessagingModule } from './modules/messaging/messaging.module';
-import { WebSocketModule } from './shared/websocket/websocket.module';
+// import { MessagingModule } from './modules/messaging/messaging.module'; // TODO: Moved to messaging_old/ - refactor later
+import { WebSocketModule } from './infrastructure/websocket';
 import { StoryModule } from './modules/story/story.module';
 import {
   CorsMiddleware,
@@ -30,21 +30,21 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    WebSocketModule, // WebSocket Infrastructure
     UsersModule,
     AuthModule,
-    // CommentsModule,
-    PostMediasModule,
+    // CommentsModule, // TODO: Refactor - uses old WebSocket
+    // PostMediasModule,
     // FollowsModule,
     // ReactionsModule,
     // CloudinaryModule,
-    PostsModule,
+    // PostsModule, // TODO: Refactor - uses old WebSocket
     MailerModule,
     RedisCacheModule,
-    NotificationModule,
+    // NotificationModule, // TODO: Refactor - uses old WebSocket
     // SearchHistoryModule,
-    MessagingModule,
-    WebSocketModule,
-    StoryModule,
+    // MessagingModule, // TODO: Refactor - uses old WebSocket
+    // StoryModule,
     PrismaModule,
   ],
   controllers: [],

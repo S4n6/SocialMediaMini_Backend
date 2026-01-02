@@ -12,6 +12,7 @@ import {
   Username,
 } from '../../../users/domain/value-objects';
 import { UserProfile } from '../../../users/domain/value-objects/user-profile.value-object';
+import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 
 /**
  * Auth User Repository Adapter
@@ -21,7 +22,7 @@ import { UserProfile } from '../../../users/domain/value-objects/user-profile.va
 @Injectable()
 export class AuthUserRepository implements AuthIUserRepository {
   constructor(
-    @Inject('USERS_REPOSITORY_TOKEN')
+    @Inject(USER_REPOSITORY_TOKEN)
     private readonly usersRepository: UserPrismaRepository,
   ) {}
   async create(user: AuthUser): Promise<AuthUser> {

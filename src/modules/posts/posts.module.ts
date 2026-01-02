@@ -34,11 +34,11 @@ import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapt
 // Event Handlers
 import { PostEventHandler } from './application/events/post-event.handler';
 
-// WebSocket Services
-import {
-  PostWebSocketService,
-  PostWebSocketRegistrationService,
-} from './application/services';
+// WebSocket Services - TODO: Refactor - WebSocket cũ
+// import {
+//   PostWebSocketService,
+//   PostWebSocketRegistrationService,
+// } from './application/services';
 
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
@@ -78,9 +78,9 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     // Event Handlers
     PostEventHandler,
 
-    // WebSocket Services
-    PostWebSocketService,
-    PostWebSocketRegistrationService,
+    // WebSocket Services - TODO: Refactor - WebSocket cũ
+    // PostWebSocketService,
+    // PostWebSocketRegistrationService,
 
     // Infrastructure Adapters
     {
@@ -107,7 +107,7 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     TimelineService,
     PostFactory,
     PostDomainService,
-    PostWebSocketService,
+    // PostWebSocketService, // TODO: Refactor - WebSocket cũ
   ],
 })
 export class PostsModule {}

@@ -9,7 +9,6 @@ import {
   PASSWORD_HASHER_TOKEN,
   TOKEN_GENERATOR_TOKEN,
   EMAIL_SENDER_TOKEN,
-  USER_REPOSITORY_TOKEN,
 } from './auth.constants';
 
 // Application Layer
@@ -47,7 +46,7 @@ import { GoogleStrategy } from './presentation/strategies/google.strategy';
 import { UsersModule } from '../users/users.module';
 import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
-import { NotificationModule } from '../notification/notification.module';
+// import { NotificationModule } from '../notification/notification.module'; // TODO: Refactor notification module
 import { RedisCacheModule } from '../cache/cache.module';
 import { PrismaModule } from '../../database/prisma.module';
 
@@ -61,7 +60,7 @@ import { PrismaModule } from '../../database/prisma.module';
       signOptions: { expiresIn: JWT.EXPIRES_IN },
     }),
     MailerModule,
-    NotificationModule,
+    // NotificationModule, // TODO: Refactor notification module
     RedisCacheModule,
   ],
   controllers: [AuthController],
@@ -78,10 +77,8 @@ import { PrismaModule } from '../../database/prisma.module';
       provide: TOKEN_REPOSITORY_TOKEN,
       useClass: TokenRepository,
     },
-    {
-      provide: USER_REPOSITORY_TOKEN,
-      useClass: AuthUserRepository,
-    },
+    // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
+    AuthUserRepository,
 
     // Services
     {
@@ -137,10 +134,10 @@ import { PrismaModule } from '../../database/prisma.module';
     AuthApplicationService,
     SESSION_REPOSITORY_TOKEN,
     TOKEN_REPOSITORY_TOKEN,
-    USER_REPOSITORY_TOKEN,
     PASSWORD_HASHER_TOKEN,
     TOKEN_GENERATOR_TOKEN,
     EMAIL_SENDER_TOKEN,
+    AuthUserRepository, // Export the adapter itself
 
     // Legacy Exports (for backward compatibility)
     'LEGACY_AUTH_APPLICATION_SERVICE',

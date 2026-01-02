@@ -47,6 +47,7 @@ model User {
   isEmailVerified     Boolean       @default(false) @map("IsEmailVerified")
   emailVerifiedAt     DateTime?     @map("EmailVerifiedAt")
   lastProfileUpdate   DateTime?     @map("LastProfileUpdate")
+  lastVerificationSentAt DateTime? @map("LastVerificationSentAt")
   createdAt           DateTime      @default(now()) @map("CreatedAt")
   updatedAt           DateTime      @updatedAt @map("UpdatedAt")
 

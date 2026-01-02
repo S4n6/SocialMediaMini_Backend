@@ -6,7 +6,7 @@ import {
   UserEmail,
   Username,
 } from '../../domain';
-import { IEventBus } from '../../../../shared/events/event-bus.interface';
+import { IEventBus } from '../../../../infrastructure/events';
 import { CreateUserCommand, UserDto } from '../dto/application.dto';
 import { DomainEventAdapter } from '../adapters/event.adapter';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { User, IUserRepository, UserId } from '../../domain';
-import { IEventBus } from '../../../../shared/events/event-bus.interface';
+import { IEventBus } from '../../../../infrastructure/events';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 import { DomainEventAdapter } from '../adapters/event.adapter';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';

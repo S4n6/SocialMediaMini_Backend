@@ -1,4 +1,4 @@
-import { DomainEvent } from '../domain/domain-event.base';
+import { DomainEvent } from '../../../shared/domain/domain-event.base';
 
 /**
  * Event handler interface for domain events

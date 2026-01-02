@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IConnectionManager } from '../interfaces';
-import { ConnectionEntity } from '../../domain/entities';
-import { RedisCacheService } from '../../../../modules/cache';
-import { WEBSOCKET_CONFIG } from '../../constants';
+import { IConnectionManager } from './interfaces';
+import { ConnectionEntity } from '../domain/entities';
+import { RedisCacheService } from '../../../modules/cache';
+import { WEBSOCKET_CONFIG } from '../constants';
 
 @Injectable()
 export class ConnectionManagerService implements IConnectionManager {

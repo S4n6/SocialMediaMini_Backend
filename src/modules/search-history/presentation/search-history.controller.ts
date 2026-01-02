@@ -21,7 +21,7 @@ import {
   AddSearchEntryDto,
   SearchHistoryResponseDto,
 } from '../application/dto/search-history.dto';
-import { ApiResponse as ApiResponseInterface } from '../../../shared/common/interfaces/api-response.interface';
+import { ApiResponse as ApiResponseInterface } from '../../../shared/utils/interfaces/api-response.interface';
 
 @ApiTags('Search History')
 @ApiBearerAuth()

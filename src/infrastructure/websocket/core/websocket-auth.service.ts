@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Socket } from 'socket.io';
-import { IWebSocketAuth, AuthenticatedUser } from '../interfaces';
+import { IWebSocketAuth, AuthenticatedUser } from './interfaces';
 
 @Injectable()
 export class WebSocketAuthService implements IWebSocketAuth {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IEventBus, IEventHandler } from './event-bus.interface';
-import { DomainEvent } from '../domain/domain-event.base';
+import { DomainEvent } from '../../../shared/domain/domain-event.base';
 
 /**
  * Simple in-memory event bus implementation

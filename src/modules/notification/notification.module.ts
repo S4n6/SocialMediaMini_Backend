@@ -40,20 +40,20 @@ import {
 } from './infrastructure';
 
 // WebSocket Layer
-import {
-  NotificationWebSocketService,
-  NotificationWebSocketRegistrationService,
-} from './application/services';
-import {
-  NotificationMarkReadHandler,
-  NotificationMarkAllReadHandler,
-  NotificationSubscribeHandler,
-  NotificationUnsubscribeHandler,
-  NotificationGetHistoryHandler,
-} from './application/handlers';
+// import {
+//   NotificationWebSocketService,
+//   NotificationWebSocketRegistrationService,
+// } from './application/services'; // TODO: Refactor - WebSocket cũ
+// import {
+//   NotificationMarkReadHandler,
+//   NotificationMarkAllReadHandler,
+//   NotificationSubscribeHandler,
+//   NotificationUnsubscribeHandler,
+//   NotificationGetHistoryHandler,
+// } from './application/handlers'; // TODO: Refactor - WebSocket cũ
 
 // Import WebSocket module
-import { WebSocketModule } from '../../shared/websocket';
+import { WebSocketModule } from '../../infrastructure/websocket';
 
 // Configuration
 import { JWT } from '../../config/jwt.config';
@@ -126,16 +126,16 @@ import { PrismaModule } from '../../database/prisma.module';
     // Queue Processor
     NotificationProcessor,
 
-    // WebSocket Layer
-    NotificationWebSocketService,
-    NotificationWebSocketRegistrationService,
+    // WebSocket Layer - TODO: Refactor - WebSocket cũ
+    // NotificationWebSocketService,
+    // NotificationWebSocketRegistrationService,
 
-    // WebSocket Handlers
-    NotificationMarkReadHandler,
-    NotificationMarkAllReadHandler,
-    NotificationSubscribeHandler,
-    NotificationUnsubscribeHandler,
-    NotificationGetHistoryHandler,
+    // WebSocket Handlers - TODO: Refactor - WebSocket cũ
+    // NotificationMarkReadHandler,
+    // NotificationMarkAllReadHandler,
+    // NotificationSubscribeHandler,
+    // NotificationUnsubscribeHandler,
+    // NotificationGetHistoryHandler,
   ],
   exports: [
     // Export application service for other modules
@@ -146,8 +146,8 @@ import { PrismaModule } from '../../database/prisma.module';
     PushNotificationService,
     RealtimeNotificationService,
 
-    // Export WebSocket services for other modules
-    NotificationWebSocketService,
+    // Export WebSocket services for other modules - TODO: Refactor - WebSocket cũ
+    // NotificationWebSocketService,
 
     // Export presentation layer
   ],

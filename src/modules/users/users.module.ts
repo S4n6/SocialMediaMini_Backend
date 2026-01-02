@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
-import { IEventBus } from '../../shared/events/event-bus.interface';
-import { InMemoryEventBus } from '../../shared/events/in-memory-event-bus.service';
+import { IEventBus } from '../../infrastructure/events';
+import { InMemoryEventBus } from '../../infrastructure/events';
 
 // Clean Architecture imports
 import { UserApplicationService } from './application/user-application.service';

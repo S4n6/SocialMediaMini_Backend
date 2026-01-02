@@ -2,7 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 import { User, UserProfile } from '../../domain';
 import { IUserRepository } from '../../domain/repositories';
-import { IEventBus } from '../../../../shared/events/event-bus.interface';
+import { IEventBus } from '../../../../infrastructure/events';
 import { DomainEventAdapter } from '../adapters/event.adapter';
 import { UpdateProfileDto, UserResponseDto } from '../dto/user.dto';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';

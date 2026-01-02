@@ -21,7 +21,7 @@ import {
   GetCommentsDto,
   GetRepliesDto,
 } from '../application/dto/comment.dto';
-import { ApiResponse } from '../../../shared/common/interfaces/api-response.interface';
+import { ApiResponse } from '../../../shared/utils/interfaces/api-response.interface';
 import { APPLICATION_TOKENS } from '../constants';
 
 @Controller('comments')

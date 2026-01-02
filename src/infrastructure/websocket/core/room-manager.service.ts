@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IRoomManager } from '../interfaces';
-import { RoomEntity } from '../../domain/entities';
-import { RedisCacheService } from '../../../../modules/cache';
-import { WEBSOCKET_CONFIG, WebSocketRoomType } from '../../constants';
+import { IRoomManager } from './interfaces';
+import { RoomEntity } from '../domain/entities';
+import { RedisCacheService } from '../../../modules/cache';
+import { WEBSOCKET_CONFIG, WebSocketRoomType } from '../constants';
 
 @Injectable()
 export class RoomManagerService implements IRoomManager {

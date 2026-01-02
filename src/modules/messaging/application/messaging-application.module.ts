@@ -31,8 +31,8 @@ import {
   ConversationEnrichmentService,
   MessageEnrichmentService,
   MessagingApplicationServices, // Legacy
-  MessagingWebSocketService,
-  MessagingWebSocketRegistrationService,
+  // MessagingWebSocketService, // TODO: Refactor - WebSocket cũ
+  // MessagingWebSocketRegistrationService, // TODO: Refactor - WebSocket cũ
 } from './services';
 
 // Use Case Aggregators
@@ -77,9 +77,9 @@ import { ConversationUseCases } from './use-cases/conversation.use-cases';
     ConversationEnrichmentService,
     MessageEnrichmentService,
 
-    // WebSocket Services
-    MessagingWebSocketService,
-    MessagingWebSocketRegistrationService,
+    // WebSocket Services - TODO: Refactor - WebSocket cũ
+    // MessagingWebSocketService,
+    // MessagingWebSocketRegistrationService,
 
     // Legacy - will be removed
     MessagingApplicationServices,
@@ -116,8 +116,8 @@ import { ConversationUseCases } from './use-cases/conversation.use-cases';
     ConversationEnrichmentService,
     MessageEnrichmentService,
 
-    // WebSocket Services
-    MessagingWebSocketService,
+    // WebSocket Services - TODO: Refactor - WebSocket cũ
+    // MessagingWebSocketService,
 
     // Legacy
     MessagingApplicationServices,

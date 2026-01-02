@@ -26,7 +26,7 @@ import {
   ReactionStatusResponseDto,
 } from './dto/reaction-response.dto';
 import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
-import { ApiResponse } from '../../../shared/common/interfaces/api-response.interface';
+import { ApiResponse } from '../../../shared/utils/interfaces/api-response.interface';
 import { ReactionPresentationMapper } from './mappers/reaction-presentation.mapper';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { IMetricsAdapter } from '../infrastructure/adapters';

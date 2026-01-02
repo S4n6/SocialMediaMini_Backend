@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { MainWebSocketGateway } from '../../../../shared/websocket';
+import { MainWebSocketGateway } from '../../../../infrastructure/websocket';
 import {
   NotificationDto,
   NotificationCountDto,
 } from '../dto/notification-websocket.dto';
-import { WEBSOCKET_ROOMS } from '../../../../shared/websocket/constants';
+import { WEBSOCKET_ROOMS } from '../../../../infrastructure/websocket/constants';
 
 @Injectable()
 export class NotificationWebSocketService {
