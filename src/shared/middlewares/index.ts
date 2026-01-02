@@ -9,5 +9,4 @@ export { CookieParserMiddleware } from './cookie-parser.middleware';
 export {
   SecurityHeadersMiddleware,
   FileUploadSecurityMiddleware,
-  WebSocketSecurityMiddleware,
 } from './security.middleware';

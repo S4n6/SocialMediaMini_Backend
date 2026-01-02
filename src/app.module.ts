@@ -1,4 +1,5 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './database/prisma.module';
 import { UsersModule } from './modules/users/users.module';
 import { CommentsModule } from './modules/comments/comments.module';
@@ -7,12 +8,14 @@ import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { FollowsModule } from './modules/follow/follow.module';
 import { ReactionsModule } from './modules/reactions/reactions.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
-import { PostsModule } from './modules/posts/posts.module';
+// import { PostsModule } from './modules/posts/posts.module'; // TODO: Moved to posts_old/ - refactor later
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
-import { NotificationModule } from './modules/notification/notification.module';
+// import { NotificationModule } from './modules/notification/notification.module'; // TODO: Moved to notification_old/ - refactor later
 import { SearchHistoryModule } from './modules/search-history/search-history.module';
-import { MessagingModule } from './modules/messaging/messaging.module';
+// import { MessagingModule } from './modules/messaging/messaging.module'; // TODO: Moved to messaging_old/ - refactor later
+import { WebSocketModule } from './infrastructure/websocket';
+import { StoryModule } from './modules/story/story.module';
 import {
   CorsMiddleware,
   RateLimitMiddleware,
@@ -21,25 +24,27 @@ import {
   CookieParserMiddleware,
   SecurityHeadersMiddleware,
   FileUploadSecurityMiddleware,
-  WebSocketSecurityMiddleware,
 } from './shared/middlewares';
 import { ErrorMonitoringService } from './shared/services/error-monitoring.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
+    WebSocketModule, // WebSocket Infrastructure
     UsersModule,
     AuthModule,
-    // CommentsModule,
-    PostMediasModule,
+    // CommentsModule, // TODO: Refactor - uses old WebSocket
+    // PostMediasModule,
     // FollowsModule,
     // ReactionsModule,
     // CloudinaryModule,
-    PostsModule,
+    // PostsModule, // TODO: Refactor - uses old WebSocket
     MailerModule,
     RedisCacheModule,
-    NotificationModule,
+    // NotificationModule, // TODO: Refactor - uses old WebSocket
     // SearchHistoryModule,
-    // MessagingModule,
+    // MessagingModule, // TODO: Refactor - uses old WebSocket
+    // StoryModule,
     PrismaModule,
   ],
   controllers: [],
@@ -69,8 +74,5 @@ export class AppModule implements NestModule {
 
     // 7. File upload security - apply globally but middleware will only act on upload/cloudinary paths
     consumer.apply(FileUploadSecurityMiddleware).forRoutes('*');
-
-    // 8. WebSocket security - Socket.IO routes
-    consumer.apply(WebSocketSecurityMiddleware).forRoutes('/socket.io/*path');
   }
 }

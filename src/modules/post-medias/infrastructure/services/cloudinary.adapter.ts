@@ -3,7 +3,7 @@ import { CloudinaryService } from '../../../cloudinary/cloudinary.service';
 import {
   CloudinaryService as ICloudinaryService,
   UploadedFile,
-} from '../../application/ports/services/cloudinary.service';
+} from '../../domain/services/cloudinary.service';
 
 @Injectable()
 export class CloudinaryAdapter implements ICloudinaryService {
@@ -27,5 +27,13 @@ export class CloudinaryAdapter implements ICloudinaryService {
 
   async generateSignature(params: any): Promise<string> {
     return await this.cloudinaryService.generateSignature(params);
+  }
+
+  async deleteFile(publicId: string): Promise<any> {
+    return await this.cloudinaryService.deleteFile(publicId);
+  }
+
+  async deleteMultipleFiles(publicIds: string[]): Promise<any> {
+    return await this.cloudinaryService.deleteMultipleFiles(publicIds);
   }
 }

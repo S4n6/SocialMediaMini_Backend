@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ITokenRepository } from '../../application/interfaces/token.repository.interface';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { AuthToken, TokenType } from '../../domain/entities/token.entity';
 import { Token } from '../../domain/value-objects/token.vo';
 import { Email } from '../../domain/value-objects/email.vo';

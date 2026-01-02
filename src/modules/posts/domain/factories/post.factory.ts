@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PostEntity, PostPrivacy, ReactionType } from '../post.entity';
+import { PostEntity, PostPrivacy, ReactionType } from '../entities/post.entity';
 import { PostDomainService } from '../services/post-domain.service';
 
 export interface CreatePostProps {

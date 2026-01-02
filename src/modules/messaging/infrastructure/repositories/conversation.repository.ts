@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
-import { IConversationRepository } from '../../domain/repositories';
-import { Conversation } from '../../domain/conversation.entity';
-import { ConversationId, UserId } from '../../domain/value-objects';
-import { ConversationType } from '../../domain/enums';
+import {
+  IConversationRepository,
+  Conversation,
+  ConversationId,
+  UserId,
+  ConversationType,
+} from '../../domain';
 
 @Injectable()
 export class ConversationRepositoryImpl implements IConversationRepository {

@@ -1,6 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { FollowEntity } from '../follow.entity';
-import { FollowRepository } from '../repositories/follow.repository';
+import { FollowEntity } from '../entities/follow.entity';
 import {
   SelfFollowException,
   AlreadyFollowingException,
@@ -9,87 +7,76 @@ import {
   UnauthorizedFollowActionException,
 } from '../follow.exceptions';
 
-@Injectable()
+/**
+ * Pure Domain Service
+ * Contains only business logic without external dependencies
+ * Repository operations should be handled in Application Layer
+ */
 export class FollowDomainService {
-  constructor(private readonly followRepository: FollowRepository) {}
-
-  async createFollow(
+  /**
+   * Validates and creates a new Follow entity
+   */
+  static createFollowEntity(
     followerId: string,
     followingId: string,
-  ): Promise<FollowEntity> {
+  ): FollowEntity {
     // Validate not following self
     if (followerId === followingId) {
       throw new SelfFollowException();
     }
 
-    // Check if already following
-    const existingFollow =
-      await this.followRepository.findByFollowerAndFollowing(
-        followerId,
-        followingId,
-      );
-
-    if (existingFollow) {
-      throw new AlreadyFollowingException();
-    }
-
     // Create new follow relationship
-    const newFollow = FollowEntity.createNew(followerId, followingId);
-    return await this.followRepository.save(newFollow);
+    return FollowEntity.createNew(followerId, followingId);
   }
 
-  async removeFollow(followerId: string, followingId: string): Promise<void> {
-    // Validate not unfollowing self
+  /**
+   * Validates unfollow operation
+   */
+  static validateUnfollow(followerId: string, followingId: string): void {
     if (followerId === followingId) {
       throw new SelfFollowException();
     }
-
-    // Check if currently following
-    const existingFollow =
-      await this.followRepository.findByFollowerAndFollowing(
-        followerId,
-        followingId,
-      );
-
-    if (!existingFollow) {
-      throw new NotFollowingException();
-    }
-
-    await this.followRepository.delete(existingFollow.id);
   }
 
-  async validateFollowOwnership(
-    followId: string,
-    userId: string,
-  ): Promise<FollowEntity> {
-    const follow = await this.followRepository.findById(followId);
-
-    if (!follow) {
-      throw new FollowNotFoundException(followId);
-    }
-
+  /**
+   * Validates if user can perform follow action
+   */
+  static validateFollowOwnership(follow: FollowEntity, userId: string): void {
     if (!follow.isFollowerOf(userId)) {
       throw new UnauthorizedFollowActionException();
     }
-
-    return follow;
   }
 
-  async checkFollowStatus(
-    followerId: string,
-    followingId: string,
-  ): Promise<{
-    isFollowing: boolean;
-    followId?: string;
-  }> {
-    const follow = await this.followRepository.findByFollowerAndFollowing(
-      followerId,
-      followingId,
-    );
+  /**
+   * Validates if already following to prevent duplicates
+   */
+  static validateNotAlreadyFollowing(
+    existingFollow: FollowEntity | null,
+  ): void {
+    if (existingFollow) {
+      throw new AlreadyFollowingException();
+    }
+  }
 
-    return {
-      isFollowing: !!follow,
-      followId: follow?.id,
-    };
+  /**
+   * Validates if currently following before unfollowing
+   */
+  static validateCurrentlyFollowing(existingFollow: FollowEntity | null): void {
+    if (!existingFollow) {
+      throw new NotFollowingException();
+    }
+  }
+
+  /**
+   * Validates follow exists
+   */
+  static validateFollowExists(
+    follow: FollowEntity | null,
+    followId?: string,
+  ): FollowEntity {
+    if (!follow) {
+      throw new FollowNotFoundException(followId || 'unknown');
+    }
+    return follow;
   }
 }

@@ -7,7 +7,7 @@ import {
   PostReactionsResult,
   ReactionStatusResult,
 } from '../domain/repositories/reaction.repository';
-import { ReactionEntity } from '../domain/reaction.entity';
+import { ReactionEntity } from '../domain/entities/reaction.entity';
 import { ReactionFactory } from '../domain/factories/reaction.factory';
 
 @Injectable()

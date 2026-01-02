@@ -1,4 +1,4 @@
-import { FollowEntity } from './follow.entity';
+import { FollowEntity } from './entities/follow.entity';
 
 export abstract class FollowDomainEvent {
   abstract readonly eventName: string;

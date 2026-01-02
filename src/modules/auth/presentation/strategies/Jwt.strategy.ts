@@ -3,11 +3,11 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JWT } from '../../../../config/jwt.config';
 import { Request } from 'express';
-import { AuthUserService } from '../../application/auth-user.service';
+import { UserApplicationService } from '../../../users/application/user-application.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private authUserService: AuthUserService) {
+  constructor(private userApplicationService: UserApplicationService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         // First try Bearer token from header (for mobile clients)
@@ -36,7 +36,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     try {
-      const user = await this.authUserService.findUserById(payload.sub);
+      const user = await this.userApplicationService.findUserEntityById(
+        payload.sub,
+      );
       if (!user) {
         throw new UnauthorizedException('User not found');
       }

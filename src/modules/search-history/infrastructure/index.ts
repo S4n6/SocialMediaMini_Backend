@@ -1,2 +1,2 @@
-// Repository exports
-export * from './repositories/prisma-search-history.repository';
+// Repositories
+export * from './prisma-search-history.repository';

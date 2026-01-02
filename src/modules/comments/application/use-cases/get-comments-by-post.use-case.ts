@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CommentRepository } from '../../domain/repositories/comment.repository';
-import { CommentEntity } from '../../domain/comment.entity';
+import { CommentEntity } from '../../domain/entities/comment.entity';
 
 export interface GetCommentsByPostQuery {
   postId: string;

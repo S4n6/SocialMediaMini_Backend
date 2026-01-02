@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
-import { IEventBus } from '../../shared/events/event-bus.interface';
-import { InMemoryEventBus } from '../../shared/events/in-memory-event-bus.service';
+import { IEventBus } from '../../infrastructure/events';
+import { InMemoryEventBus } from '../../infrastructure/events';
 
 // Clean Architecture imports
 import { UserApplicationService } from './application/user-application.service';
@@ -9,9 +9,9 @@ import { CreateUserUseCase } from './application/use-cases/create-user.use-case'
 import { FollowUserUseCase } from './application/use-cases/follow-user.use-case';
 import { UserPrismaRepository } from './infrastructure/user.prisma.repository';
 import { UserFactory } from './domain/factories/user.factory';
-import { UserDomainService } from './domain/services/user-domain.service';
+// import { UserDomainService } from './domain/services/user-domain.service'; // Moved to .old
 
-// Additional use cases
+// Core use cases
 import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 import {
@@ -22,8 +22,25 @@ import {
 } from './application/use-cases/get-user.use-case';
 import { UnfollowUserUseCase } from './application/use-cases/follow-user.use-case';
 
+// Auth integration use cases
+import {
+  FindUserByCredentialsUseCase,
+  FindUserByIdUseCase,
+  FindUserByEmailUseCase,
+  CheckUserExistenceUseCase,
+} from './application/use-cases/auth-integration.use-case';
+import {
+  UpdateUserPasswordUseCase,
+  CreateUserFromGoogleUseCase,
+  UpdateVerificationTimestampUseCase,
+  SaveUserUseCase,
+} from './application/use-cases/user-management.use-case';
+
 // Presentation Layer
 import { UsersController } from './presentation/users.controller';
+
+// Infrastructure Layer
+// import { UserInfrastructureService } from './infrastructure/user-infrastructure.service'; // Moved to .old
 
 // Repository / event tokens
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
@@ -46,7 +63,6 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
 
     // Domain Layer
     UserFactory,
-    UserDomainService,
 
     // Application Layer
     UserApplicationService,
@@ -65,13 +81,22 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
     SearchUsersUseCase,
     GetUserFollowersUseCase,
     GetUserFollowingUseCase,
+
+    // Use Cases - Auth Integration
+    FindUserByCredentialsUseCase,
+    FindUserByIdUseCase,
+    FindUserByEmailUseCase,
+    CheckUserExistenceUseCase,
+    UpdateUserPasswordUseCase,
+    CreateUserFromGoogleUseCase,
+    UpdateVerificationTimestampUseCase,
+    SaveUserUseCase,
   ],
   exports: [
     UserApplicationService,
-    USER_REPOSITORY_TOKEN, // Export for other modules to use
-    UserFactory, // Export for other modules to use
-    UserDomainService,
-    EVENT_BUS_TOKEN, // Export event bus for other modules
+    USER_REPOSITORY_TOKEN,
+    UserFactory,
+    EVENT_BUS_TOKEN,
   ],
 })
 export class UsersModule {}

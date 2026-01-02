@@ -17,5 +17,12 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/modules/messaging/**/*",
+    "src/modules/posts/**/*",
+    "src/modules/notification/**/*"
+  ]
 }

@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { INotificationDomainRepository } from '../../domain/repositories/notification-domain-repository.interface';
 import { NotificationDomainService } from '../../domain/services/notification-domain.service';
-import { NOTIFICATION_REPOSITORY_TOKEN } from './create-notification.use-case';
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../constants';
 
 export interface CleanupResult {
   deletedCount: number;

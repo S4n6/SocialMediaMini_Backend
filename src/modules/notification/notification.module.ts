@@ -3,11 +3,13 @@ import { JwtModule } from '@nestjs/jwt';
 import { BullModule } from '@nestjs/bullmq';
 
 // Presentation Layer
+import { NotificationController, NotificationProcessor } from './presentation';
+
+// Constants
 import {
-  NotificationController,
-  NotificationGateway,
-  NotificationProcessor,
-} from './presentation';
+  NOTIFICATION_REPOSITORY_TOKEN,
+  DOMAIN_EVENT_PUBLISHER_TOKEN,
+} from './constants';
 
 // Application Layer
 import { NotificationApplicationService } from './application/notification-application.service';
@@ -22,7 +24,6 @@ import {
   GetNotificationStatsUseCase,
   GetRealtimeNotificationsUseCase,
   NotificationCleanupUseCase,
-  NOTIFICATION_REPOSITORY_TOKEN,
 } from './application';
 
 // Domain Layer
@@ -31,11 +32,28 @@ import { NotificationDomainService, NotificationFactory } from './domain';
 // Infrastructure Layer
 import {
   NotificationRepository,
-  NotificationApplicationRepository,
   EmailNotificationService,
   PushNotificationService,
   RealtimeNotificationService,
+  DomainEventPublisher,
+  NotificationChannelAdapter,
 } from './infrastructure';
+
+// WebSocket Layer
+// import {
+//   NotificationWebSocketService,
+//   NotificationWebSocketRegistrationService,
+// } from './application/services'; // TODO: Refactor - WebSocket cũ
+// import {
+//   NotificationMarkReadHandler,
+//   NotificationMarkAllReadHandler,
+//   NotificationSubscribeHandler,
+//   NotificationUnsubscribeHandler,
+//   NotificationGetHistoryHandler,
+// } from './application/handlers'; // TODO: Refactor - WebSocket cũ
+
+// Import WebSocket module
+import { WebSocketModule } from '../../infrastructure/websocket';
 
 // Configuration
 import { JWT } from '../../config/jwt.config';
@@ -55,6 +73,7 @@ import { PrismaModule } from '../../database/prisma.module';
     }),
     BullModule.registerQueue({ name: QUEUE.NOTIFICATION }),
     PrismaModule,
+    WebSocketModule, // Import WebSocket module for handlers registration
   ],
   controllers: [NotificationController],
   providers: [
@@ -73,13 +92,18 @@ import { PrismaModule } from '../../database/prisma.module';
     GetRealtimeNotificationsUseCase,
     NotificationCleanupUseCase,
 
-    // Domain Layer
-    NotificationDomainService,
-    NotificationFactory,
+    // Domain Layer - Pure services (no @Injectable)
+    {
+      provide: NotificationDomainService,
+      useFactory: () => new NotificationDomainService(),
+    },
+    {
+      provide: NotificationFactory,
+      useFactory: () => new NotificationFactory(),
+    },
 
     // Infrastructure Layer - Repositories
     NotificationRepository,
-    NotificationApplicationRepository,
     {
       provide: NOTIFICATION_REPOSITORY_TOKEN,
       useClass: NotificationRepository,
@@ -90,11 +114,28 @@ import { PrismaModule } from '../../database/prisma.module';
     PushNotificationService,
     RealtimeNotificationService,
 
-    // WebSocket Gateway
-    NotificationGateway,
+    // Infrastructure Layer - Adapters
+    NotificationChannelAdapter,
+
+    // Domain Event Publisher
+    {
+      provide: DOMAIN_EVENT_PUBLISHER_TOKEN,
+      useClass: DomainEventPublisher,
+    },
 
     // Queue Processor
     NotificationProcessor,
+
+    // WebSocket Layer - TODO: Refactor - WebSocket cũ
+    // NotificationWebSocketService,
+    // NotificationWebSocketRegistrationService,
+
+    // WebSocket Handlers - TODO: Refactor - WebSocket cũ
+    // NotificationMarkReadHandler,
+    // NotificationMarkAllReadHandler,
+    // NotificationSubscribeHandler,
+    // NotificationUnsubscribeHandler,
+    // NotificationGetHistoryHandler,
   ],
   exports: [
     // Export application service for other modules
@@ -105,8 +146,10 @@ import { PrismaModule } from '../../database/prisma.module';
     PushNotificationService,
     RealtimeNotificationService,
 
+    // Export WebSocket services for other modules - TODO: Refactor - WebSocket cũ
+    // NotificationWebSocketService,
+
     // Export presentation layer
-    NotificationGateway,
   ],
 })
 export class NotificationModule {}

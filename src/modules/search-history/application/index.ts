@@ -1,8 +1,14 @@
-// Application service exports
+// Services
 export * from './search-history-application.service';
 
-// DTO exports
-export * from './dto/search-history.dto';
+// DTOs
+export * from './dto';
 
-// Use case exports
+// Use Cases
 export * from './use-cases';
+
+// Events - TODO: Add when events are implemented
+// export * from './events';
+
+// Interfaces - TODO: Add when interfaces are implemented
+// export * from './interfaces';

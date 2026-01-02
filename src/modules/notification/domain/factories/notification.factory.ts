@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
 import {
   NotificationEntity,
+  NotificationProps,
+} from '../entities/notification.entity';
+import {
   NotificationType,
   NotificationEntityType,
-  NotificationProps,
-} from '../notification.entity';
-import { NotificationDomainService } from '../services/notification-domain.service';
+} from '../enums/notification.enums';
 
 export interface CreateNotificationParams {
   type: NotificationType;
@@ -19,14 +19,10 @@ export interface CreateNotificationParams {
 }
 
 /**
- * Factory for creating notification entities
+ * Pure factory for creating notification entities
+ * No framework dependencies, pure domain logic
  */
-@Injectable()
 export class NotificationFactory {
-  constructor(
-    private readonly notificationDomainService: NotificationDomainService,
-  ) {}
-
   /**
    * Creates a new notification entity
    */
@@ -215,18 +211,95 @@ export class NotificationFactory {
 
   /**
    * Generates notification content based on parameters
+   * Pure factory method without external dependencies
    */
   private generateContent(params: CreateNotificationParams): {
     title: string;
     content: string;
   } {
-    return this.notificationDomainService.generateNotificationContent(
-      params.type,
-      {
-        actorName: params.actorName,
-        entityName: params.entityName,
-        customMessage: params.customContent,
-      },
-    );
+    // Use custom content if provided
+    if (params.customTitle && params.customContent) {
+      return {
+        title: params.customTitle,
+        content: params.customContent,
+      };
+    }
+
+    // Generate content based on notification type
+    return this.generateDefaultContent(params);
+  }
+
+  /**
+   * Generate default notification content based on type
+   */
+  private generateDefaultContent(params: CreateNotificationParams): {
+    title: string;
+    content: string;
+  } {
+    const actorName = params.actorName || 'Someone';
+    const entityName = params.entityName || 'item';
+
+    switch (params.type) {
+      case NotificationType.LIKE:
+        return {
+          title: 'New Like',
+          content: `${actorName} liked your ${entityName}`,
+        };
+
+      case NotificationType.COMMENT:
+        return {
+          title: 'New Comment',
+          content: `${actorName} commented on your ${entityName}`,
+        };
+
+      case NotificationType.FOLLOW:
+        return {
+          title: 'New Follower',
+          content: `${actorName} started following you`,
+        };
+
+      case NotificationType.MESSAGE:
+        return {
+          title: 'New Message',
+          content: `${actorName} sent you a message`,
+        };
+
+      case NotificationType.POST_MENTION:
+        return {
+          title: 'Mentioned in Post',
+          content: `${actorName} mentioned you in a post`,
+        };
+
+      case NotificationType.COMMENT_MENTION:
+        return {
+          title: 'Mentioned in Comment',
+          content: `${actorName} mentioned you in a comment`,
+        };
+
+      case NotificationType.FRIEND_REQUEST:
+        return {
+          title: 'Friend Request',
+          content: `${actorName} sent you a friend request`,
+        };
+
+      case NotificationType.POST_SHARE:
+        return {
+          title: 'Post Shared',
+          content: `${actorName} shared your ${entityName}`,
+        };
+
+      case NotificationType.BIRTHDAY:
+        return {
+          title: 'Birthday Reminder',
+          content: `It's ${actorName}'s birthday today!`,
+        };
+
+      case NotificationType.SYSTEM:
+      default:
+        return {
+          title: 'System Notification',
+          content: params.customContent || 'You have a new notification',
+        };
+    }
   }
 }

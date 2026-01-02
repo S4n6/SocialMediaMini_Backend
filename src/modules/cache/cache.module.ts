@@ -1,13 +1,9 @@
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
 import { RedisCacheService } from './cache.service';
-import { CacheUtils } from './cache.utils';
-import { CacheInterceptor } from './cache.interceptor';
-import Keyv from 'keyv';
-import { CacheableMemory } from 'cacheable';
 import { createKeyv } from '@keyv/redis';
 import { REDIS } from 'src/config/redis.config';
+import { CacheUtils } from './cache.utils';
 
 @Module({
   imports: [
@@ -15,12 +11,9 @@ import { REDIS } from 'src/config/redis.config';
       isGlobal: true,
       useFactory: async () => {
         return {
-          stores: [
-            new Keyv({
-              store: new CacheableMemory({ ttl: 60000, lruSize: 5000 }),
-            }),
-            createKeyv(REDIS.URL),
-          ],
+          stores: [createKeyv(REDIS.URL)],
+          // TTL mặc định: 1 giờ (3600 giây)
+          ttl: 3600000, // milliseconds
         };
       },
     }),
@@ -28,10 +21,6 @@ import { REDIS } from 'src/config/redis.config';
   providers: [
     RedisCacheService,
     CacheUtils,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
-    },
   ],
   exports: [RedisCacheService, CacheUtils],
 })

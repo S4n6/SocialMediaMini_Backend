@@ -8,8 +8,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { ISessionRepository } from '../../application/interfaces/session.repository.interface';
-import { ITokenRepository } from '../../application/interfaces/token.repository.interface';
+import { ISessionRepository } from '../../domain/repositories/session.repository';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { RedisCacheService } from '../../../cache/cache.service';
 import { LoginRequest as LoginDto } from '../../application/use-cases/auth.dtos';
 import {
@@ -112,15 +112,21 @@ export class AuthenticationService {
     userAgent?: string,
     ipAddress?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const payload = { sub: userId, email };
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = await this.sessionService.create(
+    // Get user role from database
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    const role = user?.role || 'USER';
+
+    return await this.tokenService.createTokensForUser(
       userId,
+      email,
+      role,
       userAgent,
       ipAddress,
     );
-
-    return { accessToken, refreshToken };
   }
 
   // ===== LOGOUT =====

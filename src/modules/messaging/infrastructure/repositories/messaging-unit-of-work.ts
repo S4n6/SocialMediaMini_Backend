@@ -4,7 +4,7 @@ import {
   IMessagingUnitOfWork,
   IConversationRepository,
   IMessageRepository,
-} from '../../domain/repositories';
+} from '../../domain';
 import { ConversationRepositoryImpl } from './conversation.repository';
 import { MessageRepositoryImpl } from './message.repository';
 

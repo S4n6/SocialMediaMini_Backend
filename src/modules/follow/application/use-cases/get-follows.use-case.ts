@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { FollowRepository } from '../../domain/repositories/follow.repository';
-import { GetFollowsQuery } from '../dto/follow.dto';
-import { FollowResponseDto } from '../dto/follow-response.dto';
-import { FollowMapper } from '../mappers/follow.mapper';
+import { FollowWithUsers } from '../interfaces/follow-query.interface';
+import { FollowEnrichmentService } from '../services/follow-enrichment.service';
 
 @Injectable()
 export class GetFollowsUseCase {
-  constructor(private readonly followRepository: FollowRepository) {}
+  constructor(
+    private readonly followEnrichmentService: FollowEnrichmentService,
+  ) {}
 
-  async execute(query?: GetFollowsQuery): Promise<FollowResponseDto[]> {
-    const follows = await this.followRepository.findAll({
-      followerId: query?.followerId,
-      followingId: query?.followingId,
-    });
-
-    return FollowMapper.toResponseDtoArray(follows);
+  async execute(query?: {
+    followerId?: string;
+    followingId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<FollowWithUsers[]> {
+    return await this.followEnrichmentService.getFollowsWithUserData(query);
   }
 }

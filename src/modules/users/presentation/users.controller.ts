@@ -5,7 +5,6 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
   ValidationPipe,
@@ -25,16 +24,22 @@ import {
 
 // Clean Architecture imports
 import { UserApplicationService } from '../application/user-application.service';
-import {
-  CreateUserDto,
-  UpdateProfileDto,
-  UserResponseDto,
-  UserListItemDto,
-  SearchUsersDto,
-  GetFollowersDto,
-} from '../application/dto/user.dto';
 
-// Guards and decorators (using correct paths)
+// Presentation DTOs and Mappers
+import {
+  CreateUserRequestDto,
+  UpdateProfileRequestDto,
+  SearchUsersRequestDto,
+  GetFollowersRequestDto,
+  UserResponseDto,
+  UserProfileResponseDto,
+  UserListResponseDto,
+  FollowersResponseDto,
+  ApiSuccessResponseDto,
+} from './dto';
+import { PresentationMapper } from './mappers/presentation.mapper';
+
+// Guards and decorators
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { SkipGuards } from '../../../shared/decorators/skipGuard.decorator';
 import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
@@ -51,16 +56,30 @@ export class UsersController {
   ) {}
 
   @Post()
+  @SkipGuards()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user' })
   @SwaggerResponse({
     status: 201,
     description: 'User created successfully',
+    type: ApiSuccessResponseDto,
   })
   async create(
-    @Body(ValidationPipe) createUserDto: CreateUserDto,
-  ): Promise<UserResponseDto> {
-    return this.userApplicationService.createUser(createUserDto);
+    @Body(ValidationPipe) createUserDto: CreateUserRequestDto,
+  ): Promise<ApiSuccessResponseDto<UserResponseDto>> {
+    // Convert presentation DTO to application command
+    const appCommand = PresentationMapper.toCreateUserCommand(createUserDto);
+
+    // Execute use case
+    const appResult = await this.userApplicationService.createUser(appCommand);
+
+    // Convert application result to presentation DTO
+    const result = PresentationMapper.toUserResponseDto(appResult);
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'User created successfully',
+    );
   }
 
   @Get('search')
@@ -71,20 +90,32 @@ export class UsersController {
   @SwaggerResponse({
     status: 200,
     description: 'Search results retrieved successfully',
+    type: ApiSuccessResponseDto,
   })
   async searchUsers(
     @Query('q') query: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-  ): Promise<{
-    users: UserListItemDto[];
-    total: number;
-    hasMore: boolean;
-    page: number;
-    limit: number;
-  }> {
-    const searchDto: SearchUsersDto = { query, page, limit };
-    return this.userApplicationService.searchUsers(searchDto);
+  ): Promise<ApiSuccessResponseDto<UserListResponseDto>> {
+    // Create request DTO
+    const requestDto = new SearchUsersRequestDto();
+    requestDto.query = query;
+    requestDto.page = page;
+    requestDto.limit = limit;
+
+    // Convert to application query
+    const appQuery = PresentationMapper.toSearchUsersQuery(requestDto);
+
+    // Execute use case
+    const appResult = await this.userApplicationService.searchUsers(appQuery);
+
+    // Convert application result to presentation DTO
+    const result = PresentationMapper.toUserListResponseDto(appResult);
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'Users retrieved successfully',
+    );
   }
 
   @Get(':id')
@@ -93,12 +124,28 @@ export class UsersController {
   @SwaggerResponse({
     status: 200,
     description: 'User retrieved successfully',
+    type: ApiSuccessResponseDto,
   })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<UserResponseDto> {
-    console.log('Fetching user with ID:', id);
-    return this.userApplicationService.getUserProfile(id);
+  ): Promise<ApiSuccessResponseDto<UserResponseDto | UserProfileResponseDto>> {
+    // Execute use case
+    const appResult = await this.userApplicationService.getUserProfile(id);
+
+    // Convert application result to presentation DTO
+    let result;
+    if ('role' in appResult) {
+      // It's a UserProfileResponseDto (owner view)
+      result = PresentationMapper.toUserProfileResponseDto(appResult);
+    } else {
+      // It's a UserResponseDto (public view)
+      result = PresentationMapper.toUserResponseDto(appResult);
+    }
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'User retrieved successfully',
+    );
   }
 
   @Patch(':id')
@@ -107,111 +154,166 @@ export class UsersController {
   @SwaggerResponse({
     status: 200,
     description: 'User updated successfully',
+    type: ApiSuccessResponseDto,
   })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(ValidationPipe) updateProfileDto: UpdateProfileDto,
-  ): Promise<UserResponseDto> {
-    return this.userApplicationService.updateProfile(id, updateProfileDto);
-  }
+    @Body(ValidationPipe) updateProfileDto: UpdateProfileRequestDto,
+  ): Promise<ApiSuccessResponseDto<UserResponseDto>> {
+    // Convert presentation DTO to application command
+    const appCommand =
+      PresentationMapper.toUpdateProfileCommand(updateProfileDto);
 
-  @Delete(':id')
-  @Roles(ROLES.ADMIN)
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete user (Admin only)' })
-  @ApiParam({ name: 'id', type: String, description: 'User ID' })
-  @SwaggerResponse({
-    status: 204,
-    description: 'User deleted successfully',
-  })
-  async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    // This would need to be implemented in UserApplicationService
-    throw new Error(
-      'Delete user functionality not yet implemented in Clean Architecture',
+    // Execute use case
+    const appResult = await this.userApplicationService.updateProfile(
+      id,
+      appCommand,
+    );
+
+    // Convert application result to presentation DTO
+    const result = PresentationMapper.toUserResponseDto(appResult);
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'Profile updated successfully',
     );
   }
 
-  @Post(':userId/follow')
-  @HttpCode(HttpStatus.OK)
+  @Post(':id/follow')
   @ApiOperation({ summary: 'Follow a user' })
-  @ApiParam({ name: 'userId', type: String, description: 'User ID to follow' })
+  @ApiParam({ name: 'id', type: String, description: 'User ID to follow' })
   @SwaggerResponse({
     status: 200,
     description: 'User followed successfully',
+    type: ApiSuccessResponseDto,
   })
   async followUser(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    // @CurrentUser('id') currentUserId: string, // Uncomment when auth is ready
-  ): Promise<{ message: string }> {
-    // For now, we'll use a placeholder until auth is properly integrated
-    const currentUserId = 'placeholder-user-id';
-    await this.userApplicationService.followUser(currentUserId, userId);
-    return { message: 'User followed successfully' };
+    @Param('id', ParseUUIDPipe) targetUserId: string,
+  ): Promise<ApiSuccessResponseDto<null>> {
+    // Note: In real implementation, follower ID would come from JWT token
+    const followerId = 'current-user-id'; // This should come from auth context
+
+    // Execute use case
+    const command = PresentationMapper.toFollowUserCommand(
+      followerId,
+      targetUserId,
+    );
+    await this.userApplicationService.followUser(command);
+
+    return new ApiSuccessResponseDto(null, 'User followed successfully');
   }
 
-  @Delete(':userId/follow')
-  @HttpCode(HttpStatus.OK)
+  @Post(':id/unfollow')
   @ApiOperation({ summary: 'Unfollow a user' })
-  @ApiParam({
-    name: 'userId',
-    type: String,
-    description: 'User ID to unfollow',
-  })
+  @ApiParam({ name: 'id', type: String, description: 'User ID to unfollow' })
   @SwaggerResponse({
     status: 200,
     description: 'User unfollowed successfully',
+    type: ApiSuccessResponseDto,
   })
   async unfollowUser(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    // @CurrentUser('id') currentUserId: string, // Uncomment when auth is ready
-  ): Promise<{ message: string }> {
-    // For now, we'll use a placeholder until auth is properly integrated
-    const currentUserId = 'placeholder-user-id';
-    await this.userApplicationService.unfollowUser(currentUserId, userId);
-    return { message: 'User unfollowed successfully' };
+    @Param('id', ParseUUIDPipe) targetUserId: string,
+  ): Promise<ApiSuccessResponseDto<null>> {
+    // Note: In real implementation, follower ID would come from JWT token
+    const followerId = 'current-user-id'; // This should come from auth context
+
+    // Execute use case
+    const command = PresentationMapper.toUnfollowUserCommand(
+      followerId,
+      targetUserId,
+    );
+    await this.userApplicationService.unfollowUser(command);
+
+    return new ApiSuccessResponseDto(null, 'User unfollowed successfully');
   }
 
-  @Get(':userId/followers')
+  @Get(':id/followers')
   @ApiOperation({ summary: 'Get user followers' })
-  @ApiParam({ name: 'userId', type: String, description: 'User ID' })
+  @ApiParam({ name: 'id', type: String, description: 'User ID' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @SwaggerResponse({
     status: 200,
     description: 'Followers retrieved successfully',
+    type: ApiSuccessResponseDto,
   })
   async getFollowers(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('id', ParseUUIDPipe) userId: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-  ): Promise<{
-    followers: UserListItemDto[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const dto: GetFollowersDto = { page, limit };
-    return this.userApplicationService.getUserFollowers(userId, dto);
+  ): Promise<ApiSuccessResponseDto<FollowersResponseDto>> {
+    // Create request DTO
+    const requestDto = new GetFollowersRequestDto();
+    requestDto.page = page;
+    requestDto.limit = limit;
+
+    // Convert to application query
+    const appQuery = PresentationMapper.toGetFollowersQuery(requestDto, userId);
+
+    // Execute use case
+    const appResult =
+      await this.userApplicationService.getUserFollowers(appQuery);
+
+    // Convert application result to presentation DTO
+    const result = PresentationMapper.toFollowersResponseDto(appResult);
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'Followers retrieved successfully',
+    );
   }
 
-  @Get(':userId/following')
-  @ApiOperation({ summary: 'Get users followed by user' })
-  @ApiParam({ name: 'userId', type: String, description: 'User ID' })
+  @Get(':id/following')
+  @ApiOperation({ summary: 'Get users that this user is following' })
+  @ApiParam({ name: 'id', type: String, description: 'User ID' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @SwaggerResponse({
     status: 200,
     description: 'Following list retrieved successfully',
+    type: ApiSuccessResponseDto,
   })
   async getFollowing(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('id', ParseUUIDPipe) userId: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-  ): Promise<{
-    following: UserListItemDto[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const dto: GetFollowersDto = { page, limit };
-    return this.userApplicationService.getUserFollowing(userId, dto);
+  ): Promise<ApiSuccessResponseDto<FollowersResponseDto>> {
+    // Create request DTO
+    const requestDto = new GetFollowersRequestDto();
+    requestDto.page = page;
+    requestDto.limit = limit;
+
+    // Convert to application query
+    const appQuery = PresentationMapper.toGetFollowersQuery(requestDto, userId);
+
+    // Execute use case
+    const appResult =
+      await this.userApplicationService.getUserFollowing(appQuery);
+
+    // Convert application result to presentation DTO
+    const result = PresentationMapper.toFollowersResponseDto(appResult);
+
+    return PresentationMapper.toApiSuccessResponse(
+      result,
+      'Following list retrieved successfully',
+    );
+  }
+
+  @Post(':id/verify-email')
+  @ApiOperation({ summary: 'Verify user email' })
+  @ApiParam({ name: 'id', type: String, description: 'User ID' })
+  @SwaggerResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    type: ApiSuccessResponseDto,
+  })
+  async verifyEmail(
+    @Param('id', ParseUUIDPipe) userId: string,
+  ): Promise<ApiSuccessResponseDto<null>> {
+    // Execute use case
+    const command = PresentationMapper.toVerifyEmailCommand(userId);
+    await this.userApplicationService.verifyEmail(command);
+
+    return new ApiSuccessResponseDto(null, 'Email verified successfully');
   }
 }

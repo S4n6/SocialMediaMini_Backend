@@ -1,4 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
+
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../constants';
 import {
   INotificationRepository,
   CreateNotificationDto,
@@ -15,8 +17,6 @@ import {
   NotificationType,
   NotificationEntityType,
 } from '../../domain';
-
-export const NOTIFICATION_REPOSITORY_TOKEN = 'NOTIFICATION_REPOSITORY';
 
 /**
  * Application-layer repository implementation that adapts domain repository

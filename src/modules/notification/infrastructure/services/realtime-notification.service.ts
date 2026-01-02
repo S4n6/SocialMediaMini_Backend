@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationResponseDto } from '../../application';
+// import { NotificationWebSocketService } from '../../application/services'; // TODO: Refactor - WebSocket cũ
 
 export interface RealTimeNotificationPayload {
   userId: string;
@@ -36,29 +37,39 @@ export class RealtimeNotificationService
 {
   private readonly userConnections = new Map<string, Set<string>>();
 
+  constructor() // private readonly notificationWebSocketService: NotificationWebSocketService, // TODO: Refactor - WebSocket cũ
+  {}
+
   async sendToUser(
     userId: string,
     payload: RealTimeNotificationPayload,
   ): Promise<boolean> {
-    const userSockets = this.userConnections.get(userId);
-
-    if (!userSockets || userSockets.size === 0) {
-      console.log(`[REALTIME] No active connections for user ${userId}`);
-      return true; // Not an error, user is just offline
-    }
-
     try {
-      console.log(
-        `[REALTIME] Sending notification to ${userSockets.size} connections for user ${userId}`,
-      );
+      console.log(`[REALTIME] Sending notification to user ${userId}`);
       console.log(`[REALTIME] Type: ${payload.type}`);
       console.log(`[REALTIME] Notification ID: ${payload.notification.id}`);
 
-      // In production, this would emit to actual WebSocket connections
-      for (const socketId of userSockets) {
-        await this.emitToSocket(socketId, 'notification', payload);
-      }
+      // TODO: Refactor - WebSocket cũ
+      // Use the new WebSocket service to broadcast
+      // await this.notificationWebSocketService.broadcastNewNotification(userId, {
+      //   id: payload.notification.id,
+      //   userId: payload.notification.userId,
+      //   type: payload.notification.type,
+      //   title: payload.notification.title,
+      //   message: payload.notification.content, // Map content to message
+      //   data: {
+      //     entityId: payload.notification.entityId,
+      //     entityType: payload.notification.entityType,
+      //   },
+      //   isRead: payload.notification.isRead,
+      //   createdAt: payload.notification.createdAt,
+      //   updatedAt: payload.notification.createdAt, // Use createdAt as updatedAt for now
+      //   priority: payload.notification.priority as any,
+      // });
 
+      console.log(
+        '[REALTIME] WebSocket service is disabled - notification not sent via WebSocket',
+      );
       return true;
     } catch (error) {
       console.error(

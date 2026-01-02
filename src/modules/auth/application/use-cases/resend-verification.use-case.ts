@@ -6,10 +6,11 @@ import {
 } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
-import { AuthUserService } from '../auth-user.service';
-import { ITokenRepository } from '../interfaces/token.repository.interface';
+import { UserApplicationService } from '../../../users/application/user-application.service';
+import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
-import { IEmailSender } from '../interfaces/email-sender.interface';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
 
@@ -22,7 +23,8 @@ export class ResendVerificationUseCase extends BaseUseCase<
   private readonly minIntervalSeconds = 60;
 
   constructor(
-    private authUserService: AuthUserService,
+    private userApplicationService: UserApplicationService,
+    private verificationTokenService: VerificationTokenService,
     @Inject(TOKEN_REPOSITORY_TOKEN) private tokenRepository: ITokenRepository,
     @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
@@ -34,7 +36,7 @@ export class ResendVerificationUseCase extends BaseUseCase<
   ): Promise<{ success: boolean; message: string }> {
     const { email } = request;
 
-    const user = await this.authUserService.findByEmail(email);
+    const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -70,7 +72,7 @@ export class ResendVerificationUseCase extends BaseUseCase<
     );
 
     // Update last verification sent timestamp
-    await this.authUserService.updateLastVerificationSentAt(
+    await this.userApplicationService.updateVerificationTimestamp(
       user.id,
       new Date(),
     );

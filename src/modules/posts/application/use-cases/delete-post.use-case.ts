@@ -5,8 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostRepository } from '../interfaces/post-repository.interface';
-import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
+import { IPostRepository } from '../../domain/repositories/post.repository';
+import { POST_REPOSITORY_TOKEN } from '../../constants';
 
 /**
  * Use case for deleting a post

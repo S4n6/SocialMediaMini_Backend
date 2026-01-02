@@ -3,7 +3,10 @@ import { PrismaModule } from '../../database/prisma.module';
 import { UsersModule } from '../users/users.module';
 
 // Domain layer
-import { SearchHistoryRepository, SearchHistoryDomainService } from './domain';
+import { SearchHistoryDomainService } from './domain';
+
+// Tokens
+import { SEARCH_HISTORY_REPOSITORY } from './tokens';
 
 // Application layer
 import {
@@ -36,7 +39,7 @@ import { SearchHistoryController } from './presentation';
 
     // Infrastructure layer
     {
-      provide: SearchHistoryRepository,
+      provide: SEARCH_HISTORY_REPOSITORY,
       useClass: PrismaSearchHistoryRepository,
     },
   ],

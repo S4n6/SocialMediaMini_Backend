@@ -1,46 +1,21 @@
-import { IsOptional, IsString, IsUUID, IsIn } from 'class-validator';
+import { ReactionType, TargetType } from '../../constants';
 
-const allowedTypes = ['LIKE', 'LOVE', 'HAHA', 'WOW', 'SAD', 'ANGRY'];
-
-export class CreateReactionDto {
-  @IsOptional()
-  @IsUUID()
+// Application layer DTOs for use cases - internal data structures
+export interface CreateReactionDto {
   postId?: string;
-
-  @IsOptional()
-  @IsUUID()
   commentId?: string;
-
-  @IsString()
-  @IsIn(allowedTypes, {
-    message: `Type must be one of: ${allowedTypes.join(', ')}`,
-  })
-  type: string;
+  type: ReactionType;
 }
 
-export class UpdateReactionDto {
-  @IsString()
-  @IsIn(allowedTypes, {
-    message: `Type must be one of: ${allowedTypes.join(', ')}`,
-  })
-  type: string;
+export interface UpdateReactionDto {
+  type: ReactionType;
 }
 
-export class GetReactionsQuery {
-  @IsOptional()
-  @IsUUID()
+export interface LegacyGetReactionsQuery {
   postId?: string;
-
-  @IsOptional()
-  @IsUUID()
   commentId?: string;
-
-  @IsOptional()
-  @IsUUID()
   reactorId?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['post', 'comment'])
-  targetType?: 'post' | 'comment';
+  targetType?: TargetType;
+  limit?: number;
+  offset?: number;
 }

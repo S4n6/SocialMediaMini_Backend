@@ -5,15 +5,19 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
-import { IPostRepository } from '../interfaces/post-repository.interface';
+import { IPostRepository } from '../../domain/repositories/post.repository';
 import {
   GetPostsQueryDto,
   PostResponseDto,
   PostListResponseDto,
   PostDetailResponseDto,
 } from '../dto/post.dto';
-import { POST_REPOSITORY_TOKEN } from './create-post.use-case';
-import { PostEntity } from '../../domain/post.entity';
+import { PostEntity } from '../../domain/entities/post.entity';
+import { POST_REPOSITORY_TOKEN } from '../../constants';
+import {
+  TimelineService,
+  TimelineAlgorithm,
+} from '../services/timeline.service';
 
 /**
  * Use case for getting a single post by ID
@@ -168,25 +172,24 @@ export class GetPostsUseCase {
 }
 
 /**
- * Use case for getting user's feed
+ * Use case for getting user's timeline feed
  */
 @Injectable()
-export class GetUserFeedUseCase {
-  constructor(
-    @Inject(POST_REPOSITORY_TOKEN)
-    private readonly postRepository: IPostRepository,
-  ) {}
+export class GetTimelineFeedUseCase {
+  constructor(private readonly timelineService: TimelineService) {}
 
   async execute(
     userId: string,
     page: number = 1,
     limit: number = 10,
+    algorithm: TimelineAlgorithm = 'chronological',
   ): Promise<PostListResponseDto> {
-    // Get user feed from repository
-    const { posts, total } = await this.postRepository.getUserFeed(
+    // Get timeline feed using specified algorithm
+    const { posts, total } = await this.timelineService.getTimelineFeed(
       userId,
       page,
       limit,
+      algorithm,
     );
 
     // Convert to response DTOs

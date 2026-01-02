@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PostMediaRepository } from '../../ports/repositories/post-media.repository';
-import { PostService } from '../../ports/services/post.service';
+import { PostMediaRepository } from '../../../domain/repositories/post-media.repository';
+import { PostService } from '../../../domain/services/post.service';
 import { POST_MEDIA_REPOSITORY, POST_SERVICE } from '../../../tokens';
 
 export interface ReorderPostMediasCommand {

@@ -1,31 +1,35 @@
-// Domain layer exports
+/**
+ * Shared Module Exports
+ * Base utilities, guards, decorators for all modules
+ */
+
+// Domain layer - Base classes for domain entities
 export * from './domain/entity.base';
 export * from './domain/domain-event.base';
-export * from './domain/value-object.base';
+export * from './domain/base-id';
 
-// Application layer exports
-export * from './application/repository.interface';
-
-// Events exports
-export * from './events/event-bus.interface';
-
-// Exceptions exports
+// Exceptions - Domain and application exceptions
 export * from './exceptions/domain.exception';
 export * from './exceptions/error-response.interface';
-export * from './exceptions/error.utils';
 
-// WebSocket exports
-export * from './websocket';
-
-// Constants exports
+// Constants - Shared constants
 export * from './constants';
 
-// Guards exports
+// Guards - Authentication and authorization
 export * from './guards/jwt.guard';
 export * from './guards/google.guard';
 export * from './guards/roles.guard';
 
-// Decorators exports
+// Decorators - Custom decorators
 export * from './decorators/currentUser.decorator';
 export * from './decorators/roles.decorator';
 export * from './decorators/skipGuard.decorator';
+
+// Filters - Exception filters
+export * from './filters';
+
+// Middlewares - HTTP middlewares
+export * from './middlewares';
+
+// Utils - Utility functions and interfaces
+export * from './utils';

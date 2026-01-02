@@ -1,10 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ReactionRepository } from '../../domain/repositories/reaction.repository';
+import { ReactionRepository, PostNotFoundException } from '../../domain';
 import { ReactionStatusResponseDto } from '../dto/reaction-response.dto';
 import { ReactionMapper } from '../mappers/reaction.mapper';
 import { ExternalPostService } from '../interfaces/external-services.interface';
-import { EXTERNAL_POST_SERVICE } from '../interfaces/tokens';
-import { PostNotFoundException } from '../../domain/reaction.exceptions';
+import { EXTERNAL_POST_SERVICE } from '../../constants';
 
 @Injectable()
 export class GetReactionStatusUseCase {

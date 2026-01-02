@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ITokenGenerator } from '../../application/interfaces/token-generator.interface';
+import { ITokenGenerator } from '../adapters/token-generator.interface';
 import { Token } from '../../domain/value-objects/token.vo';
 
 /**

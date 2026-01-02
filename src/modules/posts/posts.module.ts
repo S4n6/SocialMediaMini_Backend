@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
+import { PostMediasModule } from '../post-medias/postMedias.module';
+import { RedisCacheModule } from '../cache/cache.module';
 
 // Clean Architecture imports
 import { PostApplicationService } from './application/post-application.service';
@@ -11,18 +13,8 @@ import { DeletePostUseCase } from './application/use-cases/delete-post.use-case'
 import {
   GetPostByIdUseCase,
   GetPostsUseCase,
-  GetUserFeedUseCase,
+  GetTimelineFeedUseCase,
 } from './application/use-cases/get-post.use-case';
-import {
-  AddReactionUseCase,
-  RemoveReactionUseCase,
-  ToggleReactionUseCase,
-} from './application/use-cases/react-post.use-case';
-import {
-  AddCommentUseCase,
-  UpdateCommentUseCase,
-  DeleteCommentUseCase,
-} from './application/use-cases/comment-post.use-case';
 
 // Domain Layer
 import { PostFactory } from './domain/factories/post.factory';
@@ -30,15 +22,36 @@ import { PostDomainService } from './domain/services/post-domain.service';
 
 // Infrastructure Layer
 import { PostPrismaRepository } from './infrastructure/post.prisma.repository';
+import { AdvancedTimelineRepository } from './infrastructure/advanced-timeline.repository';
+
+// Services
+import { TimelineService } from './application/services/timeline.service';
+import { PostEnrichmentService } from './application/services/post-enrichment.service';
+
+// Infrastructure Adapters
+import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapter';
+
+// Event Handlers
+import { PostEventHandler } from './application/events/post-event.handler';
+
+// WebSocket Services - TODO: Refactor - WebSocket cũ
+// import {
+//   PostWebSocketService,
+//   PostWebSocketRegistrationService,
+// } from './application/services';
 
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
 
-// Repository interface token
-export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
+// Repository interface tokens
+import { POST_REPOSITORY_TOKEN } from './constants';
+import { TIMELINE_REPOSITORY_TOKEN } from './domain/repositories/timeline.repository';
+
+// Token for User Adapter
+export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, PostMediasModule, RedisCacheModule],
   controllers: [PostsController],
   providers: [
     // Application Layer
@@ -52,33 +65,49 @@ export const POST_REPOSITORY_TOKEN = 'POST_REPOSITORY';
     // Use Cases - Post Retrieval
     GetPostByIdUseCase,
     GetPostsUseCase,
-    GetUserFeedUseCase,
-
-    // Use Cases - Reactions
-    AddReactionUseCase,
-    RemoveReactionUseCase,
-    ToggleReactionUseCase,
-
-    // Use Cases - Comments
-    AddCommentUseCase,
-    UpdateCommentUseCase,
-    DeleteCommentUseCase,
+    GetTimelineFeedUseCase,
 
     // Domain Layer
     PostFactory,
     PostDomainService,
 
-    // Infrastructure Layer - Repository
+    // Services
+    TimelineService,
+    PostEnrichmentService,
+
+    // Event Handlers
+    PostEventHandler,
+
+    // WebSocket Services - TODO: Refactor - WebSocket cũ
+    // PostWebSocketService,
+    // PostWebSocketRegistrationService,
+
+    // Infrastructure Adapters
+    {
+      provide: USER_ADAPTER_TOKEN,
+      useClass: UserServiceAdapter,
+    },
+
+    // Infrastructure Layer - Repositories
     {
       provide: POST_REPOSITORY_TOKEN,
       useClass: PostPrismaRepository,
     },
+    {
+      provide: TIMELINE_REPOSITORY_TOKEN,
+      useClass: AdvancedTimelineRepository, // Use advanced algorithms
+      // Alternative: useClass: PostPrismaRepository, // Use basic chronological
+    },
+    // Reaction/comment repositories are provided by their respective modules.
   ],
   exports: [
     PostApplicationService,
     POST_REPOSITORY_TOKEN,
+    TIMELINE_REPOSITORY_TOKEN,
+    TimelineService,
     PostFactory,
     PostDomainService,
+    // PostWebSocketService, // TODO: Refactor - WebSocket cũ
   ],
 })
 export class PostsModule {}

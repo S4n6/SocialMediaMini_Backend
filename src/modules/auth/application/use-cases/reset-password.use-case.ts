@@ -9,7 +9,7 @@ import { BaseUseCase } from './base.use-case';
 import { ResetPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
 import * as bcrypt from 'bcrypt';
-import { AuthUserService } from '../auth-user.service';
+import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class ResetPasswordUseCase extends BaseUseCase<
   PasswordResetResult
 > {
   constructor(
-    private authUserService: AuthUserService,
+    private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
   ) {
     super();
@@ -47,7 +47,9 @@ export class ResetPasswordUseCase extends BaseUseCase<
     }
 
     // Find user by ID from token payload
-    const user = await this.authUserService.findUserById(tokenPayload.userId);
+    const user = await this.userApplicationService.findUserEntityById(
+      tokenPayload.userId,
+    );
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -64,7 +66,10 @@ export class ResetPasswordUseCase extends BaseUseCase<
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
     // Update user password
-    await this.authUserService.updateUserPassword(user.id, hashedPassword);
+    await this.userApplicationService.updateUserPassword(
+      user.id,
+      hashedPassword,
+    );
 
     return {
       success: true,

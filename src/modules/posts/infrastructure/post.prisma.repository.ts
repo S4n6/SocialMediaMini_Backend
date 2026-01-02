@@ -1,15 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { PostEntity, PostPrivacy, ReactionType } from '../domain/post.entity';
+import {
+  PostEntity,
+  PostPrivacy,
+  ReactionType,
+} from '../domain/entities/post.entity';
 import { PostFactory } from '../domain/factories/post.factory';
-import { IPostRepository } from '../application/interfaces/post-repository.interface';
+import { IPostRepository } from '../domain/repositories/post.repository';
+import { ITimelineRepository } from '../domain/repositories/timeline.repository';
 
 /**
  * Prisma implementation of Post repository
  * Handles persistence operations using Prisma ORM
  */
 @Injectable()
-export class PostPrismaRepository implements IPostRepository {
+export class PostPrismaRepository
+  implements IPostRepository, ITimelineRepository
+{
   constructor(
     private readonly prisma: PrismaService,
     private readonly postFactory: PostFactory,
@@ -92,77 +99,9 @@ export class PostPrismaRepository implements IPostRepository {
       }
     }
 
-    // Handle reactions - sync reactions
-    const existingReactions = await this.prisma.reaction.findMany({
-      where: { postId: post.id },
-    });
+    // Reaction mutations moved to the reactions module.
 
-    const currentReactionIds = post.reactions.map((r) => r.id);
-    const existingReactionIds = existingReactions.map((r) => r.id);
-
-    // Delete removed reactions
-    const reactionsToDelete = existingReactionIds.filter(
-      (id) => !currentReactionIds.includes(id),
-    );
-    if (reactionsToDelete.length > 0) {
-      await this.prisma.reaction.deleteMany({
-        where: { id: { in: reactionsToDelete } },
-      });
-    }
-
-    // Create new reactions
-    const newReactions = post.reactions.filter(
-      (r) => !existingReactionIds.includes(r.id),
-    );
-    if (newReactions.length > 0) {
-      await this.prisma.reaction.createMany({
-        data: newReactions.map((reaction) => ({
-          id: reaction.id,
-          type: reaction.type,
-          postId: post.id,
-          reactorId: reaction.userId,
-          createdAt: reaction.createdAt,
-        })),
-      });
-    }
-
-    // Handle comments - sync comments
-    const existingComments = await this.prisma.comment.findMany({
-      where: { postId: post.id },
-    });
-
-    const currentCommentIds = post.comments.map((c) => c.id);
-    const existingCommentIds = existingComments.map((c) => c.id);
-
-    // Delete removed comments
-    const commentsToDelete = existingCommentIds.filter(
-      (id) => !currentCommentIds.includes(id),
-    );
-    if (commentsToDelete.length > 0) {
-      await this.prisma.comment.deleteMany({
-        where: { id: { in: commentsToDelete } },
-      });
-    }
-
-    // Upsert comments
-    for (const comment of post.comments) {
-      await this.prisma.comment.upsert({
-        where: { id: comment.id },
-        create: {
-          id: comment.id,
-          content: comment.content,
-          postId: post.id,
-          authorId: comment.authorId,
-          parentId: comment.parentId,
-          createdAt: comment.createdAt,
-          updatedAt: comment.updatedAt,
-        },
-        update: {
-          content: comment.content,
-          updatedAt: comment.updatedAt,
-        },
-      });
-    }
+    // Comment mutations moved to the comments module.
 
     // Return reconstructed entity
     const savedEntity = await this.findById(post.id);
@@ -358,82 +297,87 @@ export class PostPrismaRepository implements IPostRepository {
     return posts.map((post) => this.mapToEntity(post));
   }
 
-  async getUserFeed(
+  async getTimelineFeed(
     userId: string,
     page: number,
     limit: number,
   ): Promise<{ posts: PostEntity[]; total: number }> {
-    // Get posts from followed users + user's own posts
-    const [posts, total] = await Promise.all([
-      this.prisma.post.findMany({
-        where: {
-          OR: [
-            { authorId: userId },
-            {
-              author: {
-                followers: {
-                  some: {
-                    followerId: userId,
-                  },
+    // Improved Timeline Algorithm:
+    // 1. Fetch chronologically mixed posts (user + followed users)
+    // 2. Use database-level sorting and pagination
+    // 3. Natural timeline experience (không ưu tiên posts của user)
+
+    const offset = (page - 1) * limit;
+
+    // Single query with proper pagination and mixed timeline
+    const posts = await this.prisma.post.findMany({
+      where: {
+        OR: [
+          // User's own posts
+          {
+            authorId: userId,
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
+            },
+          },
+          // Followed users' posts
+          {
+            author: {
+              followers: {
+                some: {
+                  followerId: userId,
                 },
               },
             },
-          ],
-          privacy: {
-            in: ['public', 'followers'],
-          },
-        },
-        include: {
-          author: true,
-          reactions: {
-            include: {
-              reactor: true,
+            authorId: { not: userId },
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS'],
             },
           },
-          comments: {
-            include: {
-              author: true,
+        ],
+      },
+      include: {
+        author: true,
+        reactions: { include: { reactor: true } },
+        comments: { include: { author: true } },
+        postMedia: { orderBy: { order: 'asc' } },
+        hashtags: { include: { hashtag: true } },
+      },
+      orderBy: { createdAt: 'desc' }, // Pure chronological order
+      skip: offset,
+      take: limit,
+    });
+
+    // Get total count for pagination
+    const totalCount = await this.prisma.post.count({
+      where: {
+        OR: [
+          {
+            authorId: userId,
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
             },
           },
-          postMedia: {
-            orderBy: {
-              order: 'asc',
-            },
-          },
-          hashtags: {
-            include: {
-              hashtag: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.post.count({
-        where: {
-          OR: [
-            { authorId: userId },
-            {
-              author: {
-                followers: {
-                  some: {
-                    followerId: userId,
-                  },
+          {
+            author: {
+              followers: {
+                some: {
+                  followerId: userId,
                 },
               },
             },
-          ],
-          privacy: {
-            in: ['public', 'followers'],
+            authorId: { not: userId },
+            privacy: {
+              in: ['PUBLIC', 'FOLLOWERS'],
+            },
           },
-        },
-      }),
-    ]);
+        ],
+      },
+    });
 
     return {
       posts: posts.map((post) => this.mapToEntity(post)),
-      total,
+      total: totalCount,
     };
   }
 
@@ -684,90 +628,6 @@ export class PostPrismaRepository implements IPostRepository {
       posts: posts.map((post) => this.mapToEntity(post)),
       total,
     };
-  }
-
-  async addReaction(
-    postId: string,
-    userId: string,
-    reactionType: string,
-  ): Promise<void> {
-    await this.prisma.reaction.upsert({
-      where: {
-        reactorId_postId: {
-          reactorId: userId,
-          postId,
-        },
-      },
-      update: {
-        type: reactionType as ReactionType,
-      },
-      create: {
-        reactorId: userId,
-        postId,
-        type: reactionType as ReactionType,
-      },
-    });
-  }
-
-  async removeReaction(postId: string, userId: string): Promise<void> {
-    await this.prisma.reaction.deleteMany({
-      where: {
-        postId,
-        reactorId: userId,
-      },
-    });
-  }
-
-  async getUserReaction(
-    postId: string,
-    userId: string,
-  ): Promise<string | null> {
-    const reaction = await this.prisma.reaction.findFirst({
-      where: {
-        postId,
-        reactorId: userId,
-      },
-    });
-
-    return reaction?.type || null;
-  }
-
-  async addComment(
-    postId: string,
-    commentId: string,
-    content: string,
-    authorId: string,
-    parentId?: string,
-  ): Promise<void> {
-    await this.prisma.comment.create({
-      data: {
-        id: commentId,
-        content,
-        postId,
-        authorId,
-        parentId,
-      },
-    });
-  }
-
-  async removeComment(postId: string, commentId: string): Promise<void> {
-    await this.prisma.comment.delete({
-      where: {
-        id: commentId,
-        postId,
-      },
-    });
-  }
-
-  async updateComment(commentId: string, content: string): Promise<void> {
-    await this.prisma.comment.update({
-      where: {
-        id: commentId,
-      },
-      data: {
-        content,
-      },
-    });
   }
 
   async searchPosts(

@@ -180,12 +180,14 @@ export class UserPrismaRepository implements IUserRepository {
 
   async searchUsers(
     query: string,
-    limit = 20,
-    offset = 0,
+    page: number,
+    limit: number,
   ): Promise<{
     users: User[];
     total: number;
+    hasMore: boolean;
   }> {
+    const offset = (page - 1) * limit;
     const whereCondition = {
       OR: [
         { username: { contains: query, mode: 'insensitive' as const } }, // Updated field name
@@ -210,20 +212,24 @@ export class UserPrismaRepository implements IUserRepository {
     return {
       users: usersData.map((userData) => this.mapToDomainModel(userData)),
       total,
+      hasMore: page * limit < total,
     };
   }
 
   async getFollowers(
-    userId: UserId,
-    limit = 20,
-    offset = 0,
+    userId: string,
+    page: number,
+    limit: number,
   ): Promise<{
-    users: User[];
+    followers: User[];
     total: number;
+    hasMore: boolean;
   }> {
+    const offset = (page - 1) * limit;
+    const userIdVO = UserId.create(userId);
     const [followData, total] = await Promise.all([
       this.prisma.follow.findMany({
-        where: { followingId: userId.getValue() },
+        where: { followingId: userIdVO.getValue() },
         include: {
           follower: {
             include: {
@@ -237,27 +243,33 @@ export class UserPrismaRepository implements IUserRepository {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.follow.count({
-        where: { followingId: userId.getValue() },
+        where: { followingId: userIdVO.getValue() },
       }),
     ]);
 
     return {
-      users: followData.map((follow) => this.mapToDomainModel(follow.follower)),
+      followers: followData.map((follow) =>
+        this.mapToDomainModel(follow.follower),
+      ),
       total,
+      hasMore: page * limit < total,
     };
   }
 
   async getFollowing(
-    userId: UserId,
-    limit = 20,
-    offset = 0,
+    userId: string,
+    page: number,
+    limit: number,
   ): Promise<{
-    users: User[];
+    following: User[];
     total: number;
+    hasMore: boolean;
   }> {
+    const offset = (page - 1) * limit;
+    const userIdVO = UserId.create(userId);
     const [followData, total] = await Promise.all([
       this.prisma.follow.findMany({
-        where: { followerId: userId.getValue() },
+        where: { followerId: userIdVO.getValue() },
         include: {
           following: {
             include: {
@@ -271,15 +283,16 @@ export class UserPrismaRepository implements IUserRepository {
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.follow.count({
-        where: { followerId: userId.getValue() },
+        where: { followerId: userIdVO.getValue() },
       }),
     ]);
 
     return {
-      users: followData.map((follow) =>
+      following: followData.map((follow) =>
         this.mapToDomainModel(follow.following),
       ),
       total,
+      hasMore: page * limit < total,
     };
   }
 
@@ -411,6 +424,102 @@ export class UserPrismaRepository implements IUserRepository {
       followingIds: following,
       followerIds: followers,
     });
+  }
+
+  // Missing methods implementation
+  async delete(id: string): Promise<void> {
+    await this.prisma.user.delete({
+      where: { id },
+    });
+  }
+
+  async exists(id: string): Promise<boolean> {
+    const count = await this.prisma.user.count({
+      where: { id },
+    });
+    return count > 0;
+  }
+
+  async findByEmailOrUsername(emailOrUsername: string): Promise<User | null> {
+    const userData = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
+      },
+      include: {
+        followers: { select: { followerId: true } },
+        following: { select: { followingId: true } },
+      },
+    });
+
+    if (!userData) {
+      return null;
+    }
+
+    return this.mapToDomainModel(userData);
+  }
+
+  async updateProfile(userId: string, profileData: any): Promise<User> {
+    const updatedUserData = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        fullName: profileData.fullName,
+        bio: profileData.bio,
+        avatar: profileData.avatar,
+        location: profileData.location,
+        websiteUrl: profileData.websiteUrl,
+        dateOfBirth: profileData.dateOfBirth,
+        phoneNumber: profileData.phoneNumber,
+        gender: profileData.gender,
+        lastProfileUpdate: new Date(),
+      },
+      include: {
+        followers: { select: { followerId: true } },
+        following: { select: { followingId: true } },
+      },
+    });
+
+    return this.mapToDomainModel(updatedUserData);
+  }
+
+  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hashedPassword },
+    });
+  }
+
+  async verifyEmail(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+      },
+    });
+  }
+
+  async updateLastVerificationSentAt(
+    userId: string,
+    timestamp: Date,
+  ): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastVerificationSentAt: timestamp },
+    });
+  }
+
+  async findMultipleByIds(ids: string[]): Promise<User[]> {
+    const usersData = await this.prisma.user.findMany({
+      where: {
+        id: { in: ids },
+      },
+      include: {
+        followers: { select: { followerId: true } },
+        following: { select: { followingId: true } },
+      },
+    });
+
+    return usersData.map((userData) => this.mapToDomainModel(userData));
   }
 
   private mapToDataModel(user: User): any {

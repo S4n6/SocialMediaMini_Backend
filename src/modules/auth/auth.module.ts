@@ -17,6 +17,7 @@ import { AuthApplicationService } from './application/services/auth.service';
 // Infrastructure Layer - Repository Implementations
 import { SessionRepository } from './infrastructure/repositories/session.repository';
 import { TokenRepository } from './infrastructure/repositories/token.repository';
+import { AuthUserRepository } from './infrastructure/repositories/auth-user.repository';
 
 // Infrastructure Layer - Service Implementations
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
@@ -27,7 +28,7 @@ import { MailerEmailSender } from './infrastructure/services/mailer-email.servic
 import { AuthController } from './presentation/auth.controller';
 
 // Legacy Components (will be phased out)
-import { AuthUserService } from './application/auth-user.service';
+
 import { AuthApplicationService as LegacyAuthApplicationService } from './application/auth-application.service';
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
@@ -45,7 +46,7 @@ import { GoogleStrategy } from './presentation/strategies/google.strategy';
 import { UsersModule } from '../users/users.module';
 import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
-import { NotificationModule } from '../notification/notification.module';
+// import { NotificationModule } from '../notification/notification.module'; // TODO: Refactor notification module
 import { RedisCacheModule } from '../cache/cache.module';
 import { PrismaModule } from '../../database/prisma.module';
 
@@ -59,7 +60,7 @@ import { PrismaModule } from '../../database/prisma.module';
       signOptions: { expiresIn: JWT.EXPIRES_IN },
     }),
     MailerModule,
-    NotificationModule,
+    // NotificationModule, // TODO: Refactor notification module
     RedisCacheModule,
   ],
   controllers: [AuthController],
@@ -76,6 +77,8 @@ import { PrismaModule } from '../../database/prisma.module';
       provide: TOKEN_REPOSITORY_TOKEN,
       useClass: TokenRepository,
     },
+    // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
+    AuthUserRepository,
 
     // Services
     {
@@ -95,11 +98,6 @@ import { PrismaModule } from '../../database/prisma.module';
     {
       provide: 'LEGACY_AUTH_APPLICATION_SERVICE',
       useClass: LegacyAuthApplicationService,
-    },
-    AuthUserService,
-    {
-      provide: 'AUTH_USER_SERVICE',
-      useExisting: AuthUserService,
     },
 
     // Legacy use-cases
@@ -139,10 +137,10 @@ import { PrismaModule } from '../../database/prisma.module';
     PASSWORD_HASHER_TOKEN,
     TOKEN_GENERATOR_TOKEN,
     EMAIL_SENDER_TOKEN,
+    AuthUserRepository, // Export the adapter itself
 
     // Legacy Exports (for backward compatibility)
     'LEGACY_AUTH_APPLICATION_SERVICE',
-    AuthUserService,
     'TOKEN_GENERATOR',
     'AUTHENTICATION_SERVICE',
     // Removed: PassportAuthAdapter (file was deleted)

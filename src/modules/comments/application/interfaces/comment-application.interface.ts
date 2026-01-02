@@ -1,4 +1,4 @@
-import { CommentEntity } from '../../domain/comment.entity';
+import { CommentEntity } from '../../domain/entities/comment.entity';
 import {
   CreateCommentDto,
   UpdateCommentDto,

@@ -1,591 +1,92 @@
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
+﻿import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cache } from 'cache-manager';
-import * as zlib from 'zlib';
-import { promisify } from 'util';
-import {
-  CacheConfig,
-  CacheStats,
-  CacheEvent,
-  DEFAULT_CACHE_CONFIGS,
-  CacheConfigName,
-} from './cache.interfaces';
-
-const gzip = promisify(zlib.gzip);
-const gunzip = promisify(zlib.gunzip);
 
 @Injectable()
 export class RedisCacheService {
   private readonly logger = new Logger(RedisCacheService.name);
-  private stats: CacheStats = {
-    hits: 0,
-    misses: 0,
-    hitRate: 0,
-    totalOperations: 0,
-    lastReset: new Date(),
-  };
 
   constructor(@Inject(CACHE_MANAGER) private readonly cacheManager: Cache) {}
 
-  private getRedisClient() {
+  async set(key: string, value: any, ttl: number = 3600): Promise<void> {
     try {
-      const stores = (this.cacheManager as any).stores;
-      const redisStore =
-        stores?.find((store: any) => store.name === 'redis') || stores?.[1];
-      const client = redisStore?.getClient?.() || redisStore;
-
-      // Debug: log available methods (only once)
-      if (client && !this.loggedMethods) {
-        this.loggedMethods = true;
-        const methods = Object.getOwnPropertyNames(
-          Object.getPrototypeOf(client),
-        )
-          .filter(
-            (name) =>
-              typeof client[name] === 'function' &&
-              name.toLowerCase().includes('z'),
-          )
-          .sort();
-        this.logger.debug('Available Redis ZSET methods:', methods);
-      }
-
-      return client;
-    } catch (err) {
-      this.logger.error('Error accessing Redis client', err);
-      return null;
-    }
-  }
-
-  private loggedMethods = false;
-
-  // Test method to check Redis connection and methods
-  async testRedisConnection(): Promise<void> {
-    try {
-      const client = this.getRedisClient();
-      this.logger.log('Redis client type:', typeof client);
-      this.logger.log('Redis client constructor:', client?.constructor?.name);
-
-      if (client) {
-        // List all methods available on the client
-        const allMethods = Object.getOwnPropertyNames(
-          Object.getPrototypeOf(client),
-        )
-          .filter((name) => typeof client[name] === 'function')
-          .sort();
-        this.logger.log('All available methods:', allMethods);
-      }
-    } catch (err) {
-      this.logger.error('Error testing Redis connection:', err);
-    }
-  }
-
-  // Helper methods for configuration and serialization
-  getConfig(configName: CacheConfigName | string): CacheConfig {
-    if (typeof configName === 'string' && configName in DEFAULT_CACHE_CONFIGS) {
-      return DEFAULT_CACHE_CONFIGS[configName as CacheConfigName];
-    }
-    return { ttl: 300, serialize: true }; // Default config
-  }
-
-  private generateCacheKey(key: string, config: CacheConfig): string {
-    return config.prefix ? `${config.prefix}:${key}` : key;
-  }
-
-  private async serializeData(
-    data: any,
-    config: CacheConfig,
-  ): Promise<string | Buffer> {
-    if (!config.serialize) return data;
-
-    const serialized = JSON.stringify(data);
-
-    if (config.compress) {
-      try {
-        return await gzip(serialized);
-      } catch (error) {
-        this.logger.warn('Compression failed, using uncompressed data', error);
-        return serialized;
-      }
-    }
-
-    return serialized;
-  }
-
-  private async deserializeData<T>(data: any, config: CacheConfig): Promise<T> {
-    if (!config.serialize) return data as T;
-
-    try {
-      let stringData: string;
-
-      if (config.compress && Buffer.isBuffer(data)) {
-        const decompressed = await gunzip(data);
-        stringData = decompressed.toString();
-      } else {
-        stringData = typeof data === 'string' ? data : JSON.stringify(data);
-      }
-
-      return JSON.parse(stringData);
+      await this.cacheManager.set(key, value, ttl * 1000);
+      this.logger.debug(`Cache set: ${key} (TTL: ${ttl}s)`);
     } catch (error) {
-      this.logger.error('Failed to deserialize cache data', error);
-      return data as T;
+      this.logger.error(`Failed to set cache for key: ${key}`, error);
+      throw error;
     }
   }
 
-  private updateStats(isHit: boolean): void {
-    if (isHit) {
-      this.stats.hits++;
-    } else {
-      this.stats.misses++;
-    }
-    this.stats.totalOperations++;
-    this.stats.hitRate = (this.stats.hits / this.stats.totalOperations) * 100;
-  }
-
-  // Enhanced get method with config support
-  async get<T>(
-    key: string,
-    config?: CacheConfig | CacheConfigName,
-  ): Promise<T | null> {
+  async get<T = any>(key: string): Promise<T | null> {
     try {
-      const cacheConfig =
-        typeof config === 'string'
-          ? this.getConfig(config)
-          : config || { ttl: 300 };
-      const fullKey = this.generateCacheKey(key, cacheConfig);
+      const result = await this.cacheManager.get<T>(key);
 
-      const value = await this.cacheManager.get(fullKey);
-
-      if (value !== null && value !== undefined) {
-        this.updateStats(true);
-        return await this.deserializeData<T>(value, cacheConfig);
+      if (result !== undefined && result !== null) {
+        this.logger.debug(`Cache hit: ${key}`);
+        return result;
       }
 
-      this.updateStats(false);
+      this.logger.debug(`Cache miss: ${key}`);
       return null;
-    } catch (err) {
-      this.logger.error(`Error reading cache key=${key}`, err);
-      this.updateStats(false);
+    } catch (error) {
+      this.logger.error(`Failed to get cache for key: ${key}`, error);
       return null;
     }
   }
 
-  // Enhanced set method with config support
-  async set<T>(
-    key: string,
-    value: T,
-    config?: CacheConfig | CacheConfigName | number,
-  ): Promise<void> {
+  async del(key: string): Promise<void> {
     try {
-      let cacheConfig: CacheConfig;
-
-      // Handle backward compatibility with old ttlSeconds parameter
-      if (typeof config === 'number') {
-        cacheConfig = { ttl: config, serialize: true };
-      } else if (typeof config === 'string') {
-        cacheConfig = this.getConfig(config);
-      } else {
-        cacheConfig = config || { ttl: 300, serialize: true };
-      }
-
-      const fullKey = this.generateCacheKey(key, cacheConfig);
-      const serializedValue = await this.serializeData(value, cacheConfig);
-
-      await this.cacheManager.set(
-        fullKey,
-        serializedValue,
-        cacheConfig.ttl ?? 300,
-      );
-
-      // Store tags for invalidation
-      if (cacheConfig.tags && cacheConfig.tags.length > 0) {
-        await this.addToTagIndex(cacheConfig.tags, fullKey);
-      }
-    } catch (err) {
-      this.logger.error(`Error setting cache key=${key}`, err);
-    }
-  }
-
-  // Helper methods for tag indexing
-  private async addToTagIndex(tags: string[], key: string): Promise<void> {
-    try {
-      for (const tag of tags) {
-        const tagKey = `tag:${tag}`;
-        await this.cacheManager.set(`${tagKey}:${key}`, '1', 3600); // 1 hour for tag index
-      }
-    } catch (err) {
-      this.logger.warn('Failed to update tag index', err);
-    }
-  }
-
-  private async removeFromTagIndex(tags: string[], key: string): Promise<void> {
-    try {
-      for (const tag of tags) {
-        const tagKey = `tag:${tag}:${key}`;
-        await this.cacheManager.del(tagKey);
-      }
-    } catch (err) {
-      this.logger.warn('Failed to remove from tag index', err);
-    }
-  }
-
-  // Enhanced delete method
-  async del(
-    key: string,
-    config?: CacheConfig | CacheConfigName,
-  ): Promise<void> {
-    try {
-      const cacheConfig =
-        typeof config === 'string' ? this.getConfig(config) : config;
-      const fullKey = cacheConfig
-        ? this.generateCacheKey(key, cacheConfig)
-        : key;
-
-      await this.cacheManager.del(fullKey);
-
-      // Remove from tag index if tags exist
-      if (cacheConfig?.tags) {
-        await this.removeFromTagIndex(cacheConfig.tags, fullKey);
-      }
-    } catch (err) {
-      this.logger.error(`Error deleting cache key=${key}`, err);
-    }
-  }
-
-  // Pattern-based invalidation
-  async invalidateByPattern(pattern: string): Promise<void> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) {
-        this.logger.warn('Redis client not available for pattern invalidation');
-        return;
-      }
-
-      // Use SCAN to find keys matching pattern
-      const keys: string[] = [];
-      let cursor = '0';
-
-      do {
-        const result = await client.scan(
-          cursor,
-          'MATCH',
-          pattern,
-          'COUNT',
-          1000,
-        );
-        cursor = result[0];
-        keys.push(...result[1]);
-      } while (cursor !== '0');
-
-      if (keys.length > 0) {
-        await client.del(...keys);
-        this.logger.debug(
-          `Invalidated ${keys.length} keys matching pattern: ${pattern}`,
-        );
-      }
-    } catch (err) {
-      this.logger.error(`Error invalidating pattern=${pattern}`, err);
-    }
-  }
-
-  // Tag-based invalidation
-  async invalidateByTag(tag: string): Promise<void> {
-    try {
-      await this.invalidateByPattern(`tag:${tag}:*`);
-    } catch (err) {
-      this.logger.error(`Error invalidating tag=${tag}`, err);
-    }
-  }
-
-  // Event-based invalidation
-  async invalidateByEvent(
-    event: CacheEvent,
-    data: Record<string, any>,
-  ): Promise<void> {
-    try {
-      switch (event) {
-        case CacheEvent.USER_UPDATED:
-          await this.invalidateByPattern(`user:profile:${data.userId}`);
-          await this.invalidateByPattern(`user:feed:${data.userId}:*`);
-          break;
-        case CacheEvent.POST_CREATED:
-        case CacheEvent.POST_UPDATED:
-          await this.invalidateByPattern(`user:feed:*`);
-          await this.invalidateByPattern(`post:list:*`);
-          break;
-        case CacheEvent.USER_DELETED:
-          await this.invalidateByPattern(`user:*:${data.userId}:*`);
-          await this.invalidateByPattern(`*:${data.userId}:*`);
-          break;
-        default:
-          this.logger.warn(`Unknown cache event: ${event}`);
-      }
-    } catch (err) {
-      this.logger.error(`Error handling cache event=${event}`, err);
-    }
-  }
-
-  // Multiple key operations
-  async mget<T>(
-    keys: string[],
-    config?: CacheConfig | CacheConfigName,
-  ): Promise<(T | null)[]> {
-    const promises = keys.map((key) => this.get<T>(key, config));
-    return Promise.all(promises);
-  }
-
-  async mset<T>(
-    keyValuePairs: Array<[string, T]>,
-    config?: CacheConfig | CacheConfigName,
-  ): Promise<void> {
-    const promises = keyValuePairs.map(([key, value]) =>
-      this.set(key, value, config),
-    );
-    await Promise.all(promises);
-  }
-
-  // Statistics and monitoring
-  getStats(): CacheStats {
-    return { ...this.stats };
-  }
-
-  resetStats(): void {
-    this.stats = {
-      hits: 0,
-      misses: 0,
-      hitRate: 0,
-      totalOperations: 0,
-      lastReset: new Date(),
-    };
-  }
-
-  async ping(): Promise<boolean> {
-    try {
-      await this.cacheManager.set('ping', 'pong', 1);
-      const result = await this.cacheManager.get('ping');
-      await this.cacheManager.del('ping');
-      return result === 'pong';
-    } catch (err) {
-      this.logger.error('Cache ping failed', err);
-      return false;
+      await this.cacheManager.del(key);
+      this.logger.debug(`Cache deleted: ${key}`);
+    } catch (error) {
+      this.logger.error(`Failed to delete cache for key: ${key}`, error);
+      throw error;
     }
   }
 
   async clear(): Promise<void> {
     try {
       await this.cacheManager.clear();
-      this.resetStats();
-    } catch (err) {
-      this.logger.error('Error clearing cache', err);
+      this.logger.debug('All cache cleared');
+    } catch (error) {
+      this.logger.error('Failed to clear all cache', error);
+      throw error;
     }
   }
 
-  // ZSET operations for Redis
-  async zAdd(key: string, score: number, member: string): Promise<number> {
+  async exists(key: string): Promise<boolean> {
     try {
-      const client = this.getRedisClient();
-      if (!client) return 0;
-
-      // Try different method names based on Redis client version
-      if (typeof client.zadd === 'function') {
-        return await client.zadd(key, score, member);
-      } else if (typeof client.zAdd === 'function') {
-        return await client.zAdd(key, [{ score, value: member }]);
-      } else if (typeof client.ZADD === 'function') {
-        return await client.ZADD(key, score, member);
-      }
-
-      this.logger.warn(`zAdd method not found on Redis client for key=${key}`);
-      return 0;
-    } catch (err) {
-      this.logger.error(`Error adding to sorted set key=${key}`, err);
-      return 0;
-    }
-  }
-
-  async zRevRangeWithScores(
-    key: string,
-    start: number,
-    stop: number,
-  ): Promise<{ value: string; score: number }[]> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return [];
-
-      let result: any;
-
-      // Try different method names
-      if (typeof client.zrevrangebyscore === 'function') {
-        result = await client.zrevrangebyscore(
-          key,
-          '+inf',
-          '-inf',
-          'WITHSCORES',
-          'LIMIT',
-          start,
-          stop - start + 1,
-        );
-      } else if (typeof client.zRevRangeWithScores === 'function') {
-        result = await client.zRevRangeWithScores(key, start, stop);
-      } else if (typeof client.ZREVRANGE === 'function') {
-        result = await client.ZREVRANGE(key, start, stop, 'WITHSCORES');
-      } else if (typeof client.zrevrange === 'function') {
-        result = await client.zrevrange(key, start, stop, 'WITHSCORES');
-      } else {
-        this.logger.warn(
-          `zRevRangeWithScores method not found on Redis client for key=${key}`,
-        );
-        return [];
-      }
-
-      // Handle different result formats
-      if (Array.isArray(result)) {
-        if (
-          result.length > 0 &&
-          typeof result[0] === 'object' &&
-          'value' in result[0]
-        ) {
-          // Already in correct format
-          return result.map((item: any) => ({
-            value: item.value,
-            score: item.score,
-          }));
-        } else {
-          // Format: [member1, score1, member2, score2, ...]
-          const formatted: { value: string; score: number }[] = [];
-          for (let i = 0; i < result.length; i += 2) {
-            formatted.push({
-              value: result[i],
-              score: parseFloat(result[i + 1]),
-            });
-          }
-          return formatted;
-        }
-      }
-
-      return [];
-    } catch (err) {
-      this.logger.error(`Error getting sorted set range key=${key}`, err);
-      return [];
-    }
-  }
-
-  async zCard(key: string): Promise<number> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return 0;
-
-      // Try different method names
-      if (typeof client.zcard === 'function') {
-        return await client.zcard(key);
-      } else if (typeof client.zCard === 'function') {
-        return await client.zCard(key);
-      } else if (typeof client.ZCARD === 'function') {
-        return await client.ZCARD(key);
-      }
-
-      this.logger.warn(`zCard method not found on Redis client for key=${key}`);
-      return 0;
-    } catch (err) {
-      this.logger.error(`Error getting sorted set count key=${key}`, err);
-      return 0;
-    }
-  }
-
-  async zRemRangeByRank(
-    key: string,
-    start: number,
-    stop: number,
-  ): Promise<number> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return 0;
-
-      // Try different method names
-      if (typeof client.zremrangebyrank === 'function') {
-        return await client.zremrangebyrank(key, start, stop);
-      } else if (typeof client.zRemRangeByRank === 'function') {
-        return await client.zRemRangeByRank(key, start, stop);
-      } else if (typeof client.ZREMRANGEBYRANK === 'function') {
-        return await client.ZREMRANGEBYRANK(key, start, stop);
-      }
-
-      this.logger.warn(
-        `zRemRangeByRank method not found on Redis client for key=${key}`,
-      );
-      return 0;
-    } catch (err) {
-      this.logger.error(`Error removing sorted set range key=${key}`, err);
-      return 0;
-    }
-  }
-
-  async zRem(key: string, member: string): Promise<number> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return 0;
-
-      // Try different method names
-      if (typeof client.zrem === 'function') {
-        return await client.zrem(key, member);
-      } else if (typeof client.zRem === 'function') {
-        return await client.zRem(key, member);
-      } else if (typeof client.ZREM === 'function') {
-        return await client.ZREM(key, member);
-      }
-
-      this.logger.warn(`zRem method not found on Redis client for key=${key}`);
-      return 0;
-    } catch (err) {
-      this.logger.error(`Error removing from sorted set key=${key}`, err);
-      return 0;
-    }
-  }
-
-  async zScore(key: string, member: string): Promise<number | null> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return null;
-
-      // Try different method names
-      if (typeof client.zscore === 'function') {
-        return await client.zscore(key, member);
-      } else if (typeof client.zScore === 'function') {
-        return await client.zScore(key, member);
-      } else if (typeof client.ZSCORE === 'function') {
-        return await client.ZSCORE(key, member);
-      }
-
-      this.logger.warn(
-        `zScore method not found on Redis client for key=${key}`,
-      );
-      return null;
-    } catch (err) {
-      this.logger.error(`Error getting sorted set score key=${key}`, err);
-      return null;
-    }
-  }
-
-  async expire(key: string, seconds: number): Promise<boolean> {
-    try {
-      const client = this.getRedisClient();
-      if (!client) return false;
-
-      // Try different method names
-      if (typeof client.expire === 'function') {
-        return await client.expire(key, seconds);
-      } else if (typeof client.EXPIRE === 'function') {
-        return await client.EXPIRE(key, seconds);
-      } else if (typeof client.pexpire === 'function') {
-        return await client.pexpire(key, seconds * 1000); // Convert to milliseconds
-      }
-
-      this.logger.warn(
-        `expire method not found on Redis client for key=${key}`,
+      const result = await this.cacheManager.get(key);
+      return result !== undefined && result !== null;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check cache existence for key: ${key}`,
+        error,
       );
       return false;
-    } catch (err) {
-      this.logger.error(`Error setting expiry for key=${key}`, err);
-      return false;
+    }
+  }
+
+  async getOrSet<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    ttl: number = 3600,
+  ): Promise<T> {
+    try {
+      const cached = await this.get<T>(key);
+      if (cached !== null) {
+        return cached;
+      }
+
+      this.logger.debug(`Cache miss, fetching data for key: ${key}`);
+      const freshData = await fetchFn();
+      await this.set(key, freshData, ttl);
+
+      return freshData;
+    } catch (error) {
+      this.logger.error(`Failed to getOrSet for key: ${key}`, error);
+      throw error;
     }
   }
 }

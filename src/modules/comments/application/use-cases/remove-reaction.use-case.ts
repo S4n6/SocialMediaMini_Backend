@@ -1,8 +1,6 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
-import { CommentNotFoundException } from '../../domain/comment.exceptions';
-import { CommentFactory } from '../../domain/factories/comment.factory';
-import { CommentEntity } from '../../domain/comment.entity';
+import { Injectable } from '@nestjs/common';
+import { CommentDomainService } from '../../domain/services/comment-domain.service';
+import { ReactionType } from '../../domain/entities/comment.entity';
 
 export interface RemoveReactionCommand {
   commentId: string;
@@ -10,46 +8,49 @@ export interface RemoveReactionCommand {
   reactionType: string;
 }
 
+/**
+ * Remove Reaction Use Case
+ *
+ * Responsibility: Orchestrate removing a reaction from a comment
+ * - Validate command input
+ * - Delegate to domain service for business logic
+ * - Handle application-level concerns
+ */
 @Injectable()
 export class RemoveReactionUseCase {
-  constructor(
-    @Inject('COMMENT_REPOSITORY')
-    private readonly commentRepository: CommentRepository,
-  ) {}
+  constructor(private readonly commentDomainService: CommentDomainService) {}
 
-  async execute(command: RemoveReactionCommand): Promise<CommentEntity> {
-    const comment = await this.commentRepository.findById(command.commentId);
+  async execute(command: RemoveReactionCommand): Promise<void> {
+    // Input validation
+    this.validateCommand(command);
 
-    if (!comment) {
-      throw new CommentNotFoundException(command.commentId);
-    }
-
-    // Validate reaction type
-    const validReactionType = CommentFactory.validateReactionType(
-      command.reactionType,
-    );
-
-    // Check if user has this reaction
-    const hasReacted = await this.commentRepository.hasUserReacted(
+    // Delegate to domain service for business logic
+    await this.commentDomainService.removeReaction(
       command.commentId,
       command.userId,
-      validReactionType,
+      command.reactionType as ReactionType,
     );
 
-    if (!hasReacted) {
-      throw new Error(`User has not reacted with ${validReactionType}`);
+    // Application-level post-processing could go here
+  }
+
+  private validateCommand(command: RemoveReactionCommand): void {
+    if (!command.commentId?.trim()) {
+      throw new Error('Comment ID is required');
+    }
+    if (!command.userId?.trim()) {
+      throw new Error('User ID is required');
+    }
+    if (!command.reactionType?.trim()) {
+      throw new Error('Reaction type is required');
     }
 
-    // Remove reaction through repository
-    await this.commentRepository.removeReaction(
-      command.commentId,
-      command.userId,
-      validReactionType,
-    );
-
-    // Add domain event through entity
-    comment.removeReaction(command.userId, validReactionType);
-
-    return comment;
+    // Validate reaction type enum
+    const validReactionTypes = ['like', 'love', 'laugh', 'angry', 'sad'];
+    if (!validReactionTypes.includes(command.reactionType.toLowerCase())) {
+      throw new Error(
+        `Invalid reaction type. Must be one of: ${validReactionTypes.join(', ')}`,
+      );
+    }
   }
 }

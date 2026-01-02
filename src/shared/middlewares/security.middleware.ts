@@ -109,21 +109,3 @@ export class FileUploadSecurityMiddleware implements NestMiddleware {
     next();
   }
 }
-
-// Middleware for WebSocket security (if using Socket.IO)
-@Injectable()
-export class WebSocketSecurityMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    // Additional headers for WebSocket endpoints
-    if (
-      req.path.includes('/socket.io') ||
-      req.headers.upgrade === 'websocket'
-    ) {
-      // Allow WebSocket upgrade
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
-    }
-
-    next();
-  }
-}

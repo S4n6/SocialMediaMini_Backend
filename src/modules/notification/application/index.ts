@@ -1,11 +1,15 @@
 // Application service
 export * from './notification-application.service';
 
+// Services
+export * from './services/notification.mapper';
+
 // DTOs
 export * from './dto/notification.dto';
 
 // Interfaces
 export * from './interfaces/notification-repository.interface';
+export * from './interfaces/domain-event-publisher.interface';
 
 // Use cases
 export * from './use-cases/create-notification.use-case';

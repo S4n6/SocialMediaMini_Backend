@@ -11,7 +11,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { PostPrivacy, ReactionType } from '../../domain/post.entity';
+import { PostPrivacy, ReactionType } from '../../domain/entities/post.entity';
 import { Type } from 'class-transformer';
 
 // ===== USE CASE INPUT DTOs =====
@@ -111,37 +111,6 @@ export class GetUserPostsDto {
   limit?: number = 10;
 }
 
-// ===== REACTION DTOs =====
-
-export class CreateReactionDto {
-  @IsEnum(ReactionType)
-  type: ReactionType;
-}
-
-export class RemoveReactionDto {
-  // No additional fields needed - postId and userId from params/auth
-}
-
-// ===== COMMENT DTOs =====
-
-export class CreateCommentDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(500, { message: 'Comment cannot exceed 500 characters' })
-  content: string;
-
-  @IsOptional()
-  @IsUUID()
-  parentId?: string;
-}
-
-export class UpdateCommentDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(500, { message: 'Comment cannot exceed 500 characters' })
-  content: string;
-}
-
 // ===== RESPONSE DTOs =====
 
 export class PostMediaResponseDto {
@@ -228,7 +197,7 @@ export class PostStatsResponseDto {
 
 // ===== FEED DTOs =====
 
-export class GetFeedDto {
+export class GetTimelineFeedDto {
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -243,6 +212,44 @@ export class GetFeedDto {
   limit?: number = 10;
 
   @IsOptional()
-  @IsEnum(['timeline', 'following', 'trending'])
-  feedType?: 'timeline' | 'following' | 'trending' = 'timeline';
+  @IsEnum(['chronological', 'smart', 'diversified'])
+  algorithm?: 'chronological' | 'smart' | 'diversified' = 'chronological';
+}
+
+export class GetExploreFeedDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  limit?: number = 10;
+
+  @IsOptional()
+  @IsString()
+  category?: string; // For explore categories
+}
+
+export class GetTrendingFeedDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(20)
+  limit?: number = 10;
+
+  @IsOptional()
+  @IsEnum(['today', 'week', 'month'])
+  period?: 'today' | 'week' | 'month' = 'today';
 }

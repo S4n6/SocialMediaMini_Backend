@@ -1,4 +1,4 @@
-import { CommentEntity } from '../comment.entity';
+import { CommentEntity } from '../entities/comment.entity';
 
 export interface CommentRepository {
   /**

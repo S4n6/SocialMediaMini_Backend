@@ -10,16 +10,20 @@ import {
 } from '@nestjs/common';
 import { FollowApplicationService } from '../application/follow-application.service';
 import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
-import { FollowUserDto, GetFollowsQuery } from '../application/dto/follow.dto';
 import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
-import { ApiResponse } from '../../../shared/common/interfaces/api-response.interface';
+import { ApiResponse } from '../../../shared/utils/interfaces/api-response.interface';
+import {
+  FollowUserRequestDto,
+  GetFollowsQueryDto,
+} from './dto/follow-request.dto';
 import {
   FollowUserResponseDto,
-  FollowResponseDto,
+  UnfollowUserResponseDto,
   FollowersResponseDto,
   FollowingResponseDto,
   FollowStatusResponseDto,
-} from '../application/dto/follow-response.dto';
+  FollowWithUsersResponseDto,
+} from './dto/follow-response.dto';
 
 @Controller('follows')
 @UseGuards(JwtAuthGuard)
@@ -30,7 +34,7 @@ export class FollowsController {
 
   @Post('follow')
   async followUser(
-    @Body() followUserDto: FollowUserDto,
+    @Body() followUserDto: FollowUserRequestDto,
     @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<FollowUserResponseDto>> {
     const result = await this.followApplicationService.followUser(
@@ -49,7 +53,7 @@ export class FollowsController {
   async unfollowUser(
     @Param('targetUserId') targetUserId: string,
     @CurrentUser('id') userId: string,
-  ): Promise<ApiResponse<{ message: string }>> {
+  ): Promise<ApiResponse<UnfollowUserResponseDto>> {
     const result = await this.followApplicationService.unfollowUser(
       targetUserId,
       userId,
@@ -133,8 +137,8 @@ export class FollowsController {
 
   @Get()
   async getFollows(
-    @Query() query: GetFollowsQuery,
-  ): Promise<ApiResponse<FollowResponseDto[]>> {
+    @Query() query: GetFollowsQueryDto,
+  ): Promise<ApiResponse<FollowWithUsersResponseDto[]>> {
     const result = await this.followApplicationService.getFollows(query);
 
     return {

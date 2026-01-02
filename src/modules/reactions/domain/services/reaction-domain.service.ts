@@ -1,82 +1,87 @@
-import { Injectable } from '@nestjs/common';
-import { ReactionEntity, ReactionType } from '../reaction.entity';
-import { ReactionRepository } from '../repositories/reaction.repository';
+import { Injectable, Inject } from '@nestjs/common';
+import { ReactionEntity } from '../entities/reaction.entity';
+import { ReactionType, TargetType } from '../value-objects';
 import {
-  ReactionNotFoundException,
-  UnauthorizedReactionException,
-} from '../reaction.exceptions';
+  ReactionOperationService,
+  ReactionOperationResult,
+} from './reaction-operation.service';
+import { IReactionFinderRepository } from '../repositories/reaction.repository';
+import {
+  ReactionType as ReactionTypeEnum,
+  REACTION_FINDER_REPOSITORY,
+} from '../../constants';
 
+/**
+ * Legacy compatibility service - delegates to new domain services
+ * @deprecated Use ReactionOperationService directly for new code
+ */
 @Injectable()
 export class ReactionDomainService {
-  constructor(private readonly reactionRepository: ReactionRepository) {}
+  constructor(
+    private readonly operationService: ReactionOperationService,
+    @Inject(REACTION_FINDER_REPOSITORY)
+    private readonly finderRepository: IReactionFinderRepository,
+  ) {}
 
+  /**
+   * @deprecated Use ReactionOperationService.processReaction instead
+   */
   async createOrUpdateReaction(
-    type: ReactionType,
+    type: ReactionTypeEnum,
     reactorId: string,
     targetId: string,
     targetType: 'post' | 'comment',
   ): Promise<{ reaction: ReactionEntity; isNew: boolean }> {
-    // Check if user already has a reaction to this target
-    const existingReaction = await this.reactionRepository.findByUserAndTarget(
+    const reactionType = ReactionType.create(type);
+    const target = TargetType.create(targetType);
+
+    const result = await this.operationService.processReaction(
+      reactionType,
       reactorId,
       targetId,
-      targetType,
+      target,
     );
 
-    if (existingReaction) {
-      // Update existing reaction
-      existingReaction.updateType(type);
-      const updatedReaction =
-        await this.reactionRepository.save(existingReaction);
-      return { reaction: updatedReaction, isNew: false };
-    }
-
-    // Create new reaction
-    const newReaction = ReactionEntity.createNew(
-      type,
-      reactorId,
-      targetId,
-      targetType,
-    );
-    const savedReaction = await this.reactionRepository.save(newReaction);
-    return { reaction: savedReaction, isNew: true };
+    return {
+      reaction: result.reaction,
+      isNew: result.isNew,
+    };
   }
 
+  /**
+   * @deprecated Use ReactionOperationService.validateOwnership instead
+   */
   async validateReactionOwnership(
     reactionId: string,
     userId: string,
   ): Promise<ReactionEntity> {
-    const reaction = await this.reactionRepository.findById(reactionId);
-
-    if (!reaction) {
-      throw new ReactionNotFoundException(reactionId);
-    }
-
-    if (!reaction.isOwnedBy(userId)) {
-      throw new UnauthorizedReactionException();
-    }
-
-    return reaction;
+    return this.operationService.validateOwnership(reactionId, userId);
   }
 
+  /**
+   * @deprecated Use ReactionOperationService.removeReaction instead
+   */
   async deleteReaction(reactionId: string, userId: string): Promise<void> {
-    await this.validateReactionOwnership(reactionId, userId);
-    await this.reactionRepository.delete(reactionId);
+    await this.operationService.removeReaction(reactionId, userId);
   }
 
+  /**
+   * Gets user reaction status for a target
+   */
   async getUserReactionStatus(
     targetId: string,
     userId: string,
     targetType: 'post' | 'comment',
   ): Promise<{
     reacted: boolean;
-    reactionType?: ReactionType;
+    reactionType?: ReactionTypeEnum;
     reactionId?: string;
   }> {
-    const reaction = await this.reactionRepository.findByUserAndTarget(
+    const target = TargetType.create(targetType);
+    const reaction = await this.finderRepository.findByUserAndTarget(
       userId,
       targetId,
-      targetType,
+      target.getValue(),
     );
 
     if (!reaction) {
@@ -88,14 +93,5 @@ export class ReactionDomainService {
       reactionType: reaction.type,
       reactionId: reaction.id,
     };
-  }
-
-  async validateTargetExists(
-    targetId: string,
-    targetType: 'post' | 'comment',
-  ): Promise<void> {
-    // This method should be implemented with proper validation
-    // For now, we'll assume the validation happens at the application layer
-    // through the use of external services
   }
 }

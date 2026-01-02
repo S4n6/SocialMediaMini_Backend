@@ -48,6 +48,12 @@ export class PostMediaUploadFailedException extends DomainException {
   }
 }
 
+export class TooManyMediaFilesException extends DomainException {
+  constructor(message: string = 'Too many media files') {
+    super(message, 'TOO_MANY_MEDIA_FILES', 400);
+  }
+}
+
 export class PostMediaDuplicateException extends DomainException {
   constructor(url: string) {
     super(

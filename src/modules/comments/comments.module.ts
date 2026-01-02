@@ -2,6 +2,13 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 import { UsersModule } from '../users/users.module';
 
+// Constants & Tokens
+import {
+  COMMENT_TOKENS,
+  APPLICATION_TOKENS,
+  INFRASTRUCTURE_TOKENS,
+} from './constants';
+
 // Domain Services
 import { CommentDomainService } from './domain/services/comment-domain.service';
 
@@ -10,7 +17,7 @@ import { CommentApplicationService } from './application/interfaces/comment-appl
 import {
   CommentApplicationServiceImpl,
   CommentMapperImpl,
-} from './application/comment-application.service';
+} from './application/services/comment-application.service';
 
 // Use Cases
 import { CreateCommentUseCase } from './application/use-cases/create-comment.use-case';
@@ -23,11 +30,12 @@ import { RemoveReactionUseCase } from './application/use-cases/remove-reaction.u
 import { GetRepliesUseCase } from './application/use-cases/get-replies.use-case';
 
 // Infrastructure
-import { PrismaCommentRepository } from './infrastructure/repositories/prisma-comment.repository';
-import {
-  MockUserService,
-  MockPostService,
-} from './infrastructure/mock-services';
+import { PrismaCommentRepository } from './infrastructure/comment.prisma.repository';
+import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapter';
+import { PostServiceAdapter } from './infrastructure/adapters/post-service.adapter';
+
+// Application Services
+import { CommentEnrichmentService } from './application/services/comment-enrichment.service';
 
 // Presentation
 import { CommentsController } from './presentation/comments.controller';
@@ -41,13 +49,14 @@ import { CommentsController } from './presentation/comments.controller';
 
     // Application Services
     {
-      provide: 'CommentApplicationService',
+      provide: APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE,
       useClass: CommentApplicationServiceImpl,
     },
     {
-      provide: 'CommentMapper',
+      provide: APPLICATION_TOKENS.COMMENT_MAPPER,
       useClass: CommentMapperImpl,
     },
+    CommentEnrichmentService,
 
     // Use Cases
     CreateCommentUseCase,
@@ -61,20 +70,20 @@ import { CommentsController } from './presentation/comments.controller';
 
     // Repository
     {
-      provide: 'COMMENT_REPOSITORY',
+      provide: COMMENT_TOKENS.COMMENT_REPOSITORY,
       useClass: PrismaCommentRepository,
     },
 
-    // Mock Services (temporary)
+    // External Service Adapters (implementing domain ports)
     {
-      provide: 'USER_SERVICE',
-      useClass: MockUserService,
+      provide: INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER,
+      useClass: UserServiceAdapter,
     },
     {
-      provide: 'POST_SERVICE',
-      useClass: MockPostService,
+      provide: INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER,
+      useClass: PostServiceAdapter,
     },
   ],
-  exports: ['CommentApplicationService'],
+  exports: [APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE],
 })
 export class CommentsModule {}

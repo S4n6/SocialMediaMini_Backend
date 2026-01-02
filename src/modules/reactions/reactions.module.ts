@@ -1,46 +1,78 @@
 import { Module } from '@nestjs/common';
+import { CacheModule } from '@nestjs/cache-manager';
 import { PrismaModule } from '../../database/prisma.module';
 
 // Presentation Layer
-import { ReactionsController } from './presentation/reactions.controller';
+import { ReactionsController } from './presentation';
 
 // Application Layer
-import { ReactionApplicationService } from './application/reaction-application.service';
-import { CreateReactionUseCase } from './application/use-cases/create-reaction.use-case';
-import { DeleteReactionUseCase } from './application/use-cases/delete-reaction.use-case';
-import { GetReactionUseCase } from './application/use-cases/get-reaction.use-case';
-import { GetReactionsUseCase } from './application/use-cases/get-reactions.use-case';
-import { GetPostReactionsUseCase } from './application/use-cases/get-post-reactions.use-case';
-import { GetReactionStatusUseCase } from './application/use-cases/get-reaction-status.use-case';
-
-// Domain Layer
-import { ReactionRepository } from './domain/repositories/reaction.repository';
-import { ReactionFactory } from './domain/factories/reaction.factory';
-import { ReactionDomainService } from './domain/services/reaction-domain.service';
-
-// Infrastructure Layer
-import { PrismaReactionRepository } from './infrastructure/prisma-reaction.repository';
-import { PrismaPostService } from './infrastructure/external-services';
-import { PrismaCommentService } from './infrastructure/external-services';
-import { QueueNotificationService } from './infrastructure/queue-notification.service';
-
-// Application Interfaces
 import {
+  ReactionApplicationService,
+  CreateReactionUseCase,
+  DeleteReactionUseCase,
+  GetReactionUseCase,
+  GetReactionsUseCase,
+  GetPostReactionsUseCase,
+  GetReactionStatusUseCase,
+  ReactionValidationService,
+  ReactionEnrichmentService,
   ExternalPostService,
   ExternalCommentService,
+  ExternalUserService,
   NotificationService,
-} from './application/interfaces/external-services.interface';
+} from './application';
+
+// Domain Layer
+import {
+  ReactionRepository,
+  ReactionFactory,
+  ReactionDomainService,
+  ReactionBusinessRulesService,
+  ReactionOperationService,
+  IReactionBaseRepository,
+  IReactionFinderRepository,
+  IReactionStatsRepository,
+} from './domain';
+
+// Infrastructure Layer
+import {
+  PrismaReactionRepository,
+  EnhancedPrismaReactionRepository,
+  PrismaPostService,
+  PrismaCommentService,
+  PrismaUserService,
+  QueueNotificationService,
+  CacheAdapter,
+  EventPublisherAdapter,
+  MetricsAdapter,
+} from './infrastructure';
+
+// Presentation Layer - Filters and Mappers
+import { ReactionExceptionFilter } from './presentation/filters/reaction-exception.filter';
+import { ReactionResponseMapper } from './presentation/mappers/reaction-response.mapper';
+
+// Constants and tokens
 import {
   EXTERNAL_POST_SERVICE,
   EXTERNAL_COMMENT_SERVICE,
+  EXTERNAL_USER_SERVICE,
   NOTIFICATION_SERVICE,
-} from './application/interfaces/tokens';
+  REACTION_BASE_REPOSITORY,
+  REACTION_FINDER_REPOSITORY,
+  REACTION_STATS_REPOSITORY,
+} from './constants';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    CacheModule.register({
+      ttl: 300, // 5 minutes default TTL
+      max: 1000, // Maximum number of items in cache
+    }),
+  ],
   controllers: [ReactionsController],
   providers: [
-    // Application Layer
+    // Application Layer - Enhanced Services
     ReactionApplicationService,
     CreateReactionUseCase,
     DeleteReactionUseCase,
@@ -48,15 +80,45 @@ import {
     GetReactionsUseCase,
     GetPostReactionsUseCase,
     GetReactionStatusUseCase,
+    ReactionValidationService,
+    ReactionEnrichmentService,
 
     // Domain Layer
     ReactionFactory,
     ReactionDomainService,
+    ReactionBusinessRulesService,
+    ReactionOperationService,
 
-    // Infrastructure Layer - Repository
+    // Infrastructure Layer - Enhanced Repository
     {
       provide: ReactionRepository,
-      useClass: PrismaReactionRepository,
+      useClass: EnhancedPrismaReactionRepository,
+    },
+    {
+      provide: REACTION_BASE_REPOSITORY,
+      useExisting: ReactionRepository,
+    },
+    {
+      provide: REACTION_FINDER_REPOSITORY,
+      useExisting: ReactionRepository,
+    },
+    {
+      provide: REACTION_STATS_REPOSITORY,
+      useExisting: ReactionRepository,
+    },
+
+    // Infrastructure Layer - Adapters
+    {
+      provide: 'CACHE_ADAPTER',
+      useClass: CacheAdapter,
+    },
+    {
+      provide: 'EVENT_PUBLISHER_ADAPTER',
+      useClass: EventPublisherAdapter,
+    },
+    {
+      provide: 'METRICS_ADAPTER',
+      useClass: MetricsAdapter,
     },
 
     // Infrastructure Layer - External Services
@@ -69,10 +131,25 @@ import {
       useClass: PrismaCommentService,
     },
     {
+      provide: EXTERNAL_USER_SERVICE,
+      useClass: PrismaUserService,
+    },
+    {
       provide: NOTIFICATION_SERVICE,
       useClass: QueueNotificationService,
     },
+
+    // Presentation Layer - Mappers and Filters
+    ReactionResponseMapper,
+    ReactionExceptionFilter,
   ],
-  exports: [ReactionApplicationService, ReactionRepository],
+  exports: [
+    ReactionApplicationService,
+    ReactionRepository,
+    'CACHE_ADAPTER',
+    'EVENT_PUBLISHER_ADAPTER',
+    'METRICS_ADAPTER',
+    ReactionResponseMapper,
+  ],
 })
 export class ReactionsModule {}
