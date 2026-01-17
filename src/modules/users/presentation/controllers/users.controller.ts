@@ -23,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 
 // Clean Architecture imports
-import { UserApplicationService } from '../application/user-application.service';
+import { UserApplicationService } from '../../application/user-application.service';
 
 // Presentation DTOs and Mappers
 import {
@@ -36,15 +36,15 @@ import {
   UserListResponseDto,
   FollowersResponseDto,
   ApiSuccessResponseDto,
-} from './dto';
-import { PresentationMapper } from './mappers/presentation.mapper';
+} from '../dto';
+import { PresentationMapper } from '../mappers/presentation.mapper';
 
 // Guards and decorators
-import { RolesGuard } from '../../../shared/guards/roles.guard';
-import { SkipGuards } from '../../../shared/decorators/skipGuard.decorator';
-import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
-import { Roles } from '../../../shared/decorators/roles.decorator';
-import { ROLES } from '../../../shared/constants/roles.constant';
+import { RolesGuard } from '../../../../shared/guards/roles.guard';
+import { SkipGuards } from '../../../../shared/decorators/skipGuard.decorator';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt.guard';
+import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { ROLES } from '../../../../shared/constants/roles.constant';
 
 @ApiTags('Users')
 @Controller('users')

@@ -5,6 +5,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Note: Using Prisma 6.x syntax. The `url` property works correctly.
+// VSCode Prisma extension may show false warnings if configured for Prisma 7.
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")

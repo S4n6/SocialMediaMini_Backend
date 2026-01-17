@@ -1,28 +1,24 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
-import { IEventBus } from '../../infrastructure/events';
-import { InMemoryEventBus } from '../../infrastructure/events';
+import { IEventBus, InMemoryEventBus } from '../../infrastructure/events';
 
-// Clean Architecture imports
-import { UserApplicationService } from './application/user-application.service';
-import { CreateUserUseCase } from './application/use-cases/create-user.use-case';
-import { FollowUserUseCase } from './application/use-cases/follow-user.use-case';
-import { UserPrismaRepository } from './infrastructure/user.prisma.repository';
+// Domain Layer
 import { UserFactory } from './domain/factories/user.factory';
-// import { UserDomainService } from './domain/services/user-domain.service'; // Moved to .old
 
-// Core use cases
+// Application Layer - Use Cases
+import { CreateUserUseCase } from './application/use-cases/create-user.use-case';
 import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
+import {
+  FollowUserUseCase,
+  UnfollowUserUseCase,
+} from './application/use-cases/follow-user.use-case';
 import {
   GetUserProfileUseCase,
   SearchUsersUseCase,
   GetUserFollowersUseCase,
   GetUserFollowingUseCase,
 } from './application/use-cases/get-user.use-case';
-import { UnfollowUserUseCase } from './application/use-cases/follow-user.use-case';
-
-// Auth integration use cases
 import {
   FindUserByCredentialsUseCase,
   FindUserByIdUseCase,
@@ -36,53 +32,56 @@ import {
   SaveUserUseCase,
 } from './application/use-cases/user-management.use-case';
 
+// Application Layer - Service
+import { UserApplicationService } from './application/user-application.service';
+
+// Infrastructure Layer - Persistence
+import { UserPrismaRepository } from './infrastructure/persistence/repositories/user.repository';
+
 // Presentation Layer
-import { UsersController } from './presentation/users.controller';
+import { UsersController } from './presentation/controllers/users.controller';
 
-// Infrastructure Layer
-// import { UserInfrastructureService } from './infrastructure/user-infrastructure.service'; // Moved to .old
-
-// Repository / event tokens
+// DI Tokens
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
 
 @Module({
   imports: [PrismaModule],
   controllers: [UsersController],
   providers: [
-    // Infrastructure Layer - Repository (provide early)
+    // Domain Layer
+    UserFactory,
+
+    // Infrastructure - Persistence (Repositories)
     {
       provide: USER_REPOSITORY_TOKEN,
       useClass: UserPrismaRepository,
     },
 
-    // Event Bus (provide early)
+    // Infrastructure - Event Bus
     {
       provide: EVENT_BUS_TOKEN,
       useClass: InMemoryEventBus,
     },
 
-    // Domain Layer
-    UserFactory,
-
-    // Application Layer
+    // Application Layer - Service
     UserApplicationService,
 
-    // Use Cases - User Management
+    // Application Layer - Use Cases (User Management)
     CreateUserUseCase,
     UpdateProfileUseCase,
     VerifyEmailUseCase,
 
-    // Use Cases - Follow Management
+    // Application Layer - Use Cases (Follow Management)
     FollowUserUseCase,
     UnfollowUserUseCase,
 
-    // Use Cases - User Queries
+    // Application Layer - Use Cases (Queries)
     GetUserProfileUseCase,
     SearchUsersUseCase,
     GetUserFollowersUseCase,
     GetUserFollowingUseCase,
 
-    // Use Cases - Auth Integration
+    // Application Layer - Use Cases (Auth Integration)
     FindUserByCredentialsUseCase,
     FindUserByIdUseCase,
     FindUserByEmailUseCase,
@@ -93,9 +92,16 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
     SaveUserUseCase,
   ],
   exports: [
-    UserApplicationService,
+    // Repository Token (for cross-module use)
     USER_REPOSITORY_TOKEN,
+
+    // Application Service
+    UserApplicationService,
+
+    // Domain Factory
     UserFactory,
+
+    // Event Bus
     EVENT_BUS_TOKEN,
   ],
 })

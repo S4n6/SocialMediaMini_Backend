@@ -8,7 +8,7 @@ import {
 } from '../../domain';
 import { IEventBus } from '../../../../infrastructure/events';
 import { CreateUserCommand, UserDto } from '../dto/application.dto';
-import { DomainEventAdapter } from '../adapters/event.adapter';
+import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 
 /**

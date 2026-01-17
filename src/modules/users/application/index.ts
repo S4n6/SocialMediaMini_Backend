@@ -2,6 +2,12 @@
 export * from './dto/user.dto';
 export * from './dto/application.dto';
 
+// Ports (External Service Interfaces)
+export * from './ports';
+
+// Subscribers (Event Handlers)
+export * from './subscribers';
+
 // Use Cases
 export * from './use-cases/create-user.use-case';
 export * from './use-cases/follow-user.use-case';
