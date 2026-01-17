@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { ISessionRepository } from '../../domain/repositories/session.repository';
-import { AuthSession } from '../../domain/entities/session.entity';
-import { Token } from '../../domain/value-objects/token.vo';
-import { PrismaService } from '../../../../database/prisma.service';
+import { ISessionRepository } from '../../../domain/repositories/session.repository';
+import { AuthSession } from '../../../domain/entities/session.entity';
+import { Token } from '../../../domain/value-objects/token.vo';
+import { PrismaService } from '../../../../../database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
-import { JWT } from '../../../../config/jwt.config';
+import { JWT } from '../../../../../config/jwt.config';
 
 /**
- * Prisma Session Repository Implementation
+ * Session Repository Implementation
  * Implements ISessionRepository using Prisma ORM
  */
 @Injectable()
@@ -40,7 +40,7 @@ export class SessionRepository implements ISessionRepository {
         this.generateRefreshToken(userId, databaseId),
       );
 
-      // Create a new AuthSession domain entity - sessionId will be generated from refresh token hash
+      // Create a new AuthSession domain entity
       const sessionData = {
         id: databaseId,
         userId,
@@ -57,7 +57,7 @@ export class SessionRepository implements ISessionRepository {
       return createdSession.refreshToken.value;
     }
 
-    // If first parameter is AuthSession object, use original logic
+    // If first parameter is AuthSession object, persist it
     const session = sessionOrUserId;
     const sessionData = session.toPlainObject();
 
@@ -74,8 +74,6 @@ export class SessionRepository implements ISessionRepository {
       },
     });
 
-    // Since refresh token isn't stored in Session table, we need to handle it separately
-    // For now, we'll create the domain object with the original refresh token
     return AuthSession.fromPersistence({
       id: createdSession.id,
       sessionId: createdSession.sessionId,
@@ -86,7 +84,7 @@ export class SessionRepository implements ISessionRepository {
       isRevoked: createdSession.isRevoked,
       createdAt: createdSession.createdAt,
       expiresAt: createdSession.expiresAt,
-      revokedAt: null, // New sessions are not revoked
+      revokedAt: null,
     });
   }
 
@@ -94,7 +92,6 @@ export class SessionRepository implements ISessionRepository {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
-
     return session ? this.mapToDomain(session) : null;
   }
 
@@ -103,7 +100,6 @@ export class SessionRepository implements ISessionRepository {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
-
     return sessions.map((session) => this.mapToDomain(session));
   }
 
@@ -116,7 +112,6 @@ export class SessionRepository implements ISessionRepository {
     const session = await this.prisma.session.findUnique({
       where: { sessionId: sessionId },
     });
-
     return session ? this.mapToDomain(session) : null;
   }
 
@@ -125,44 +120,31 @@ export class SessionRepository implements ISessionRepository {
     updates: Partial<AuthSession>,
   ): Promise<AuthSession> {
     const updateData: any = {};
-
-    if (updates.isRevoked !== undefined) {
+    if (updates.isRevoked !== undefined)
       updateData.isRevoked = updates.isRevoked;
-    }
-    if (updates.revokedAt !== undefined) {
+    if (updates.revokedAt !== undefined)
       updateData.revokedAt = updates.revokedAt;
-    }
-    if (updates.expiresAt !== undefined) {
+    if (updates.expiresAt !== undefined)
       updateData.expiresAt = updates.expiresAt;
-    }
 
     const updatedSession = await this.prisma.session.update({
       where: { id: sessionId },
       data: updateData,
     });
-
     return this.mapToDomain(updatedSession);
   }
 
   async delete(sessionId: string): Promise<void> {
-    await this.prisma.session.delete({
-      where: { id: sessionId },
-    });
+    await this.prisma.session.delete({ where: { id: sessionId } });
   }
 
   async deleteAllByUserId(userId: string): Promise<void> {
-    await this.prisma.session.deleteMany({
-      where: { userId },
-    });
+    await this.prisma.session.deleteMany({ where: { userId } });
   }
 
   async deleteExpired(): Promise<void> {
     await this.prisma.session.deleteMany({
-      where: {
-        expiresAt: {
-          lte: new Date(),
-        },
-      },
+      where: { expiresAt: { lte: new Date() } },
     });
   }
 
@@ -170,11 +152,7 @@ export class SessionRepository implements ISessionRepository {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
-
-    if (!session) {
-      return false;
-    }
-
+    if (!session) return false;
     const domainSession = this.mapToDomain(session);
     return domainSession.isValid();
   }
@@ -186,37 +164,9 @@ export class SessionRepository implements ISessionRepository {
     });
   }
 
-  /**
-   * Map Prisma session to Domain Session entity
-   * Note: This requires refreshToken to be provided separately since it's not in Prisma schema
-   */
-  private mapToDomain(prismaSession: any, refreshToken?: Token): AuthSession {
-    // For sessions retrieved from database, we need to get the refresh token separately
-    // This is a limitation of the current schema design
-    const token = refreshToken || new Token('placeholder_token'); // This needs proper implementation
-
-    return AuthSession.fromPersistence({
-      id: prismaSession.id,
-      sessionId: prismaSession.sessionId,
-      userId: prismaSession.userId,
-      refreshToken: token,
-      ipAddress: prismaSession.ipAddress,
-      userAgent: prismaSession.userAgent,
-      isRevoked: prismaSession.isRevoked,
-      createdAt: prismaSession.createdAt,
-      expiresAt: prismaSession.expiresAt,
-      revokedAt: prismaSession.revokedAt || null,
-    });
-  }
-
   async deleteSessions(userId: string, sessionIds: string[]): Promise<void> {
     await this.prisma.session.deleteMany({
-      where: {
-        userId: userId,
-        id: {
-          in: sessionIds,
-        },
-      },
+      where: { userId, id: { in: sessionIds } },
     });
   }
 
@@ -225,15 +175,11 @@ export class SessionRepository implements ISessionRepository {
     userAgent: string,
   ): Promise<void> {
     await this.prisma.session.deleteMany({
-      where: {
-        userId: userId,
-        userAgent: userAgent,
-      },
+      where: { userId, userAgent },
     });
   }
 
   async getSessionFromRefreshToken(refreshToken: string): Promise<any> {
-    // Use the new sessionId hashing approach
     try {
       const sessionId = AuthSession.generateSessionId(refreshToken);
       const session = await this.findBySessionId(sessionId);
@@ -246,7 +192,7 @@ export class SessionRepository implements ISessionRepository {
         };
       }
 
-      // If session not found, try to decode refresh token for backward compatibility
+      // Backward compatibility: decode refresh token
       const tokenParts = refreshToken.split('.');
       if (tokenParts.length >= 2) {
         const payload = JSON.parse(
@@ -259,11 +205,7 @@ export class SessionRepository implements ISessionRepository {
         };
       }
 
-      return {
-        sessionId: sessionId,
-        userId: 'unknown',
-        isValid: false,
-      };
+      return { sessionId, userId: 'unknown', isValid: false };
     } catch (error) {
       console.error('Error getting session from refresh token:', error);
       return {
@@ -276,11 +218,9 @@ export class SessionRepository implements ISessionRepository {
 
   async verifyAndUpdateSession(refreshToken: string): Promise<any> {
     try {
-      // Use the new sessionId hashing approach
       const session = await this.findByRefreshToken(refreshToken);
 
       if (session && session.isValid()) {
-        // Update lastUsedAt timestamp
         await this.prisma.session.update({
           where: { sessionId: session.sessionId },
           data: { lastUsedAt: new Date() },
@@ -301,12 +241,8 @@ export class SessionRepository implements ISessionRepository {
   }
 
   async rotateRefreshToken(sessionId: string, userId: string): Promise<string> {
-    // Generate new refresh token
     const newRefreshToken = this.generateRefreshToken(userId, sessionId);
-
-    // Log rotation for audit
     console.log('Rotated refresh token for session:', sessionId);
-
     return newRefreshToken;
   }
 
@@ -320,6 +256,23 @@ export class SessionRepository implements ISessionRepository {
     return this.jwtService.sign(payload, {
       secret: JWT.REFRESH_SECRET || JWT.SECRET,
       expiresIn: JWT.REFRESH_EXPIRES_IN,
+    });
+  }
+
+  private mapToDomain(prismaSession: any, refreshToken?: Token): AuthSession {
+    const token = refreshToken || new Token('placeholder_token');
+
+    return AuthSession.fromPersistence({
+      id: prismaSession.id,
+      sessionId: prismaSession.sessionId,
+      userId: prismaSession.userId,
+      refreshToken: token,
+      ipAddress: prismaSession.ipAddress,
+      userAgent: prismaSession.userAgent,
+      isRevoked: prismaSession.isRevoked,
+      createdAt: prismaSession.createdAt,
+      expiresAt: prismaSession.expiresAt,
+      revokedAt: prismaSession.revokedAt || null,
     });
   }
 }

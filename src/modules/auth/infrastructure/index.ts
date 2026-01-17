@@ -1,20 +1,13 @@
 // Infrastructure Layer - External Concerns
-// Implementations for domain contracts and external service adapters
+// Clean Architecture: Persistence & Adapters
 
-// Repository Implementations
-export * from './repositories/authentication.repository';
-export * from './repositories/session.repository';
-export * from './repositories/token.repository';
-export * from './repositories/auth-user.repository';
+// Persistence Layer (Database)
+export * from './persistence';
 
-// Security Services
-export * from './security/bcrypt-password-hasher';
-export * from './security/jwt-token-generator';
+// Adapters Layer (External Services)
+export * from './adapters';
 
-// External Service Adapters
-export * from './services/mailer-email.service';
+// Security & Services
 export * from './services/verification-token.service';
 export * from './services/refresh-token-parser.service';
-
-// Adapter Interfaces
-export * from './adapters/token-generator.interface';
+export * from './security/jwt-token-generator';

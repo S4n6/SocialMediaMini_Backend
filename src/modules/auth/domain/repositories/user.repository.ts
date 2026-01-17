@@ -2,13 +2,20 @@ import { User } from '../entities/user.entity';
 
 /**
  * User Repository Interface - Domain Layer
- * Pure domain contract for user persistence operations
+ *
+ * Pure domain contract for user persistence operations.
+ * In Clean Architecture/DDD, the Repository mimics a collection of Aggregate Roots.
+ * We persist the full entity to ensure consistency and invariants.
  */
 export interface IUserRepository {
   /**
-   * Create new user
+   * Persist the User Aggregate Root.
+   * Handles both creation and updates based on entity state.
+   * The infrastructure layer determines whether to INSERT or UPDATE.
+   *
+   * @param user The full domain entity with validated state
    */
-  create(user: User): Promise<User>;
+  save(user: User): Promise<void>;
 
   /**
    * Find user by ID
@@ -26,27 +33,14 @@ export interface IUserRepository {
   findByGoogleId(googleId: string): Promise<User | null>;
 
   /**
-   * Update user
-   */
-  update(id: string, user: Partial<User>): Promise<User>;
-
-  /**
-   * Delete user
-   */
-  delete(id: string): Promise<void>;
-
-  /**
    * Check if user exists by email
    */
   existsByEmail(email: string): Promise<boolean>;
 
   /**
-   * Update user verification status
+   * Delete user by ID
+   * Note: In strict DDD, you might mark as deleted and save() instead,
+   * but explicit delete is common in practical implementations.
    */
-  updateVerificationStatus(id: string, isVerified: boolean): Promise<void>;
-
-  /**
-   * Update user password
-   */
-  updatePassword(id: string, hashedPassword: string): Promise<void>;
+  delete(id: string): Promise<void>;
 }
