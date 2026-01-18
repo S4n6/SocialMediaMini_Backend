@@ -84,7 +84,28 @@ export class CreateUserUseCase {
   }
 
   private mapToDto(user: User): UserDto {
-    const stats = user.getStats();
+    // Get stats - handle case where user isn't verified yet
+    let stats;
+    try {
+      stats = user.getStats();
+    } catch (error) {
+      // If getStats() throws (e.g., unverified user), provide safe defaults
+      stats = {
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        isProfileComplete: user.profile.isComplete(),
+        isEmailVerified: user.isEmailVerified,
+        isVerified: false,
+        isPopular: false,
+        isFresh: true,
+        accountAge: 0,
+        canCreatePost: false,
+        canComment: false,
+        canModerate: false,
+        hasReachedFollowingLimit: false,
+      };
+    }
+
     return {
       id: user.id,
       username: user.username,

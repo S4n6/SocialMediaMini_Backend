@@ -245,3 +245,533 @@ Some modules predate clean architecture (e.g., posts_old/, notification_old/). W
 6. Add event subscribers for side effects
 
 **Reference Implementation:** Compare `auth/` (clean) vs commented-out modules in app.module.ts
+
+## Testing Strategy
+
+### Testing Philosophy
+
+**Test Smart, Not Everything** - Focus on business value, not coverage metrics.
+
+**Priority Levels:**
+
+1. 🔴 **High Priority** - Must have tests (business-critical)
+2. 🟡 **Medium Priority** - Should have tests (complex logic)
+3. 🟢 **Low Priority** - Optional (simple/generated code)
+
+### What to Test by Layer
+
+#### 🔴 Domain Layer (High Priority)
+
+**ALWAYS test:**
+
+- ✅ Entities with business logic
+- ✅ Value objects with validation
+- ✅ Domain services with complex rules
+- ✅ Factories with creation logic
+- ✅ Domain events (structure validation)
+
+**SKIP:**
+
+- ❌ Simple getters/setters
+- ❌ Pure data classes with no logic
+- ❌ Trivial constructors
+
+**Example:**
+
+```typescript
+// ✅ TEST THIS - Has business logic
+class User {
+  follow(target: User): void {
+    if (this.hasReachedFollowingLimit()) throw new Error();
+    if (this.isFreshAccount() && this.followingCount >= 20) throw new Error();
+    // ... complex business rules
+  }
+}
+
+// ❌ DON'T TEST - Just getters
+class User {
+  get id(): string {
+    return this._id;
+  }
+  get email(): string {
+    return this._email;
+  }
+}
+```
+
+#### 🟡 Application Layer (Medium Priority)
+
+**ALWAYS test:**
+
+- ✅ Use cases with complex orchestration
+- ✅ Use cases calling multiple repositories
+- ✅ Use cases with branching logic
+- ✅ Subscribers with side effects
+
+**SKIP:**
+
+- ❌ Simple CRUD use cases (just save/find)
+- ❌ Thin wrapper use cases
+- ❌ DTOs with no transformation logic
+
+**Example:**
+
+```typescript
+// ✅ TEST THIS - Complex orchestration
+class CreateUserUseCase {
+  async execute(cmd: CreateUserCommand) {
+    // 1. Validate uniqueness
+    if (await this.repo.findByEmail(cmd.email)) throw new Error();
+    // 2. Create with factory
+    const user = await UserFactory.create(cmd);
+    // 3. Save
+    await this.repo.save(user);
+    // 4. Publish events
+    await this.eventBus.publishAll(user.getDomainEvents());
+    // Complex flow = needs testing
+  }
+}
+
+// ❌ DON'T TEST - Just delegates
+class GetUserUseCase {
+  async execute(id: string) {
+    return this.repo.findById(id); // Too simple
+  }
+}
+```
+
+#### 🟢 Infrastructure Layer (Low Priority)
+
+**TEST selectively:**
+
+- ✅ Mappers with complex transformations
+- ✅ Adapters with business logic
+- ✅ Custom repository methods (complex queries)
+
+**SKIP:**
+
+- ❌ Simple Prisma repository wrappers
+- ❌ Direct passthrough adapters
+- ❌ Configuration files
+
+#### 🟢 Presentation Layer (Low Priority)
+
+**TEST via E2E instead:**
+
+- ⚠️ Controllers (use E2E tests)
+- ⚠️ DTOs (validated by class-validator)
+- ⚠️ Mappers (simple transformations)
+
+### Test Types
+
+#### 1️⃣ Unit Tests (.spec.ts)
+
+**Purpose:** Test single unit in isolation with mocks
+
+**File Location:**
+
+```
+src/modules/[module]/
+├── domain/
+│   ├── entities/
+│   │   ├── user.entity.ts
+│   │   └── user.entity.spec.ts        ← Same folder
+│   ├── value-objects/
+│   │   ├── email.value-object.ts
+│   │   └── email.value-object.spec.ts ← Same folder
+├── application/
+│   └── use-cases/
+│       ├── create-user.use-case.ts
+│       └── create-user.use-case.spec.ts ← Same folder
+```
+
+**Naming:** `[filename].spec.ts` (next to source file)
+
+**What to Unit Test:**
+
+- ✅ Domain entities (business methods)
+- ✅ Value objects (validation)
+- ✅ Use cases (with mocked dependencies)
+- ✅ Factories (creation logic)
+- ✅ Domain events
+
+**Mocking Strategy:**
+
+```typescript
+// Mock repositories
+const mockUserRepo = {
+  save: jest.fn(),
+  findByEmail: jest.fn(),
+  findById: jest.fn(),
+};
+
+// Mock event bus
+const mockEventBus = {
+  publish: jest.fn(),
+  publishAll: jest.fn(),
+};
+
+// Test use case
+const useCase = new CreateUserUseCase(mockUserRepo, mockEventBus);
+```
+
+**Best Practices:**
+
+- Use `describe()` blocks for logical grouping
+- One assertion per test (or closely related assertions)
+- Arrange-Act-Assert pattern
+- Test both happy path AND edge cases
+- Mock external dependencies (repos, event bus, ports)
+
+**Example:**
+
+```typescript
+describe('User Entity', () => {
+  describe('follow', () => {
+    it('should follow another user successfully', () => {
+      // Arrange
+      const user = createTestUser();
+      const target = createTestUser({ id: 'other-id' });
+
+      // Act
+      user.follow(target.id, target.username);
+
+      // Assert
+      expect(user.isFollowing(target.id)).toBe(true);
+      expect(user.followingCount).toBe(1);
+    });
+
+    it('should throw when following self', () => {
+      const user = createTestUser();
+      expect(() => user.follow(user.id, user.username)).toThrow(
+        CannotFollowSelfException,
+      );
+    });
+  });
+});
+```
+
+#### 2️⃣ Integration Tests (.integration.spec.ts)
+
+**Purpose:** Test multiple layers working together with real dependencies
+
+**File Location:**
+
+```
+test/integration/
+├── users/
+│   ├── user-registration.integration.spec.ts
+│   ├── user-follow.integration.spec.ts
+│   └── user-profile-update.integration.spec.ts
+└── auth/
+    └── login-flow.integration.spec.ts
+```
+
+**Naming:** `[feature].integration.spec.ts` (in test/ folder)
+
+**What to Integration Test:**
+
+- ✅ Use case → Repository → Database (real Prisma)
+- ✅ Event emission → Subscriber execution
+- ✅ Cross-module interactions
+- ✅ Complex workflows (multi-step processes)
+
+**Setup Requirements:**
+
+```typescript
+// Use TestingModule from NestJS
+beforeEach(async () => {
+  const module: TestingModule = await Test.createTestingModule({
+    imports: [
+      UsersModule,
+      PrismaModule,
+      // Use in-memory/test database
+    ],
+  }).compile();
+
+  userService = module.get<UserApplicationService>(UserApplicationService);
+  prisma = module.get<PrismaService>(PrismaService);
+});
+
+afterEach(async () => {
+  // Clean up test data
+  await prisma.user.deleteMany();
+});
+```
+
+**Best Practices:**
+
+- Use separate test database (or in-memory SQLite)
+- Clean up data after each test
+- Test real database interactions
+- Test event-driven flows
+- Mock only external APIs (email, payment, etc.)
+
+**Example:**
+
+```typescript
+describe('User Registration Integration', () => {
+  it('should create user and emit domain event', async () => {
+    // Arrange
+    const command = {
+      username: 'johndoe',
+      email: 'john@example.com',
+      password: 'SecurePass123!',
+      fullName: 'John Doe',
+    };
+
+    // Act
+    const result = await userService.createUser(command);
+
+    // Assert - Check database
+    const savedUser = await prisma.user.findUnique({
+      where: { id: result.id },
+    });
+    expect(savedUser).toBeDefined();
+    expect(savedUser.email).toBe('john@example.com');
+
+    // Assert - Check event was published
+    // (use event listener mock to verify)
+  });
+});
+```
+
+#### 3️⃣ E2E Tests (.e2e-spec.ts)
+
+**Purpose:** Test full HTTP request/response cycle
+
+**File Location:**
+
+```
+test/e2e/
+├── auth.e2e-spec.ts
+├── users.e2e-spec.ts
+├── posts.e2e-spec.ts
+└── follow.e2e-spec.ts
+```
+
+**Naming:** `[module].e2e-spec.ts` (in test/e2e/ folder)
+
+**What to E2E Test:**
+
+- ✅ API endpoints (controllers)
+- ✅ Authentication/authorization flows
+- ✅ Complete user journeys
+- ✅ Error responses (400, 401, 404, 500)
+
+**Setup:**
+
+```typescript
+describe('Users API (e2e)', () => {
+  let app: INestApplication;
+  let authToken: string;
+
+  beforeAll(async () => {
+    const moduleFixture = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(async () => {
+    // Login and get token
+    const response = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'test@example.com', password: 'Test123!' });
+    authToken = response.body.data.accessToken;
+  });
+});
+```
+
+**Best Practices:**
+
+- Use `supertest` for HTTP requests
+- Test authentication headers
+- Test request validation (DTO errors)
+- Test pagination/filtering
+- Use realistic data
+- Test error responses
+
+**Example:**
+
+```typescript
+describe('POST /users', () => {
+  it('should create new user', () => {
+    return request(app.getHttpServer())
+      .post('/users')
+      .send({
+        username: 'newuser',
+        email: 'new@example.com',
+        password: 'SecurePass123!',
+        fullName: 'New User',
+      })
+      .expect(201)
+      .expect((res) => {
+        expect(res.body.data).toHaveProperty('id');
+        expect(res.body.data.email).toBe('new@example.com');
+        expect(res.body.message).toBe('User created successfully');
+      });
+  });
+
+  it('should return 400 for invalid email', () => {
+    return request(app.getHttpServer())
+      .post('/users')
+      .send({
+        username: 'newuser',
+        email: 'invalid-email',
+        password: 'SecurePass123!',
+      })
+      .expect(400)
+      .expect((res) => {
+        expect(res.body.message).toContain('email');
+      });
+  });
+
+  it('should return 401 without auth token', () => {
+    return request(app.getHttpServer()).get('/users/me').expect(401);
+  });
+});
+```
+
+### Test Coverage Guidelines
+
+**Target Coverage (by layer):**
+
+- Domain Layer: 80-90% (high value)
+- Application Layer: 60-70% (use cases only)
+- Infrastructure Layer: 30-40% (complex mappers only)
+- Presentation Layer: 20-30% (via E2E tests)
+
+**Don't Chase 100% Coverage** - Focus on critical paths and business logic.
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run only unit tests
+npm test -- --testPathPattern=".spec.ts$"
+
+# Run only integration tests
+npm test -- --testPathPattern=".integration.spec.ts$"
+
+# Run only e2e tests
+npm run test:e2e
+
+# Run specific module tests
+npm test -- users/domain
+
+# Run with coverage
+npm test -- --coverage
+
+# Watch mode
+npm test -- --watch
+```
+
+### Test File Organization
+
+```
+src/modules/users/
+├── domain/
+│   ├── entities/
+│   │   ├── user.entity.ts
+│   │   └── user.entity.spec.ts          ← Unit test
+│   └── value-objects/
+│       ├── email.value-object.ts
+│       └── email.value-object.spec.ts   ← Unit test
+├── application/
+│   └── use-cases/
+│       ├── create-user.use-case.ts
+│       └── create-user.use-case.spec.ts ← Unit test (with mocks)
+test/
+├── integration/
+│   └── users/
+│       ├── user-registration.integration.spec.ts
+│       └── user-follow.integration.spec.ts
+└── e2e/
+    └── users.e2e-spec.ts
+```
+
+### Common Testing Patterns
+
+#### Pattern 1: Test Factory Functions
+
+```typescript
+// Create reusable test helpers
+function createTestUser(overrides?: Partial<UserOptions>): User {
+  return new User(
+    'test-id',
+    'testuser',
+    'test@example.com',
+    createTestProfile(),
+    {
+      passwordHash: 'hashed',
+      status: UserStatus.ACTIVE,
+      ...overrides,
+    },
+  );
+}
+```
+
+#### Pattern 2: Mock Repository
+
+```typescript
+const mockRepo: jest.Mocked<IUserRepository> = {
+  save: jest.fn(),
+  findById: jest.fn(),
+  findByEmail: jest.fn(),
+  delete: jest.fn(),
+};
+```
+
+#### Pattern 3: Test Domain Events
+
+```typescript
+it('should emit UserRegisteredEvent', () => {
+  const user = new User('id', 'user', 'email@test.com', profile);
+
+  const events = user.getDomainEvents();
+  expect(events).toHaveLength(1);
+  expect(events[0]).toBeInstanceOf(UserRegisteredEvent);
+  expect(events[0].eventName).toBe('user.registered');
+});
+```
+
+#### Pattern 4: Test Exceptions
+
+```typescript
+it('should throw ValidationException for invalid email', () => {
+  expect(() => UserEmail.create('invalid')).toThrow(ValidationException);
+
+  expect(() => UserEmail.create('invalid')).toThrow('Invalid email format');
+});
+```
+
+### When to Write Tests
+
+**During Development:**
+
+- Write tests for new features alongside code
+- Test-first for complex business logic
+- Refactor with test safety net
+
+**During Refactoring:**
+
+- Add tests before refactoring legacy code
+- Ensure existing behavior doesn't break
+- Document expected behavior via tests
+
+**Priority Order:**
+
+1. Domain entities with business rules
+2. Critical use cases (user registration, payment)
+3. Value objects with validation
+4. Complex mappers/transformations
+5. E2E for critical user journeys
