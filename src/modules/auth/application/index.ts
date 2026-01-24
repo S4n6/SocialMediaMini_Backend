@@ -1,14 +1,11 @@
 // Application Layer exports
 export * from './dto/auth-use-case.dto';
 
-// Application Ports (Interfaces for External Services)
-export * from './ports';
-
 // Application Services
-export { AuthApplicationService } from './auth-application.service';
+export { AuthApplicationService } from './services/auth.service';
 
-// Subscribers (Event Handlers)
-export * from './subscribers';
+// Legacy services (to be removed gradually)
+export { AuthApplicationService as LegacyAuthApplicationService } from './auth-application.service';
 
 // Use Cases
 export * from './use-cases/base.use-case';

@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { RefreshTokenRequest } from './auth.dtos';
 import { TokenRefreshResult } from '../../domain/entities';
-import { ITokenService } from '../ports/i-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 
 @Injectable()
@@ -12,7 +12,7 @@ export class RefreshTokenUseCase extends BaseUseCase<
 > {
   constructor(
     @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenService: ITokenService, // Use interface with DI token
+    private tokenService: ITokenRepository, // Use interface with DI token
   ) {
     super();
   }

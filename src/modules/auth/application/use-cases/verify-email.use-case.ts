@@ -4,11 +4,9 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseUseCase } from './base.use-case';
 import { VerifyEmailRequest } from './auth.dtos';
 import { EmailVerificationResult } from '../../domain/entities';
-import { UserEmailVerifiedEvent } from '../../domain/events';
 import * as bcrypt from 'bcrypt';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
@@ -21,7 +19,6 @@ export class VerifyEmailUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
-    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -88,17 +85,9 @@ export class VerifyEmailUseCase extends BaseUseCase<
         hashedPassword,
       );
       await this.userApplicationService.verifyEmail(user.id);
-
-      // Emit domain event
-      const verifiedEvent = new UserEmailVerifiedEvent(user.id, user.email);
-      this.eventEmitter.emit('user.email_verified', verifiedEvent);
     } else {
       // Just verify email without setting password
       await this.userApplicationService.verifyEmail(user.id);
-
-      // Emit domain event
-      const verifiedEvent = new UserEmailVerifiedEvent(user.id, user.email);
-      this.eventEmitter.emit('user.email_verified', verifiedEvent);
     }
 
     return {
