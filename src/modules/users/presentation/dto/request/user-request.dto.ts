@@ -236,29 +236,3 @@ export class SearchUsersRequestDto {
   @Transform(({ value }) => parseInt(value))
   limit?: number = 20;
 }
-
-/**
- * Request DTO for getting followers/following
- */
-export class GetFollowersRequestDto {
-  @ApiPropertyOptional({
-    description: 'Page number',
-    minimum: 1,
-    default: 1,
-    example: 1,
-  })
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    description: 'Items per page',
-    minimum: 1,
-    maximum: 50,
-    default: 20,
-    example: 20,
-  })
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  limit?: number = 20;
-}

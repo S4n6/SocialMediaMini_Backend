@@ -8,7 +8,7 @@ import {
 } from '../../domain';
 import { IEventBus } from '../../../../infrastructure/events';
 import { CreateUserCommand, UserDto } from '../dto/application.dto';
-import { DomainEventAdapter } from '../adapters/event.adapter';
+import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
 import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 
 /**
@@ -84,7 +84,28 @@ export class CreateUserUseCase {
   }
 
   private mapToDto(user: User): UserDto {
-    const stats = user.getStats();
+    // Get stats - handle case where user isn't verified yet
+    let stats;
+    try {
+      stats = user.getStats();
+    } catch (error) {
+      // If getStats() throws (e.g., unverified user), provide safe defaults
+      stats = {
+        followersCount: user.followersCount,
+        followingCount: user.followingCount,
+        isProfileComplete: user.profile.isComplete(),
+        isEmailVerified: user.isEmailVerified,
+        isVerified: false,
+        isPopular: false,
+        isFresh: true,
+        accountAge: 0,
+        canCreatePost: false,
+        canComment: false,
+        canModerate: false,
+        hasReachedFollowingLimit: false,
+      };
+    }
+
     return {
       id: user.id,
       username: user.username,

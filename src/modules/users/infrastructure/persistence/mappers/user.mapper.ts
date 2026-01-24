@@ -1,5 +1,5 @@
-import { User } from '../../domain/entities/user.entity';
-import { UserDto, UserListDto } from '../dto/application.dto';
+import { User } from '../../../domain/entities/user.entity';
+import { UserDto, UserListDto } from '../../../application/dto/application.dto';
 
 /**
  * Application Layer Mappers

@@ -56,6 +56,7 @@ export class UserFactory {
     }
 
     // Create user with proper encapsulation
+    // DON'T set createdAt - let entity constructor do it and emit UserRegisteredEvent
     const user = new User(
       userId.getValue(),
       username.getValue(),
@@ -66,8 +67,8 @@ export class UserFactory {
         role: request.role || UserRole.USER,
         status: UserStatus.ACTIVE,
         isEmailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // createdAt: undefined - let entity handle this
+        // updatedAt: undefined - let entity handle this
       },
     );
 
@@ -103,8 +104,8 @@ export class UserFactory {
         status: UserStatus.ACTIVE,
         isEmailVerified: true, // Google accounts are pre-verified
         emailVerifiedAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        // createdAt: undefined - let entity handle this
+        // updatedAt: undefined - let entity handle this
       },
     );
 

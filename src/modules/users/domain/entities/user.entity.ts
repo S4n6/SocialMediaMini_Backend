@@ -2,15 +2,10 @@ import { Entity } from './entity.base';
 import { UserProfile } from '../value-objects/user-profile.value-object';
 import {
   UserRegisteredEvent,
-  UserFollowedEvent,
-  UserUnfollowedEvent,
   UserProfileUpdatedEvent,
   UserEmailVerifiedEvent,
 } from '../events/user.events';
 import {
-  CannotFollowSelfException,
-  AlreadyFollowingUserException,
-  NotFollowingUserException,
   UserAccountInactiveException,
   EmailNotVerifiedException,
   ProfileUpdateTooFrequentException,
@@ -181,67 +176,17 @@ export class User extends Entity<string> {
   }
 
   /**
-   * Follow another user
-   */
-  public follow(targetUserId: string, targetUsername: string): void {
-    this.canPerformAction(true); // Require email verification
-
-    if (targetUserId === this._id) {
-      throw new CannotFollowSelfException();
-    }
-
-    if (this._followingIds.has(targetUserId)) {
-      throw new AlreadyFollowingUserException(targetUsername);
-    }
-
-    this._followingIds.add(targetUserId);
-    this._updatedAt = new Date();
-
-    this.addDomainEvent(new UserFollowedEvent(this._id, targetUserId));
-  }
-
-  /**
-   * Unfollow a user
-   */
-  public unfollow(targetUserId: string, targetUsername: string): void {
-    this.canPerformAction();
-
-    if (!this._followingIds.has(targetUserId)) {
-      throw new NotFollowingUserException(targetUsername);
-    }
-
-    this._followingIds.delete(targetUserId);
-    this._updatedAt = new Date();
-
-    this.addDomainEvent(new UserUnfollowedEvent(this._id, targetUserId));
-  }
-
-  /**
-   * Check if this user is following another user
+   * Check if this user is following another user (read-only)
    */
   public isFollowing(userId: string): boolean {
     return this._followingIds.has(userId);
   }
 
   /**
-   * Check if this user is followed by another user
+   * Check if this user is followed by another user (read-only)
    */
   public isFollowedBy(userId: string): boolean {
     return this._followerIds.has(userId);
-  }
-
-  /**
-   * Add a follower (called when someone follows this user)
-   */
-  public addFollower(followerId: string): void {
-    this._followerIds.add(followerId);
-  }
-
-  /**
-   * Remove a follower (called when someone unfollows this user)
-   */
-  public removeFollower(followerId: string): void {
-    this._followerIds.delete(followerId);
   }
 
   /**
@@ -396,58 +341,7 @@ export class User extends Entity<string> {
     return mutual;
   }
 
-  /**
-   * Enhanced follow method with business rules
-   */
-  public followUser(targetUser: User): void {
-    this.canPerformAction(true); // Require email verification
-
-    if (targetUser.id === this._id) {
-      throw new CannotFollowSelfException();
-    }
-
-    if (this._followingIds.has(targetUser.id)) {
-      throw new AlreadyFollowingUserException(targetUser.username);
-    }
-
-    if (this.hasReachedFollowingLimit()) {
-      throw new DomainException('Following limit reached');
-    }
-
-    // Business rule: Fresh accounts can only follow 20 users per day
-    if (this.isFreshAccount() && this._followingIds.size >= 20) {
-      throw new DomainException(
-        'New accounts are limited to 20 follows per day',
-      );
-    }
-
-    this._followingIds.add(targetUser.id);
-    targetUser.addFollower(this._id);
-    this._updatedAt = new Date();
-
-    this.addDomainEvent(new UserFollowedEvent(this._id, targetUser.id));
-  }
-
-  /**
-   * Enhanced unfollow method
-   */
-  public unfollowUser(targetUser: User): void {
-    this.canPerformAction();
-
-    if (!this._followingIds.has(targetUser.id)) {
-      throw new NotFollowingUserException(targetUser.username);
-    }
-
-    this._followingIds.delete(targetUser.id);
-    targetUser.removeFollower(this._id);
-    this._updatedAt = new Date();
-
-    this.addDomainEvent(new UserUnfollowedEvent(this._id, targetUser.id));
-  }
-
-  /**
-   * Update user password
-   */
+  /**\n   * Update user password\n   */
   public updatePassword(hashedPassword: string): void {
     if (!hashedPassword || hashedPassword.length === 0) {
       throw new DomainException('Password hash cannot be empty');

@@ -57,32 +57,6 @@ export class SearchUsersQuery {
 }
 
 /**
- * DTO for getting user followers/following
- */
-export class GetFollowersQuery {
-  userId: string;
-  page: number;
-  limit: number;
-  requesterId?: string;
-}
-
-/**
- * DTO for follow user operation
- */
-export class FollowUserCommand {
-  followerId: string;
-  followeeId: string;
-}
-
-/**
- * DTO for unfollow user operation
- */
-export class UnfollowUserCommand {
-  followerId: string;
-  followeeId: string;
-}
-
-/**
  * DTO for verify email operation
  */
 export class VerifyEmailCommand {
@@ -146,13 +120,4 @@ export class UserSearchResultDto {
   hasMore: boolean;
   page: number;
   limit: number;
-}
-
-/**
- * Followers/Following results DTO
- */
-export class UserFollowListDto {
-  users: UserListDto[];
-  total: number;
-  hasMore: boolean;
 }

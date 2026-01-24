@@ -3,7 +3,7 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
 import { User } from '../../domain';
 import { IUserRepository } from '../../domain/repositories';
 import { IEventBus } from '../../../../infrastructure/events';
-import { DomainEventAdapter } from '../adapters/event.adapter';
+import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 
 /**

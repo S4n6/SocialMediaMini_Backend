@@ -13,6 +13,11 @@ export class RateLimitMiddleware implements NestMiddleware {
   private store: RateLimitStore = {};
 
   use(req: Request, res: Response, next: NextFunction) {
+    // Skip rate limiting in test environment
+    if (process.env.NODE_ENV === 'test') {
+      return next();
+    }
+
     const clientIp = this.getClientIp(req);
     const route = req.route?.path || req.path;
     const method = req.method;

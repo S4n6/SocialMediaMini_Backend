@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
+import { PrismaService } from '../../../../../database/prisma.service';
 import {
   IUserRepository,
   User,
@@ -9,7 +9,7 @@ import {
   Username,
   UserRole,
   UserStatus,
-} from '../domain';
+} from '../../../domain';
 
 /**
  * Prisma implementation of UserRepository
@@ -45,9 +45,19 @@ export class UserPrismaRepository implements IUserRepository {
 
   private safeDate(v: unknown): Date {
     if (v instanceof Date) return v;
+    if (v === null || v === undefined) return new Date(); // Return current date for required fields
     const s = this.safeString(v);
     const d = new Date(s);
     return isNaN(d.getTime()) ? new Date() : d;
+  }
+
+  // For optional date fields, return undefined if null/undefined
+  private safeDateOrUndefined(v: unknown): Date | undefined {
+    if (v === null || v === undefined) return undefined;
+    if (v instanceof Date) return v;
+    const s = this.safeString(v);
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? undefined : d;
   }
 
   private safeStringArray(v: unknown): string[] {
@@ -216,170 +226,16 @@ export class UserPrismaRepository implements IUserRepository {
     };
   }
 
-  async getFollowers(
-    userId: string,
-    page: number,
-    limit: number,
-  ): Promise<{
-    followers: User[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const offset = (page - 1) * limit;
-    const userIdVO = UserId.create(userId);
-    const [followData, total] = await Promise.all([
-      this.prisma.follow.findMany({
-        where: { followingId: userIdVO.getValue() },
-        include: {
-          follower: {
-            include: {
-              followers: { select: { followerId: true } },
-              following: { select: { followingId: true } },
-            },
-          },
-        },
-        skip: offset,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.follow.count({
-        where: { followingId: userIdVO.getValue() },
-      }),
-    ]);
-
-    return {
-      followers: followData.map((follow) =>
-        this.mapToDomainModel(follow.follower),
-      ),
-      total,
-      hasMore: page * limit < total,
-    };
-  }
-
-  async getFollowing(
-    userId: string,
-    page: number,
-    limit: number,
-  ): Promise<{
-    following: User[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    const offset = (page - 1) * limit;
-    const userIdVO = UserId.create(userId);
-    const [followData, total] = await Promise.all([
-      this.prisma.follow.findMany({
-        where: { followerId: userIdVO.getValue() },
-        include: {
-          following: {
-            include: {
-              followers: { select: { followerId: true } },
-              following: { select: { followingId: true } },
-            },
-          },
-        },
-        skip: offset,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.follow.count({
-        where: { followerId: userIdVO.getValue() },
-      }),
-    ]);
-
-    return {
-      following: followData.map((follow) =>
-        this.mapToDomainModel(follow.following),
-      ),
-      total,
-      hasMore: page * limit < total,
-    };
-  }
-
-  async getMutualFollowers(userId1: UserId, userId2: UserId): Promise<User[]> {
-    // Get users who follow both user1 and user2
-    const mutualFollowsData = await this.prisma.user.findMany({
-      where: {
-        following: {
-          some: {
-            followingId: {
-              in: [userId1.getValue(), userId2.getValue()],
-            },
-          },
-        },
-      },
-      include: {
-        followers: { select: { followerId: true } },
-        following: { select: { followingId: true } },
-      },
-    });
-
-    return mutualFollowsData.map((userData) => this.mapToDomainModel(userData));
-  }
-
-  async getUserStats(userId: UserId): Promise<{
-    followersCount: number;
-    followingCount: number;
-    postsCount: number;
-  }> {
-    const [followersCount, followingCount, postsCount] = await Promise.all([
-      this.prisma.follow.count({
-        where: { followingId: userId.getValue() },
-      }),
-      this.prisma.follow.count({
-        where: { followerId: userId.getValue() },
-      }),
-      this.prisma.post.count({
-        where: { authorId: userId.getValue() },
-      }),
-    ]);
-
-    return {
-      followersCount,
-      followingCount,
-      postsCount,
-    };
-  }
-
-  async updateFollowRelationship(
-    followerId: UserId,
-    followeeId: UserId,
-    isFollowing: boolean,
-  ): Promise<void> {
-    if (isFollowing) {
-      await this.prisma.follow.upsert({
-        where: {
-          followerId_followingId: {
-            followerId: followerId.getValue(),
-            followingId: followeeId.getValue(),
-          },
-        },
-        update: {},
-        create: {
-          followerId: followerId.getValue(),
-          followingId: followeeId.getValue(),
-        },
-      });
-    } else {
-      await this.prisma.follow.deleteMany({
-        where: {
-          followerId: followerId.getValue(),
-          followingId: followeeId.getValue(),
-        },
-      });
-    }
-  }
-
   private mapToDomainModel(userData: any): User {
     const row = this.asRecord(userData);
 
     const profile = {
-      fullName: this.safeString(row.fullName),
+      fullName: this.safeString(row.fullName) || 'Unknown User', // Ensure non-empty fullName
       bio: this.safeString(row.bio) || undefined,
       avatar: this.safeString(row.avatar) || undefined,
       location: this.safeString(row.location) || undefined,
       websiteUrl: this.safeString(row.websiteUrl) || undefined,
-      dateOfBirth: this.safeDate(row.dateOfBirth),
+      dateOfBirth: this.safeDateOrUndefined(row.dateOfBirth), // Optional date
       phoneNumber: this.safeString(row.phoneNumber) || undefined,
       gender: this.safeString(row.gender) || undefined,
     };
@@ -416,10 +272,10 @@ export class UserPrismaRepository implements IUserRepository {
       role,
       status,
       isEmailVerified: this.safeBool(row.isEmailVerified),
-      emailVerifiedAt: this.safeDate(row.emailVerifiedAt),
+      emailVerifiedAt: this.safeDateOrUndefined(row.emailVerifiedAt), // Optional
       createdAt: this.safeDate(row.createdAt),
       updatedAt: this.safeDate(row.updatedAt),
-      lastProfileUpdate: this.safeDate(row.lastProfileUpdate),
+      lastProfileUpdate: this.safeDateOrUndefined(row.lastProfileUpdate), // Optional - CRITICAL FIX
       profile,
       followingIds: following,
       followerIds: followers,

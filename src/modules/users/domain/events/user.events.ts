@@ -22,42 +22,6 @@ export class UserRegisteredEvent implements IDomainEvent {
 }
 
 /**
- * Event raised when a user follows another user
- */
-export class UserFollowedEvent implements IDomainEvent {
-  public readonly aggregateId: string;
-  public readonly occurredOn: Date;
-  public readonly eventName: string;
-
-  constructor(
-    public readonly followerId: string,
-    public readonly followeeId: string,
-  ) {
-    this.aggregateId = followerId;
-    this.occurredOn = new Date();
-    this.eventName = 'user.followed';
-  }
-}
-
-/**
- * Event raised when a user unfollows another user
- */
-export class UserUnfollowedEvent implements IDomainEvent {
-  public readonly aggregateId: string;
-  public readonly occurredOn: Date;
-  public readonly eventName: string;
-
-  constructor(
-    public readonly followerId: string,
-    public readonly followeeId: string,
-  ) {
-    this.aggregateId = followerId;
-    this.occurredOn = new Date();
-    this.eventName = 'user.unfollowed';
-  }
-}
-
-/**
  * Event raised when user profile is updated
  */
 export class UserProfileUpdatedEvent implements IDomainEvent {

@@ -28,33 +28,6 @@ export interface IUserRepository {
   verifyEmail(userId: string): Promise<void>;
   updateLastVerificationSentAt(userId: string, timestamp: Date): Promise<void>;
 
-  // User relationships
-  getFollowers(
-    userId: string,
-    page: number,
-    limit: number,
-  ): Promise<{
-    followers: User[];
-    total: number;
-    hasMore: boolean;
-  }>;
-
-  getFollowing(
-    userId: string,
-    page: number,
-    limit: number,
-  ): Promise<{
-    following: User[];
-    total: number;
-    hasMore: boolean;
-  }>;
-
-  updateFollowRelationship(
-    followerId: any,
-    followeeId: any,
-    isFollowing: boolean,
-  ): Promise<void>;
-
   // Search operations
   searchUsers(
     query: string,

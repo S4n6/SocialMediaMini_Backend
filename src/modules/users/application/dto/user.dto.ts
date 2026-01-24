@@ -222,16 +222,3 @@ export class SearchUsersDto {
   @Transform(({ value }) => parseInt(value))
   limit?: number = 20;
 }
-
-/**
- * DTO for getting user followers/following
- */
-export class GetFollowersDto {
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  page?: number = 1;
-
-  @IsOptional()
-  @Transform(({ value }) => parseInt(value))
-  limit?: number = 20;
-}

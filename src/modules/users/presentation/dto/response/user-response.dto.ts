@@ -261,33 +261,6 @@ export class UserListResponseDto {
 }
 
 /**
- * Response DTO for followers/following lists
- */
-export class FollowersResponseDto {
-  @ApiProperty({
-    description: 'List of followers/following',
-    type: [UserListItemResponseDto],
-  })
-  users: UserListItemResponseDto[];
-
-  @ApiProperty({
-    description: 'Total count',
-    example: 150,
-  })
-  total: number;
-
-  @ApiProperty({
-    description: 'Whether there are more pages',
-    example: true,
-  })
-  hasMore: boolean;
-
-  constructor(partial: Partial<FollowersResponseDto>) {
-    Object.assign(this, partial);
-  }
-}
-
-/**
  * Standard API success response wrapper
  */
 export class ApiSuccessResponseDto<T = any> {

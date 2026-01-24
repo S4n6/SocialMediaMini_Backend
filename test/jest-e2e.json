@@ -5,5 +5,11 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "setupFilesAfterEnv": ["<rootDir>/setup-e2e.ts"],
+  "collectCoverageFrom": ["**/*.(t|j)s"],
+  "coverageDirectory": "../coverage-e2e",
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1"
   }
 }

@@ -1,4 +1,10 @@
-// Presentation Layer - Controllers and DTOs
+// Presentation Layer - HTTP/REST Interface
+
+// Controllers
+export * from './controllers';
+
+// DTOs (Request/Response)
 export * from './dto';
-export * from './users.controller';
+
+// Mappers (Domain to Presentation)
 export * from './mappers/presentation.mapper';
