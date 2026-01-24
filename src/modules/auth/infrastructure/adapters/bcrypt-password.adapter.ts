@@ -4,11 +4,11 @@ import { Password } from '../../domain/value-objects/password.vo';
 import * as bcrypt from 'bcrypt';
 
 /**
- * Bcrypt Password Hasher Implementation
+ * Bcrypt Password Hasher Adapter
  * Implements IPasswordHasherService using bcrypt library
  */
 @Injectable()
-export class BcryptPasswordHasher implements IPasswordHasherService {
+export class BcryptPasswordAdapter implements IPasswordHasherService {
   private readonly saltRounds = 12;
 
   async hash(password: Password): Promise<string> {
@@ -20,12 +20,12 @@ export class BcryptPasswordHasher implements IPasswordHasherService {
     try {
       return await bcrypt.compare(password.value, hash);
     } catch (error) {
-      // Log error if needed
+      console.error('Error verifying password:', error);
       return false;
     }
   }
 
-  async generateSalt(): Promise<string> {
+  private async generateSalt(): Promise<string> {
     return bcrypt.genSalt(this.saltRounds);
   }
 }

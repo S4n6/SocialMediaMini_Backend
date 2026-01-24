@@ -4,11 +4,13 @@ import {
   ForbiddenException,
   Inject,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseUseCase } from './base.use-case';
 import { LoginRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
+import { UserLoggedInEvent } from '../../domain/events';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository';
-import { ITokenRepository } from '../../domain/repositories/token.repository';
+import { ITokenService } from '../ports/i-token.service';
 import { ISessionRepository } from '../../domain/repositories/session.repository';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
@@ -25,7 +27,8 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     @Inject(SESSION_REPOSITORY_TOKEN)
     private sessionService: ISessionRepository, // Use interface with DI token
     @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenService: ITokenRepository, // Use interface with DI token
+    private tokenService: ITokenService, // Use interface with DI token
+    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -91,6 +94,15 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     const sessionInfo = await this.sessionService.getSessionFromRefreshToken(
       tokens.refreshToken,
     );
+
+    // Emit domain event
+    const loggedInEvent = new UserLoggedInEvent(
+      user.id,
+      user.email,
+      ipAddress,
+      userAgent,
+    );
+    this.eventEmitter.emit('user.logged_in', loggedInEvent);
 
     return {
       success: true,

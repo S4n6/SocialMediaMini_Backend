@@ -11,18 +11,15 @@ import {
   EMAIL_SENDER_TOKEN,
 } from './auth.constants';
 
-// Application Layer
-import { AuthApplicationService } from './application/services/auth.service';
+// Infrastructure Layer - Persistence (Repositories)
+import { SessionRepository } from './infrastructure/persistence/repositories/session.repository';
+import { UserRepository } from './infrastructure/persistence/repositories/user.repository';
+import { UserMapper } from './infrastructure/persistence/mappers/user.mapper';
 
-// Infrastructure Layer - Repository Implementations
-import { SessionRepository } from './infrastructure/repositories/session.repository';
-import { TokenRepository } from './infrastructure/repositories/token.repository';
-import { AuthUserRepository } from './infrastructure/repositories/auth-user.repository';
-
-// Infrastructure Layer - Service Implementations
-import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
+// Infrastructure Layer - Adapters (External Services)
+import { BcryptPasswordAdapter } from './infrastructure/adapters/bcrypt-password.adapter';
 import { JwtTokenGenerator } from './infrastructure/security/jwt-token-generator';
-import { MailerEmailSender } from './infrastructure/services/mailer-email.service';
+import { MailerEmailAdapter } from './infrastructure/adapters/mailer-email.adapter';
 
 // Presentation Layer
 import { AuthController } from './presentation/auth.controller';
@@ -39,10 +36,18 @@ import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-cas
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { ResendVerificationUseCase } from './application/use-cases/resend-verification.use-case';
-import { AuthenticationService } from './infrastructure/repositories/authentication.repository';
 import { VerificationTokenService } from './infrastructure/services/verification-token.service';
 import { JwtStrategy } from './presentation/strategies/Jwt.strategy';
 import { GoogleStrategy } from './presentation/strategies/google.strategy';
+
+// Subscribers
+import {
+  UserRegisteredSubscriber,
+  UserEmailVerifiedSubscriber,
+  PasswordChangedSubscriber,
+  UserLoggedInSubscriber,
+} from './application/subscribers';
+
 import { UsersModule } from '../users/users.module';
 import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
@@ -65,25 +70,21 @@ import { PrismaModule } from '../../database/prisma.module';
   ],
   controllers: [AuthController],
   providers: [
-    // Application
-    AuthApplicationService,
+    // Persistence - Mappers
+    UserMapper,
 
-    // Repositories
+    // Persistence - Repositories
     {
       provide: SESSION_REPOSITORY_TOKEN,
       useClass: SessionRepository,
     },
-    {
-      provide: TOKEN_REPOSITORY_TOKEN,
-      useClass: TokenRepository,
-    },
-    // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
-    AuthUserRepository,
+    // Note: UserRepository is provided for Auth domain
+    UserRepository,
 
-    // Services
+    // Adapters - External Services
     {
       provide: PASSWORD_HASHER_TOKEN,
-      useClass: BcryptPasswordHasher,
+      useClass: BcryptPasswordAdapter,
     },
     {
       provide: TOKEN_GENERATOR_TOKEN,
@@ -91,7 +92,11 @@ import { PrismaModule } from '../../database/prisma.module';
     },
     {
       provide: EMAIL_SENDER_TOKEN,
-      useClass: MailerEmailSender,
+      useClass: MailerEmailAdapter,
+    },
+    {
+      provide: TOKEN_REPOSITORY_TOKEN,
+      useClass: VerificationTokenService,
     },
 
     // Legacy/Compatibility
@@ -112,16 +117,17 @@ import { PrismaModule } from '../../database/prisma.module';
     ResendVerificationUseCase,
 
     // Legacy infra
-    AuthenticationService,
-    {
-      provide: 'AUTHENTICATION_SERVICE',
-      useExisting: AuthenticationService,
-    },
     VerificationTokenService,
 
     // Presentation
     JwtStrategy,
     GoogleStrategy,
+
+    // Event Subscribers
+    UserRegisteredSubscriber,
+    UserEmailVerifiedSubscriber,
+    PasswordChangedSubscriber,
+    UserLoggedInSubscriber,
 
     // Compatibility token
     {
@@ -130,20 +136,17 @@ import { PrismaModule } from '../../database/prisma.module';
     },
   ],
   exports: [
-    // New Clean Architecture Exports
-    AuthApplicationService,
+    // Clean Architecture Exports
     SESSION_REPOSITORY_TOKEN,
-    TOKEN_REPOSITORY_TOKEN,
     PASSWORD_HASHER_TOKEN,
     TOKEN_GENERATOR_TOKEN,
     EMAIL_SENDER_TOKEN,
-    AuthUserRepository, // Export the adapter itself
+    UserRepository, // Export the persistence repository
+    UserMapper, // Export mapper for cross-module use
 
     // Legacy Exports (for backward compatibility)
     'LEGACY_AUTH_APPLICATION_SERVICE',
     'TOKEN_GENERATOR',
-    'AUTHENTICATION_SERVICE',
-    // Removed: PassportAuthAdapter (file was deleted)
   ],
 })
 export class AuthModule {}

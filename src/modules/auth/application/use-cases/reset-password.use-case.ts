@@ -5,9 +5,11 @@ import {
   UnauthorizedException,
   Inject,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseUseCase } from './base.use-case';
 import { ResetPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
+import { PasswordChangedEvent } from '../../domain/events';
 import * as bcrypt from 'bcrypt';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
@@ -20,6 +22,7 @@ export class ResetPasswordUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
+    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -70,6 +73,10 @@ export class ResetPasswordUseCase extends BaseUseCase<
       user.id,
       hashedPassword,
     );
+
+    // Emit domain event
+    const passwordChangedEvent = new PasswordChangedEvent(user.id, user.email);
+    this.eventEmitter.emit('password.changed', passwordChangedEvent);
 
     return {
       success: true,

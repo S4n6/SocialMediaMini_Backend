@@ -5,7 +5,7 @@ import { LoginResult } from '../../domain/entities';
 import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository';
-import { ITokenRepository } from '../../domain/repositories/token.repository';
+import { ITokenService } from '../ports/i-token.service';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import {
   UserEmail,
@@ -25,7 +25,7 @@ export class GoogleAuthUseCase extends BaseUseCase<
     @Inject(USER_REPOSITORY_TOKEN)
     private userRepository: IUserRepository,
     @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenRepository: ITokenRepository,
+    private tokenRepository: ITokenService,
   ) {
     super();
   }

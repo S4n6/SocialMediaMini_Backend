@@ -4,11 +4,11 @@ import { Email } from '../../domain/value-objects/email.vo';
 import { MailerService } from '../../../mailer/mailer.service';
 
 /**
- * Mailer Email Sender Implementation
+ * Mailer Email Adapter
  * Implements IEmailService using MailerService
  */
 @Injectable()
-export class MailerEmailSender implements IEmailService {
+export class MailerEmailAdapter implements IEmailService {
   constructor(
     @Inject()
     private readonly mailerService: MailerService,
@@ -16,8 +16,8 @@ export class MailerEmailSender implements IEmailService {
 
   async sendVerificationEmail(
     to: Email,
-    userName: string,
     verificationToken: string,
+    userName: string,
   ): Promise<void> {
     console.log(
       'Sending verification email to:',
@@ -45,9 +45,8 @@ export class MailerEmailSender implements IEmailService {
   }
 
   async sendWelcomeEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
-    // For now, we'll just log it
     console.log(`Welcome email would be sent to ${to.value} for ${userName}`);
+    // TODO: Implement in MailerService
   }
 
   async sendLoginNotificationEmail(
@@ -56,23 +55,16 @@ export class MailerEmailSender implements IEmailService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<void> {
-    // This would need to be implemented in MailerService
     console.log(
-      `Login notification would be sent to ${to.value} for ${userName}`,
+      `Login notification would be sent to ${to.value} for ${userName} from ${ipAddress}`,
     );
+    // TODO: Implement in MailerService
   }
 
   async sendPasswordChangedEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
     console.log(
       `Password changed notification would be sent to ${to.value} for ${userName}`,
     );
-  }
-
-  async sendAccountLockedEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
-    console.log(
-      `Account locked notification would be sent to ${to.value} for ${userName}`,
-    );
+    // TODO: Implement in MailerService
   }
 }

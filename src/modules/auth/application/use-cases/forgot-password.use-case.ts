@@ -9,7 +9,7 @@ import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
-import { IEmailSender } from '../../domain/repositories/email-sender.repository';
+import { IEmailService } from '../ports/i-email.service';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
 
@@ -24,7 +24,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
-    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
+    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailService,
   ) {
     super();
   }
