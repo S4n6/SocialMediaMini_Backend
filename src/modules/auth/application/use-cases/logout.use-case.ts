@@ -3,7 +3,7 @@ import { BaseUseCase } from './base.use-case';
 import { LogoutRequest } from './auth.dtos';
 import { AuthResult } from '../../domain/entities';
 import { ISessionRepository } from '../../domain/repositories/session.repository';
-import { ITokenService } from '../ports/i-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 // import { IRefreshTokenParser } from '../../domain/repositories/IRefreshTokenParser';
 import { Inject } from '@nestjs/common';
 // Avoid importing tokens from auth.module to prevent circular dependency

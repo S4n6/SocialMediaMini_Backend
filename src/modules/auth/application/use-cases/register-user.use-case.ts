@@ -4,11 +4,9 @@ import {
   BadRequestException,
   Inject,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BaseUseCase } from './base.use-case';
 import { RegisterUserRequest } from './auth.dtos';
 import { RegisterResult } from '../../domain/entities';
-import { UserRegisteredEvent } from '../../domain/events';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { MailerService } from '../../../mailer/mailer.service';
 import { IUserRepository } from 'src/modules/users/domain/repositories/user.repository';
@@ -17,10 +15,10 @@ import { console } from 'inspector';
 import { UserRole } from 'src/modules/users/domain';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
-import { ITokenService } from '../ports/i-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
-import { IEmailService } from '../ports/i-email.service';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { Email } from '../../domain';
 
 @Injectable()
@@ -32,12 +30,11 @@ export class RegisterUserUseCase extends BaseUseCase<
     @Inject(USER_REPOSITORY_TOKEN)
     private userRepository: IUserRepository,
     @Inject(EMAIL_SENDER_TOKEN)
-    private mailerService: IEmailService,
+    private mailerService: IEmailSender,
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
     @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenRepository: ITokenService,
-    private eventEmitter: EventEmitter2,
+    private tokenRepository: ITokenRepository,
   ) {
     super();
   }
@@ -79,15 +76,6 @@ export class RegisterUserUseCase extends BaseUseCase<
 
     // Save user first to get the actual user ID
     await this.userRepository.save(newUser);
-
-    // Emit domain event
-    const registeredEvent = new UserRegisteredEvent(
-      newUser.id,
-      newUser.email,
-      newUser.username,
-      newUser.profile.fullName,
-    );
-    this.eventEmitter.emit('user.registered', registeredEvent);
 
     // Generate JWT verification token with actual user ID
     // Generate verification token via TokenRepository (non-persistent token)

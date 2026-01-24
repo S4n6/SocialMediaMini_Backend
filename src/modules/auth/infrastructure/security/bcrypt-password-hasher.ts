@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { IPasswordHasherService } from '../../application/ports/i-password-hasher.service';
+import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
 import { Password } from '../../domain/value-objects/password.vo';
 import * as bcrypt from 'bcrypt';
 
 /**
  * Bcrypt Password Hasher Implementation
- * Implements IPasswordHasherService using bcrypt library
+ * Implements IPasswordHasher using bcrypt library
  */
 @Injectable()
-export class BcryptPasswordHasher implements IPasswordHasherService {
+export class BcryptPasswordHasher implements IPasswordHasher {
   private readonly saltRounds = 12;
 
   async hash(password: Password): Promise<string> {

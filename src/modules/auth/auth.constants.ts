@@ -2,15 +2,15 @@
  * Dependency Injection Tokens for Clean Architecture Auth Module
  */
 
-// Domain Repository Tokens
+// Repository Interface Tokens
 export const SESSION_REPOSITORY_TOKEN = 'SESSION_REPOSITORY';
+export const TOKEN_REPOSITORY_TOKEN = 'TOKEN_REPOSITORY';
 export const USER_REPOSITORY_TOKEN = 'USER_REPOSITORY';
 
-// Application Port Tokens (External Services)
-export const TOKEN_REPOSITORY_TOKEN = 'TOKEN_REPOSITORY'; // ITokenService
-export const PASSWORD_HASHER_TOKEN = 'PASSWORD_HASHER'; // IPasswordHasherService
-export const EMAIL_SENDER_TOKEN = 'EMAIL_SENDER'; // IEmailService
+// Domain Service Interface Tokens
+export const PASSWORD_HASHER_TOKEN = 'PASSWORD_HASHER';
 export const TOKEN_GENERATOR_TOKEN = 'TOKEN_GENERATOR';
+export const EMAIL_SENDER_TOKEN = 'EMAIL_SENDER';
 
 // Legacy Tokens (for backward compatibility)
 export const LEGACY_AUTH_APPLICATION_SERVICE_TOKEN =

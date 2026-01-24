@@ -8,9 +8,9 @@ import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
-import { ITokenService } from '../ports/i-token.service';
+import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
-import { IEmailService } from '../ports/i-email.service';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
 
@@ -25,8 +25,8 @@ export class ResendVerificationUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
-    @Inject(TOKEN_REPOSITORY_TOKEN) private tokenRepository: ITokenService,
-    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailService,
+    @Inject(TOKEN_REPOSITORY_TOKEN) private tokenRepository: ITokenRepository,
+    @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
   }

@@ -1,14 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { IEmailService } from '../../application/ports/i-email.service';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { Email } from '../../domain/value-objects/email.vo';
 import { MailerService } from '../../../mailer/mailer.service';
 
 /**
  * Mailer Email Sender Implementation
- * Implements IEmailService using MailerService
+ * Implements IEmailSender using MailerService
  */
 @Injectable()
-export class MailerEmailSender implements IEmailService {
+export class MailerEmailSender implements IEmailSender {
   constructor(
     @Inject()
     private readonly mailerService: MailerService,
