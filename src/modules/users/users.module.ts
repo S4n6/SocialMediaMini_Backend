@@ -1,3 +1,24 @@
+/**
+ * Users Module
+ *
+ * Handles user identity, authentication, and profile management following Clean Architecture principles.
+ *
+ * Responsibilities:
+ * - User registration and authentication
+ * - Profile management (create, read, update)
+ * - Email verification
+ * - User search
+ * - Read-only follow counts (followersCount, followingCount)
+ *
+ * Architecture:
+ * - Domain Layer: User entity with business logic, value objects, domain events
+ * - Application Layer: Use cases, DTOs, application services
+ * - Infrastructure Layer: Prisma repositories, adapters
+ * - Presentation Layer: REST controllers, request/response DTOs
+ *
+ * Note: Follow/unfollow operations are handled by the Follow module.
+ */
+
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 import { IEventBus, InMemoryEventBus } from '../../infrastructure/events';
@@ -10,14 +31,8 @@ import { CreateUserUseCase } from './application/use-cases/create-user.use-case'
 import { UpdateProfileUseCase } from './application/use-cases/update-profile.use-case';
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 import {
-  FollowUserUseCase,
-  UnfollowUserUseCase,
-} from './application/use-cases/follow-user.use-case';
-import {
   GetUserProfileUseCase,
   SearchUsersUseCase,
-  GetUserFollowersUseCase,
-  GetUserFollowingUseCase,
 } from './application/use-cases/get-user.use-case';
 import {
   FindUserByCredentialsUseCase,
@@ -71,15 +86,9 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
     UpdateProfileUseCase,
     VerifyEmailUseCase,
 
-    // Application Layer - Use Cases (Follow Management)
-    FollowUserUseCase,
-    UnfollowUserUseCase,
-
     // Application Layer - Use Cases (Queries)
     GetUserProfileUseCase,
     SearchUsersUseCase,
-    GetUserFollowersUseCase,
-    GetUserFollowingUseCase,
 
     // Application Layer - Use Cases (Auth Integration)
     FindUserByCredentialsUseCase,

@@ -3,14 +3,8 @@ import { CreateUserUseCase } from './use-cases/create-user.use-case';
 import { UpdateProfileUseCase } from './use-cases/update-profile.use-case';
 import { VerifyEmailUseCase } from './use-cases/verify-email.use-case';
 import {
-  FollowUserUseCase,
-  UnfollowUserUseCase,
-} from './use-cases/follow-user.use-case';
-import {
   GetUserProfileUseCase,
   SearchUsersUseCase,
-  GetUserFollowersUseCase,
-  GetUserFollowingUseCase,
 } from './use-cases/get-user.use-case';
 
 // Auth integration use cases
@@ -32,13 +26,9 @@ import {
   CreateUserCommand,
   UpdateProfileCommand,
   SearchUsersQuery,
-  GetFollowersQuery,
   VerifyEmailCommand,
-  FollowUserCommand,
-  UnfollowUserCommand,
   UserDto,
   UserSearchResultDto,
-  UserFollowListDto,
 } from './dto/application.dto';
 
 /**
@@ -56,15 +46,9 @@ export class UserApplicationService {
     private readonly updateProfileUseCase: UpdateProfileUseCase,
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
 
-    // Follow management use cases
-    private readonly followUserUseCase: FollowUserUseCase,
-    private readonly unfollowUserUseCase: UnfollowUserUseCase,
-
     // User retrieval use cases
     private readonly getUserProfileUseCase: GetUserProfileUseCase,
     private readonly searchUsersUseCase: SearchUsersUseCase,
-    private readonly getUserFollowersUseCase: GetUserFollowersUseCase,
-    private readonly getUserFollowingUseCase: GetUserFollowingUseCase,
 
     // Auth integration use cases
     private readonly findUserByCredentialsUseCase: FindUserByCredentialsUseCase,
@@ -120,22 +104,6 @@ export class UserApplicationService {
     return this.verifyEmailUseCase.execute(userId);
   }
 
-  // ===== FOLLOW MANAGEMENT =====
-
-  async followUser(command: FollowUserCommand): Promise<void> {
-    return this.followUserUseCase.execute(
-      command.followerId,
-      command.followeeId,
-    );
-  }
-
-  async unfollowUser(command: UnfollowUserCommand): Promise<void> {
-    return this.unfollowUserUseCase.execute(
-      command.followerId,
-      command.followeeId,
-    );
-  }
-
   // ===== USER RETRIEVAL =====
 
   async getUserProfile(userId: string, requesterId?: string): Promise<UserDto> {
@@ -171,50 +139,6 @@ export class UserApplicationService {
       hasMore: result.hasMore,
       page: result.page,
       limit: result.limit,
-    };
-  }
-
-  async getUserFollowers(query: GetFollowersQuery): Promise<UserFollowListDto> {
-    const result = await this.getUserFollowersUseCase.execute(
-      query.userId,
-      { page: query.page, limit: query.limit } as any,
-      query.requesterId,
-    );
-
-    return {
-      users: result.followers.map((user) => ({
-        id: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        avatar: user.avatar,
-        bio: user.bio,
-        followersCount: user.followersCount,
-        isFollowing: user.isFollowing,
-      })),
-      total: result.total,
-      hasMore: result.hasMore,
-    };
-  }
-
-  async getUserFollowing(query: GetFollowersQuery): Promise<UserFollowListDto> {
-    const result = await this.getUserFollowingUseCase.execute(
-      query.userId,
-      { page: query.page, limit: query.limit } as any,
-      query.requesterId,
-    );
-
-    return {
-      users: result.following.map((user) => ({
-        id: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        avatar: user.avatar,
-        bio: user.bio,
-        followersCount: user.followersCount,
-        isFollowing: user.isFollowing,
-      })),
-      total: result.total,
-      hasMore: result.hasMore,
     };
   }
 

@@ -1,9 +1,6 @@
 import { User, UserRole, UserStatus } from './user.entity';
 import { UserProfile } from '../value-objects/user-profile.value-object';
 import {
-  CannotFollowSelfException,
-  AlreadyFollowingUserException,
-  NotFollowingUserException,
   UserAccountInactiveException,
   EmailNotVerifiedException,
   ProfileUpdateTooFrequentException,
@@ -136,82 +133,6 @@ describe('User Entity', () => {
       const anotherProfile = new UserProfile({ fullName: 'Another Name' });
       expect(() => user.updateProfile(anotherProfile)).toThrow(
         ProfileUpdateTooFrequentException,
-      );
-    });
-  });
-
-  describe('follow functionality', () => {
-    it('should follow another user successfully', () => {
-      const user = createTestUser({ id: 'user-1' });
-      const otherUser = createTestUser({ id: 'user-2', username: 'janedoe' });
-
-      user.follow(otherUser.id, otherUser.username);
-
-      expect(user.followingCount).toBe(1);
-      expect(user.isFollowing('user-2')).toBe(true);
-
-      const events = user.getDomainEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('user.followed');
-    });
-
-    it('should throw error when trying to follow self', () => {
-      const user = createTestUser({ id: 'user-1' });
-
-      expect(() => user.follow(user.id, user.username)).toThrow(
-        CannotFollowSelfException,
-      );
-    });
-
-    it('should throw error when already following', () => {
-      const user = createTestUser({ id: 'user-1' });
-      const otherUser = createTestUser({ id: 'user-2', username: 'janedoe' });
-
-      user.follow(otherUser.id, otherUser.username);
-      user.clearDomainEvents();
-
-      expect(() => user.follow(otherUser.id, otherUser.username)).toThrow(
-        AlreadyFollowingUserException,
-      );
-    });
-
-    it('should throw error when account is inactive', () => {
-      const user = createTestUser({
-        id: 'user-1',
-        status: UserStatus.INACTIVE,
-      });
-      const otherUser = createTestUser({ id: 'user-2', username: 'janedoe' });
-
-      expect(() => user.follow(otherUser.id, otherUser.username)).toThrow(
-        UserAccountInactiveException,
-      );
-    });
-  });
-
-  describe('unfollow functionality', () => {
-    it('should unfollow user successfully', () => {
-      const user = createTestUser({ id: 'user-1' });
-      const otherUser = createTestUser({ id: 'user-2', username: 'janedoe' });
-
-      user.follow(otherUser.id, otherUser.username);
-      user.clearDomainEvents();
-
-      user.unfollow(otherUser.id, otherUser.username);
-
-      expect(user.followingCount).toBe(0);
-      expect(user.isFollowing('user-2')).toBe(false);
-
-      const events = user.getDomainEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0].eventName).toBe('user.unfollowed');
-    });
-
-    it('should throw error when not following user', () => {
-      const user = createTestUser({ id: 'user-1' });
-      const otherUser = createTestUser({ id: 'user-2', username: 'janedoe' });
-
-      expect(() => user.unfollow(otherUser.id, otherUser.username)).toThrow(
-        NotFollowingUserException,
       );
     });
   });

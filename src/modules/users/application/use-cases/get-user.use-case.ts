@@ -7,7 +7,6 @@ import {
   UserProfileResponseDto,
   UserListItemDto,
   SearchUsersDto,
-  GetFollowersDto,
 } from '../dto/user.dto';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 
@@ -148,130 +147,6 @@ export class SearchUsersUseCase {
       hasMore,
       page: dto.page || 1,
       limit: dto.limit || 20,
-    };
-  }
-}
-
-/**
- * Use case for getting user followers
- */
-@Injectable()
-export class GetUserFollowersUseCase {
-  private readonly logger = new Logger(GetUserFollowersUseCase.name);
-
-  constructor(
-    @Inject(USER_REPOSITORY_TOKEN)
-    private readonly userRepository: IUserRepository,
-  ) {}
-
-  async execute(
-    userId: string,
-    dto: GetFollowersDto,
-    requesterId?: string,
-  ): Promise<{
-    followers: UserListItemDto[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    this.logger.log(`Getting followers for user: ${userId}`);
-
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new EntityNotFoundException('User', userId);
-    }
-
-    const { followers, total, hasMore } =
-      await this.userRepository.getFollowers(
-        userId,
-        dto.page || 1,
-        dto.limit || 20,
-      );
-
-    // Convert to DTOs
-    const followerDtos = followers.map((follower) => {
-      let isFollowing: boolean | undefined;
-      if (requesterId && follower.id !== requesterId) {
-        isFollowing = follower.isFollowedBy(requesterId);
-      }
-
-      return new UserListItemDto({
-        id: follower.id,
-        username: follower.username,
-        fullName: follower.profile.fullName,
-        avatar: follower.profile.avatar,
-        bio: follower.profile.bio,
-        followersCount: follower.followersCount,
-        isFollowing,
-      });
-    });
-
-    return {
-      followers: followerDtos,
-      total,
-      hasMore,
-    };
-  }
-}
-
-/**
- * Use case for getting users that current user is following
- */
-@Injectable()
-export class GetUserFollowingUseCase {
-  private readonly logger = new Logger(GetUserFollowingUseCase.name);
-
-  constructor(
-    @Inject(USER_REPOSITORY_TOKEN)
-    private readonly userRepository: IUserRepository,
-  ) {}
-
-  async execute(
-    userId: string,
-    dto: GetFollowersDto,
-    requesterId?: string,
-  ): Promise<{
-    following: UserListItemDto[];
-    total: number;
-    hasMore: boolean;
-  }> {
-    this.logger.log(`Getting following for user: ${userId}`);
-
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new EntityNotFoundException('User', userId);
-    }
-
-    const { following, total, hasMore } =
-      await this.userRepository.getFollowing(
-        userId,
-        dto.page || 1,
-        dto.limit || 20,
-      );
-
-    // Convert to DTOs
-    const followingDtos = following.map((followedUser) => {
-      let isFollowing: boolean | undefined;
-      if (requesterId && followedUser.id !== requesterId) {
-        isFollowing = followedUser.isFollowedBy(requesterId);
-      }
-
-      return new UserListItemDto({
-        id: followedUser.id,
-        username: followedUser.username,
-        fullName: followedUser.profile.fullName,
-        avatar: followedUser.profile.avatar,
-        bio: followedUser.profile.bio,
-        followersCount: followedUser.followersCount,
-        isFollowing,
-      });
-    });
-
-    return {
-      following: followingDtos,
-      total,
-      hasMore,
     };
   }
 }

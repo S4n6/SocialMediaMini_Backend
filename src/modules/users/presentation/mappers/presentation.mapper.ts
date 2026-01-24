@@ -2,24 +2,18 @@ import {
   CreateUserRequestDto,
   UpdateProfileRequestDto,
   SearchUsersRequestDto,
-  GetFollowersRequestDto,
   UserResponseDto,
   UserProfileResponseDto,
   UserListResponseDto,
-  FollowersResponseDto,
   ApiSuccessResponseDto,
 } from '../dto';
 import {
   CreateUserCommand,
   UpdateProfileCommand,
   SearchUsersQuery,
-  GetFollowersQuery,
-  FollowUserCommand,
-  UnfollowUserCommand,
   VerifyEmailCommand,
   UserDto,
   UserSearchResultDto,
-  UserFollowListDto,
 } from '../../application/dto/application.dto';
 
 /**
@@ -81,22 +75,6 @@ export class PresentationMapper {
   ): SearchUsersQuery {
     return {
       query: requestDto.query,
-      page: requestDto.page || 1,
-      limit: requestDto.limit || 20,
-      requesterId,
-    };
-  }
-
-  /**
-   * Convert GetFollowersRequestDto to GetFollowersQuery
-   */
-  static toGetFollowersQuery(
-    requestDto: GetFollowersRequestDto,
-    userId: string,
-    requesterId?: string,
-  ): GetFollowersQuery {
-    return {
-      userId,
       page: requestDto.page || 1,
       limit: requestDto.limit || 20,
       requesterId,
@@ -179,53 +157,6 @@ export class PresentationMapper {
       hasMore: searchResult.hasMore,
       page: searchResult.page,
       limit: searchResult.limit,
-    };
-  }
-
-  /**
-   * Convert UserFollowListDto to FollowersResponseDto
-   */
-  static toFollowersResponseDto(
-    followList: UserFollowListDto,
-  ): FollowersResponseDto {
-    return {
-      users: followList.users.map((user) => ({
-        id: user.id,
-        username: user.username,
-        fullName: user.fullName,
-        avatar: user.avatar,
-        bio: user.bio,
-        followersCount: user.followersCount,
-        isFollowing: user.isFollowing,
-      })),
-      total: followList.total,
-      hasMore: followList.hasMore,
-    };
-  }
-
-  /**
-   * Create FollowUserCommand
-   */
-  static toFollowUserCommand(
-    followerId: string,
-    targetUserId: string,
-  ): FollowUserCommand {
-    return {
-      followerId,
-      followeeId: targetUserId,
-    };
-  }
-
-  /**
-   * Create UnfollowUserCommand
-   */
-  static toUnfollowUserCommand(
-    followerId: string,
-    targetUserId: string,
-  ): UnfollowUserCommand {
-    return {
-      followerId,
-      followeeId: targetUserId,
     };
   }
 

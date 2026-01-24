@@ -22,36 +22,6 @@ export class EntityAlreadyExistsException extends DomainException {
 }
 
 /**
- * Exception thrown when user tries to follow themselves
- */
-export class CannotFollowSelfException extends BusinessRuleException {
-  constructor() {
-    super('User cannot follow themselves', 'CANNOT_FOLLOW_SELF');
-  }
-}
-
-/**
- * Exception thrown when user tries to follow someone they already follow
- */
-export class AlreadyFollowingUserException extends BusinessRuleException {
-  constructor(followeeUsername: string) {
-    super(
-      `Already following user ${followeeUsername}`,
-      'ALREADY_FOLLOWING_USER',
-    );
-  }
-}
-
-/**
- * Exception thrown when user tries to unfollow someone they don't follow
- */
-export class NotFollowingUserException extends BusinessRuleException {
-  constructor(followeeUsername: string) {
-    super(`Not following user ${followeeUsername}`, 'NOT_FOLLOWING_USER');
-  }
-}
-
-/**
  * Exception thrown when username is already taken
  */
 export class UsernameAlreadyExistsException extends EntityAlreadyExistsException {

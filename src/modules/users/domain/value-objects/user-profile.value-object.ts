@@ -78,13 +78,17 @@ export class UserProfile extends ValueObject<UserProfileProps> {
   protected validateInvariants(props: UserProfileProps): void {
     const errors: Record<string, string[]> = {};
 
-    // Validate full name
-    if (!props.fullName || props.fullName.trim().length === 0) {
-      errors.fullName = ['Full name is required'];
-    } else if (props.fullName.length < 2) {
-      errors.fullName = ['Full name must be at least 2 characters'];
-    } else if (props.fullName.length > 100) {
-      errors.fullName = ['Full name cannot exceed 100 characters'];
+    // Validate full name - allow empty string during reconstruction (DB may have legacy data)
+    // But ensure if provided, it meets requirements
+    if (props.fullName !== undefined && props.fullName !== null) {
+      const trimmed = props.fullName.trim();
+      if (trimmed.length > 0) {
+        if (trimmed.length < 2) {
+          errors.fullName = ['Full name must be at least 2 characters'];
+        } else if (props.fullName.length > 100) {
+          errors.fullName = ['Full name cannot exceed 100 characters'];
+        }
+      }
     }
 
     // Validate bio

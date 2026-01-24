@@ -1,7 +1,5 @@
 import {
   UserRegisteredEvent,
-  UserFollowedEvent,
-  UserUnfollowedEvent,
   UserProfileUpdatedEvent,
   UserEmailVerifiedEvent,
 } from './user.events';
@@ -45,30 +43,6 @@ describe('Domain Events', () => {
         before.getTime(),
       );
       expect(event.occurredOn.getTime()).toBeLessThanOrEqual(after.getTime());
-    });
-  });
-
-  describe('UserFollowedEvent', () => {
-    it('should create event with follower and followee IDs', () => {
-      const event = new UserFollowedEvent('follower-123', 'followee-456');
-
-      expect(event.eventName).toBe('user.followed');
-      expect(event.aggregateId).toBe('follower-123');
-      expect(event.followerId).toBe('follower-123');
-      expect(event.followeeId).toBe('followee-456');
-      expect(event.occurredOn).toBeInstanceOf(Date);
-    });
-  });
-
-  describe('UserUnfollowedEvent', () => {
-    it('should create event with follower and followee IDs', () => {
-      const event = new UserUnfollowedEvent('follower-123', 'followee-456');
-
-      expect(event.eventName).toBe('user.unfollowed');
-      expect(event.aggregateId).toBe('follower-123');
-      expect(event.followerId).toBe('follower-123');
-      expect(event.followeeId).toBe('followee-456');
-      expect(event.occurredOn).toBeInstanceOf(Date);
     });
   });
 

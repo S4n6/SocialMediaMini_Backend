@@ -12,6 +12,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,11 +31,9 @@ import {
   CreateUserRequestDto,
   UpdateProfileRequestDto,
   SearchUsersRequestDto,
-  GetFollowersRequestDto,
   UserResponseDto,
   UserProfileResponseDto,
   UserListResponseDto,
-  FollowersResponseDto,
   ApiSuccessResponseDto,
 } from '../dto';
 import { PresentationMapper } from '../mappers/presentation.mapper';
@@ -67,19 +66,32 @@ export class UsersController {
   async create(
     @Body(ValidationPipe) createUserDto: CreateUserRequestDto,
   ): Promise<ApiSuccessResponseDto<UserResponseDto>> {
-    // Convert presentation DTO to application command
-    const appCommand = PresentationMapper.toCreateUserCommand(createUserDto);
+    try {
+      // Convert presentation DTO to application command
+      const appCommand = PresentationMapper.toCreateUserCommand(createUserDto);
 
-    // Execute use case
-    const appResult = await this.userApplicationService.createUser(appCommand);
+      // Execute use case
+      const appResult =
+        await this.userApplicationService.createUser(appCommand);
 
-    // Convert application result to presentation DTO
-    const result = PresentationMapper.toUserResponseDto(appResult);
+      // Convert application result to presentation DTO
+      const result = PresentationMapper.toUserResponseDto(appResult);
 
-    return PresentationMapper.toApiSuccessResponse(
-      result,
-      'User created successfully',
-    );
+      return PresentationMapper.toApiSuccessResponse(
+        result,
+        'User created successfully',
+      );
+    } catch (error) {
+      // Convert domain exceptions to HTTP exceptions
+      if (
+        error.message.includes('already exists') ||
+        error.message.includes('Invalid') ||
+        error.message.includes('must be')
+      ) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 
   @Get('search')
@@ -179,127 +191,8 @@ export class UsersController {
     );
   }
 
-  @Post(':id/follow')
-  @ApiOperation({ summary: 'Follow a user' })
-  @ApiParam({ name: 'id', type: String, description: 'User ID to follow' })
-  @SwaggerResponse({
-    status: 200,
-    description: 'User followed successfully',
-    type: ApiSuccessResponseDto,
-  })
-  async followUser(
-    @Param('id', ParseUUIDPipe) targetUserId: string,
-  ): Promise<ApiSuccessResponseDto<null>> {
-    // Note: In real implementation, follower ID would come from JWT token
-    const followerId = 'current-user-id'; // This should come from auth context
-
-    // Execute use case
-    const command = PresentationMapper.toFollowUserCommand(
-      followerId,
-      targetUserId,
-    );
-    await this.userApplicationService.followUser(command);
-
-    return new ApiSuccessResponseDto(null, 'User followed successfully');
-  }
-
-  @Post(':id/unfollow')
-  @ApiOperation({ summary: 'Unfollow a user' })
-  @ApiParam({ name: 'id', type: String, description: 'User ID to unfollow' })
-  @SwaggerResponse({
-    status: 200,
-    description: 'User unfollowed successfully',
-    type: ApiSuccessResponseDto,
-  })
-  async unfollowUser(
-    @Param('id', ParseUUIDPipe) targetUserId: string,
-  ): Promise<ApiSuccessResponseDto<null>> {
-    // Note: In real implementation, follower ID would come from JWT token
-    const followerId = 'current-user-id'; // This should come from auth context
-
-    // Execute use case
-    const command = PresentationMapper.toUnfollowUserCommand(
-      followerId,
-      targetUserId,
-    );
-    await this.userApplicationService.unfollowUser(command);
-
-    return new ApiSuccessResponseDto(null, 'User unfollowed successfully');
-  }
-
-  @Get(':id/followers')
-  @ApiOperation({ summary: 'Get user followers' })
-  @ApiParam({ name: 'id', type: String, description: 'User ID' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @SwaggerResponse({
-    status: 200,
-    description: 'Followers retrieved successfully',
-    type: ApiSuccessResponseDto,
-  })
-  async getFollowers(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-  ): Promise<ApiSuccessResponseDto<FollowersResponseDto>> {
-    // Create request DTO
-    const requestDto = new GetFollowersRequestDto();
-    requestDto.page = page;
-    requestDto.limit = limit;
-
-    // Convert to application query
-    const appQuery = PresentationMapper.toGetFollowersQuery(requestDto, userId);
-
-    // Execute use case
-    const appResult =
-      await this.userApplicationService.getUserFollowers(appQuery);
-
-    // Convert application result to presentation DTO
-    const result = PresentationMapper.toFollowersResponseDto(appResult);
-
-    return PresentationMapper.toApiSuccessResponse(
-      result,
-      'Followers retrieved successfully',
-    );
-  }
-
-  @Get(':id/following')
-  @ApiOperation({ summary: 'Get users that this user is following' })
-  @ApiParam({ name: 'id', type: String, description: 'User ID' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @SwaggerResponse({
-    status: 200,
-    description: 'Following list retrieved successfully',
-    type: ApiSuccessResponseDto,
-  })
-  async getFollowing(
-    @Param('id', ParseUUIDPipe) userId: string,
-    @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
-  ): Promise<ApiSuccessResponseDto<FollowersResponseDto>> {
-    // Create request DTO
-    const requestDto = new GetFollowersRequestDto();
-    requestDto.page = page;
-    requestDto.limit = limit;
-
-    // Convert to application query
-    const appQuery = PresentationMapper.toGetFollowersQuery(requestDto, userId);
-
-    // Execute use case
-    const appResult =
-      await this.userApplicationService.getUserFollowing(appQuery);
-
-    // Convert application result to presentation DTO
-    const result = PresentationMapper.toFollowersResponseDto(appResult);
-
-    return PresentationMapper.toApiSuccessResponse(
-      result,
-      'Following list retrieved successfully',
-    );
-  }
-
   @Post(':id/verify-email')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify user email' })
   @ApiParam({ name: 'id', type: String, description: 'User ID' })
   @SwaggerResponse({
