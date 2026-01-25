@@ -109,3 +109,62 @@ export class TokenRevokedException extends AuthDomainException {
     super(`${tokenType} token has been revoked`);
   }
 }
+
+/**
+ * Validation Domain Exceptions
+ */
+export class InvalidCredentialsException extends AuthDomainException {
+  readonly code = 'INVALID_CREDENTIALS';
+
+  constructor() {
+    super('Invalid credentials');
+  }
+}
+
+export class EmailNotVerifiedException extends AuthDomainException {
+  readonly code = 'EMAIL_NOT_VERIFIED';
+
+  constructor(message?: string) {
+    super(message || 'Email is not verified');
+  }
+}
+
+export class EmailAlreadyVerifiedException extends AuthDomainException {
+  readonly code = 'EMAIL_ALREADY_VERIFIED';
+
+  constructor() {
+    super('Email is already verified');
+  }
+}
+
+export class UsernameAlreadyTakenException extends AuthDomainException {
+  readonly code = 'USERNAME_ALREADY_TAKEN';
+
+  constructor(username: string) {
+    super(`Username '${username}' is already taken`);
+  }
+}
+
+export class PasswordMismatchException extends AuthDomainException {
+  readonly code = 'PASSWORD_MISMATCH';
+
+  constructor() {
+    super('Passwords do not match');
+  }
+}
+
+export class RateLimitExceededException extends AuthDomainException {
+  readonly code = 'RATE_LIMIT_EXCEEDED';
+
+  constructor(message: string) {
+    super(message);
+  }
+}
+
+export class InvalidValidationException extends AuthDomainException {
+  readonly code = 'INVALID_VALIDATION';
+
+  constructor(message: string) {
+    super(message);
+  }
+}

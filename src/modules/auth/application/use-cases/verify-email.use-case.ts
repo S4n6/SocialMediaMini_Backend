@@ -1,15 +1,17 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { VerifyEmailRequest } from './auth.dtos';
 import { EmailVerificationResult } from '../../domain/entities';
-import * as bcrypt from 'bcrypt';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { Password } from '../../domain/value-objects/password.vo';
+import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
+import { PASSWORD_HASHER_TOKEN } from '../../auth.constants';
+import {
+  UserNotFoundException,
+  InvalidTokenException,
+  EmailAlreadyVerifiedException,
+} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class VerifyEmailUseCase extends BaseUseCase<
@@ -19,6 +21,8 @@ export class VerifyEmailUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
+    @Inject(PASSWORD_HASHER_TOKEN)
+    private passwordHasher: IPasswordHasher,
   ) {
     super();
   }
@@ -33,7 +37,7 @@ export class VerifyEmailUseCase extends BaseUseCase<
     const tokenPayload =
       await this.verificationTokenService.verifyEmailVerificationToken(token);
     if (!tokenPayload) {
-      throw new BadRequestException('Invalid or expired verification token');
+      throw new InvalidTokenException('email-verification');
     }
 
     // Find user by ID from token payload
@@ -41,44 +45,27 @@ export class VerifyEmailUseCase extends BaseUseCase<
       tokenPayload.userId,
     );
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UserNotFoundException(tokenPayload.userId);
     }
 
     // Verify that the email in token matches user's email (security check)
     if (user.email !== tokenPayload.email) {
-      throw new BadRequestException(
-        'Token email mismatch - possible security breach',
-      );
+      throw new InvalidTokenException('email-verification');
     }
     if (!user) {
-      throw new NotFoundException('Invalid or expired verification token');
+      throw new InvalidTokenException('email-verification');
     }
 
     // If user already verified
     if (user.isEmailVerified) {
-      return {
-        success: true,
-        message: 'Email has already been verified',
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          fullName: user.profile.fullName,
-          isEmailVerified: true,
-        },
-      };
+      throw new EmailAlreadyVerifiedException();
     }
 
     // If password is provided, set it for the user
     if (password) {
-      if (password.length < 6) {
-        throw new BadRequestException(
-          'Password must be at least 6 characters long',
-        );
-      }
-
-      const saltRounds = 12;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      // Validate password using Password value object
+      const passwordVO = new Password(password);
+      const hashedPassword = await this.passwordHasher.hash(passwordVO);
 
       await this.userApplicationService.updateUserPassword(
         user.id,

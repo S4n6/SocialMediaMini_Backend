@@ -1,3 +1,4 @@
+import { Injectable, Inject } from '@nestjs/common';
 import { AuthSession } from '../entities/session.entity';
 import { Token } from '../value-objects/token.vo';
 import { ISessionRepository } from '../repositories/session.repository';
@@ -6,8 +7,12 @@ import { ISessionRepository } from '../repositories/session.repository';
  * Session Domain Service
  * Contains business logic for session management
  */
+@Injectable()
 export class SessionDomainService {
-  constructor(private readonly sessionRepository: ISessionRepository) {}
+  constructor(
+    @Inject('SESSION_REPOSITORY')
+    private readonly sessionRepository: ISessionRepository,
+  ) {}
 
   /**
    * Create session with business rules validation

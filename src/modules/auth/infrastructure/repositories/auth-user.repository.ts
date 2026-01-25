@@ -4,7 +4,7 @@ import { User as AuthUser } from '../../domain/entities/user.entity';
 import { Email } from '../../domain/value-objects/email.vo';
 
 // Import Users module dependencies
-import { UserPrismaRepository } from '../../../users/infrastructure/user.prisma.repository';
+import { UserPrismaRepository } from '../../../users/infrastructure/persistence/repositories/user.repository';
 import { User as UsersUser } from '../../../users/domain/entities/user.entity';
 import {
   UserId,
