@@ -10,13 +10,7 @@ import {
   EmailNotVerifiedException,
   ProfileUpdateTooFrequentException,
 } from '../exceptions/user.exceptions';
-// Simple DomainException class for now
-class DomainException extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DomainException';
-  }
-}
+import { ValidationException } from '../exceptions/domain.exceptions';
 
 export enum UserRole {
   USER = 'USER',
@@ -344,7 +338,7 @@ export class User extends Entity<string> {
   /**\n   * Update user password\n   */
   public updatePassword(hashedPassword: string): void {
     if (!hashedPassword || hashedPassword.length === 0) {
-      throw new DomainException('Password hash cannot be empty');
+      throw new ValidationException('Password hash cannot be empty');
     }
 
     this._passwordHash = hashedPassword;
@@ -386,15 +380,15 @@ export class User extends Entity<string> {
    */
   public validate(): void {
     if (!this._username || this._username.length === 0) {
-      throw new DomainException('Username is required');
+      throw new ValidationException('Username is required');
     }
 
     if (!this._email || this._email.length === 0) {
-      throw new DomainException('Email is required');
+      throw new ValidationException('Email is required');
     }
 
     if (this._followingIds.size > 10000) {
-      throw new DomainException('Following count exceeds maximum limit');
+      throw new ValidationException('Following count exceeds maximum limit');
     }
 
     // Profile validation is done in UserProfile value object constructor
