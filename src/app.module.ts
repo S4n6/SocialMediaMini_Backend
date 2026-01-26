@@ -7,6 +7,9 @@ import { PrismaModule } from './database/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 
+// 🧪 TEST MODULE
+import { TestModule } from './modules/test/test.module';
+
 // 🔧 INFRASTRUCTURE MODULES (Shared)
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
@@ -63,6 +66,9 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     // ✅ Core Modules (Clean Architecture)
     AuthModule,
     UsersModule,
+
+    // 🧪 Test Module
+    TestModule,
 
     // 🚧 Feature Modules (Enable after refactoring)
     // CommentsModule,      // TODO: Refactor - remove old WebSocket dependency
