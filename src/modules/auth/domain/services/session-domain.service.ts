@@ -63,13 +63,6 @@ export class SessionDomainService {
   }
 
   /**
-   * Clean expired sessions (domain business rule)
-   */
-  async cleanExpiredSessions(): Promise<void> {
-    await this.sessionRepository.deleteExpired();
-  }
-
-  /**
    * Revoke session with business validation
    */
   async revokeSession(sessionId: string): Promise<void> {

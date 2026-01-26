@@ -156,16 +156,6 @@ export class SessionRepository implements ISessionRepository {
     });
   }
 
-  async deleteExpired(): Promise<void> {
-    await this.prisma.session.deleteMany({
-      where: {
-        expiresAt: {
-          lte: new Date(),
-        },
-      },
-    });
-  }
-
   async isValidSession(sessionId: string): Promise<boolean> {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
