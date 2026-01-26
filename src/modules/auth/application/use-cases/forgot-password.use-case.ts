@@ -1,4 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
@@ -7,11 +12,6 @@ import { VerificationTokenService } from '../../infrastructure/services/verifica
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
-import {
-  UserNotFoundException,
-  EmailNotVerifiedException,
-  RateLimitExceededException,
-} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class ForgotPasswordUseCase extends BaseUseCase<
@@ -35,18 +35,17 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     // Check if user exists
     const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
-      throw new UserNotFoundException(email);
+      throw new NotFoundException('No account found with this email address');
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      throw new EmailNotVerifiedException(
+      throw new NotFoundException(
         'Please verify your email first before requesting password reset',
       );
     }
 
     // Rate limiting: Check last password reset request timestamp
-    // TODO: Replace lastProfileUpdate with dedicated lastPasswordResetSentAt field
     // Using lastProfileUpdate as placeholder for lastPasswordResetSentAt
     const lastSent = user.lastProfileUpdate
       ? new Date(user.lastProfileUpdate).getTime()
@@ -54,7 +53,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     const now = Date.now();
 
     if (lastSent && (now - lastSent) / 1000 < this.minIntervalSeconds) {
-      throw new RateLimitExceededException(
+      throw new BadRequestException(
         `Please wait ${this.minIntervalSeconds} seconds before requesting another password reset email`,
       );
     }

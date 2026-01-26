@@ -63,24 +63,13 @@ export class GoogleAuthUseCase extends BaseUseCase<
       // User doesn't exist, create new user
       let userName = email.split('@')[0]; // Generate username from email
 
-      // Check if username already exists with retry logic
-      let attempts = 0;
-      const maxAttempts = 5;
-      let existingUserByUsername =
+      // Check if username already exists
+      const existingUserByUsername =
         await this.userRepository.findByUsername(userName);
-
-      while (existingUserByUsername && attempts < maxAttempts) {
-        // Try with random suffix (3-4 digits)
-        const randomSuffix = Math.floor(Math.random() * 10000);
-        userName = `${email.split('@')[0]}${randomSuffix}`;
-        existingUserByUsername =
-          await this.userRepository.findByUsername(userName);
-        attempts++;
-      }
-
-      // If still colliding after max attempts, use UUID suffix (guaranteed unique)
       if (existingUserByUsername) {
-        userName = `${email.split('@')[0]}_${uuidv4().substring(0, 8)}`;
+        // Use email prefix with random number if username taken
+        const randomSuffix = Math.floor(Math.random() * 1000);
+        userName = `${email.split('@')[0]}${randomSuffix}`;
       }
 
       // Create user profile

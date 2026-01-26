@@ -1,4 +1,9 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+} from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
 import { UserApplicationService } from '../../../users/application/user-application.service';
@@ -8,11 +13,6 @@ import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
-import {
-  UserNotFoundException,
-  EmailAlreadyVerifiedException,
-  RateLimitExceededException,
-} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class ResendVerificationUseCase extends BaseUseCase<
@@ -38,15 +38,14 @@ export class ResendVerificationUseCase extends BaseUseCase<
 
     const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
-      throw new UserNotFoundException(email);
+      throw new NotFoundException('User not found');
     }
 
     if (user.isEmailVerified) {
-      throw new EmailAlreadyVerifiedException();
+      throw new BadRequestException('Email already verified');
     }
 
     // Optional rate-limiting: Check last verification sent timestamp
-    // TODO: Replace lastProfileUpdate with dedicated lastVerificationSentAt field
     // Using lastProfileUpdate as placeholder for lastVerificationSentAt
     const lastSent = user.lastProfileUpdate
       ? new Date(user.lastProfileUpdate).getTime()
@@ -54,7 +53,7 @@ export class ResendVerificationUseCase extends BaseUseCase<
     const now = Date.now();
 
     if (lastSent && (now - lastSent) / 1000 < this.minIntervalSeconds) {
-      throw new RateLimitExceededException(
+      throw new BadRequestException(
         `Please wait ${this.minIntervalSeconds} seconds before requesting another verification email`,
       );
     }

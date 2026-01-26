@@ -1,17 +1,16 @@
-import { Injectable, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+  Inject,
+} from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ResetPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
+import * as bcrypt from 'bcrypt';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
-import { Password } from '../../domain/value-objects/password.vo';
-import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
-import { PASSWORD_HASHER_TOKEN } from '../../auth.constants';
-import {
-  PasswordMismatchException,
-  InvalidTokenException,
-  UserNotFoundException,
-} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class ResetPasswordUseCase extends BaseUseCase<
@@ -21,8 +20,6 @@ export class ResetPasswordUseCase extends BaseUseCase<
   constructor(
     private userApplicationService: UserApplicationService,
     private verificationTokenService: VerificationTokenService,
-    @Inject(PASSWORD_HASHER_TOKEN)
-    private passwordHasher: IPasswordHasher,
   ) {
     super();
   }
@@ -32,17 +29,21 @@ export class ResetPasswordUseCase extends BaseUseCase<
 
     // Validate passwords match
     if (newPassword !== confirmPassword) {
-      throw new PasswordMismatchException();
+      throw new BadRequestException('Passwords do not match');
     }
 
-    // Validate password strength using Password value object
-    const passwordVO = new Password(newPassword);
+    // Validate password strength (basic validation)
+    if (newPassword.length < 6) {
+      throw new BadRequestException(
+        'Password must be at least 6 characters long',
+      );
+    }
 
     // Verify the reset token using VerificationTokenService
     const tokenPayload =
       await this.verificationTokenService.verifyPasswordResetToken(token);
     if (!tokenPayload) {
-      throw new InvalidTokenException('password-reset');
+      throw new UnauthorizedException('Invalid or expired reset token');
     }
 
     // Find user by ID from token payload
@@ -50,16 +51,19 @@ export class ResetPasswordUseCase extends BaseUseCase<
       tokenPayload.userId,
     );
     if (!user) {
-      throw new UserNotFoundException(tokenPayload.userId);
+      throw new NotFoundException('User not found');
     }
 
     // Verify that the email in token matches user's email (security check)
     if (user.email !== tokenPayload.email) {
-      throw new InvalidTokenException('password-reset');
+      throw new UnauthorizedException(
+        'Token email mismatch - possible security breach',
+      );
     }
 
-    // Hash new password using IPasswordHasher
-    const hashedPassword = await this.passwordHasher.hash(passwordVO);
+    // Hash new password
+    const saltRounds = 12;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
     // Update user password
     await this.userApplicationService.updateUserPassword(
