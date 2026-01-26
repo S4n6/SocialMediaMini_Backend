@@ -128,11 +128,16 @@ export class User {
   }
 
   /**
-   * Change user password (with new hashed password)
+   * Change user password (accepts already hashed password)
+   * Note: Password should be hashed using IPasswordHasher before calling this method
    */
   changePassword(newHashedPassword: string): User {
     if (!newHashedPassword) {
       throw new Error('Hashed password is required');
+    }
+
+    if (newHashedPassword.length < 20) {
+      throw new Error('Invalid password hash - must be hashed password string');
     }
 
     return new User(

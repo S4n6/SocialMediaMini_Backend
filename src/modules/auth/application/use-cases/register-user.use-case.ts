@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ConflictException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { RegisterUserRequest } from './auth.dtos';
 import { RegisterResult } from '../../domain/entities';
@@ -11,7 +6,6 @@ import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { MailerService } from '../../../mailer/mailer.service';
 import { IUserRepository } from 'src/modules/users/domain/repositories/user.repository';
 import { UserFactory } from '../../../users/domain/factories/user.factory';
-import { console } from 'inspector';
 import { UserRole } from 'src/modules/users/domain';
 import { UserApplicationService } from '../../../users/application/user-application.service';
 import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
@@ -20,6 +14,12 @@ import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { Email } from '../../domain';
+import {
+  UserAlreadyExistsException,
+  UsernameAlreadyTakenException,
+  EmailNotVerifiedException,
+  InvalidValidationException,
+} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class RegisterUserUseCase extends BaseUseCase<
@@ -46,17 +46,17 @@ export class RegisterUserUseCase extends BaseUseCase<
     const existingUserByEmail = await this.userRepository.findByEmail(email);
     if (existingUserByEmail) {
       if (!existingUserByEmail.isEmailVerified) {
-        throw new BadRequestException(
+        throw new EmailNotVerifiedException(
           'Email already registered but not verified. Please verify your email or request a new verification email.',
         );
       }
-      throw new ConflictException('Email already registered');
+      throw new UserAlreadyExistsException(email);
     }
 
     const existingUserByUsername =
       await this.userRepository.findByUsername(username);
     if (existingUserByUsername) {
-      throw new ConflictException('Username already taken');
+      throw new UsernameAlreadyTakenException(username);
     }
 
     // Create user using UserFactory
@@ -91,7 +91,7 @@ export class RegisterUserUseCase extends BaseUseCase<
       const tokenString = verificationToken;
       const email = new Email(newUser.email);
       if (!email) {
-        throw new BadRequestException('Invalid email address');
+        throw new InvalidValidationException('Invalid email address');
       }
       await this.mailerService.sendVerificationEmail(
         email,

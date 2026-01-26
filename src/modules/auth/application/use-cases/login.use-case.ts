@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { LoginRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
@@ -14,9 +9,16 @@ import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
   TOKEN_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,
+  PASSWORD_HASHER_TOKEN,
 } from '../../auth.constants';
 import { UserApplicationService } from '../../../users/application/user-application.service';
-import * as bcrypt from 'bcrypt';
+import { Password } from '../../domain/value-objects/password.vo';
+import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
+import { SessionDomainService } from '../../domain/services/session-domain.service';
+import {
+  InvalidCredentialsException,
+  EmailNotVerifiedException,
+} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
@@ -26,6 +28,9 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     private sessionService: ISessionRepository, // Use interface with DI token
     @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenService: ITokenRepository, // Use interface with DI token
+    @Inject(PASSWORD_HASHER_TOKEN)
+    private passwordHasher: IPasswordHasher,
+    private sessionDomainService: SessionDomainService,
   ) {
     super();
   }
@@ -36,7 +41,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     // Find user by email or username
     const identifier = email || username;
     if (!identifier) {
-      throw new UnauthorizedException('Email or username is required');
+      throw new InvalidCredentialsException();
     }
 
     // Try to find user by email first, then by username
@@ -46,36 +51,36 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       );
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsException();
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      throw new ForbiddenException(
+      throw new EmailNotVerifiedException(
         'Please verify your email before logging in. Check your email for verification instructions.',
       );
     }
 
     // Check if user has a password set
     if (!user.passwordHash) {
-      throw new UnauthorizedException(
-        'No password set for this account. Please use social login or reset your password.',
-      );
+      throw new InvalidCredentialsException();
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    // Verify password using IPasswordHasher
+    const passwordVO = new Password(password);
+    const isPasswordValid = await this.passwordHasher.verify(
+      passwordVO,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidCredentialsException();
     }
 
     // Clean up old sessions from same device/user agent
+    // Note: TokenRepository.createTokensForUser will create a new session
+    // Here we just clean up any existing sessions from this device to avoid accumulation
     if (userAgent) {
-      // Delete sessions from the same device (userAgent)
       await this.sessionService.deleteSessionsByUserAgent(user.id, userAgent);
-    } else {
-      // If no userAgent provided, clean all sessions (fallback to prevent session accumulation)
-      await this.sessionService.deleteAllByUserId(user.id);
     }
 
     // Generate tokens and session (createTokensForUser already creates the session)

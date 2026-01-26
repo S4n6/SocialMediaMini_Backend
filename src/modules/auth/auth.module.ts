@@ -24,6 +24,9 @@ import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-
 import { JwtTokenGenerator } from './infrastructure/security/jwt-token-generator';
 import { MailerEmailSender } from './infrastructure/services/mailer-email.service';
 
+// Domain Services
+import { SessionDomainService } from './domain/services/session-domain.service';
+
 // Presentation Layer
 import { AuthController } from './presentation/auth.controller';
 
@@ -79,6 +82,9 @@ import { PrismaModule } from '../../database/prisma.module';
     },
     // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
     AuthUserRepository,
+
+    // Domain Services
+    SessionDomainService,
 
     // Services
     {
