@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   UseGuards,
-  UseFilters,
   Request,
   HttpCode,
   HttpStatus,
@@ -16,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { GoogleAuthGuard } from '../../../shared/guards/google.guard';
 import { Response } from 'express';
-import { AuthExceptionFilter } from './filters/auth-exception.filter';
 
 // Application layer
 import { AuthApplicationService } from '../application/auth-application.service';
@@ -33,7 +31,6 @@ import {
 import { RegisterUserDto } from '../application';
 
 @Controller('auth')
-@UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
     @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
