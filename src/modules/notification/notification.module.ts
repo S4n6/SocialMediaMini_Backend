@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { BullModule } from '@nestjs/bullmq';
 
 // Presentation Layer
-import { NotificationController, NotificationProcessor } from './presentation';
+import { NotificationController } from './presentation';
 
 // Constants
 import {
@@ -57,8 +56,6 @@ import { WebSocketModule } from '../../infrastructure/websocket';
 
 // Configuration
 import { JWT } from '../../config/jwt.config';
-import { QUEUE } from '../../config/queue.config';
-import { REDIS } from '../../config/redis.config';
 import { PrismaModule } from '../../database/prisma.module';
 
 @Module({
@@ -66,12 +63,6 @@ import { PrismaModule } from '../../database/prisma.module';
     JwtModule.register({
       secret: JWT.SECRET,
     }),
-    BullModule.forRoot({
-      connection: {
-        url: REDIS.URL_WORKER,
-      },
-    }),
-    BullModule.registerQueue({ name: QUEUE.NOTIFICATION }),
     PrismaModule,
     WebSocketModule, // Import WebSocket module for handlers registration
   ],
@@ -124,7 +115,7 @@ import { PrismaModule } from '../../database/prisma.module';
     },
 
     // Queue Processor
-    NotificationProcessor,
+    // NotificationProcessor, // Removed worker functionality
 
     // WebSocket Layer - TODO: Refactor - WebSocket cũ
     // NotificationWebSocketService,
