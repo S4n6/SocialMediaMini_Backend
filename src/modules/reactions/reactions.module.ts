@@ -41,7 +41,7 @@ import {
   PrismaPostService,
   PrismaCommentService,
   PrismaUserService,
-  QueueNotificationService,
+  DirectNotificationService,
   CacheAdapter,
   EventPublisherAdapter,
   MetricsAdapter,
@@ -136,7 +136,7 @@ import {
     },
     {
       provide: NOTIFICATION_SERVICE,
-      useClass: QueueNotificationService,
+      useClass: DirectNotificationService,
     },
 
     // Presentation Layer - Mappers and Filters

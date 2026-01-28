@@ -18,4 +18,4 @@ export * from './infrastructure/services/realtime-notification.service';
 
 // Export presentation layer controllers and processors only
 export { NotificationController } from './presentation/controllers/notification.controller';
-export { NotificationProcessor } from './presentation/processors/notification.processor';
+// export { NotificationProcessor } from './presentation/processors/notification.processor'; // Removed worker functionality

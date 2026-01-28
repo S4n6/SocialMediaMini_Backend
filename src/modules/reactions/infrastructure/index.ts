@@ -9,4 +9,4 @@ export * from './adapters';
 export * from './external-services';
 
 // Queue services
-export * from './queue-notification.service';
+export * from './direct-notification.service';

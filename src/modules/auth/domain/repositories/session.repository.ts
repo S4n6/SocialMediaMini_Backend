@@ -44,11 +44,6 @@ export interface ISessionRepository {
   deleteAllByUserId(userId: string): Promise<void>;
 
   /**
-   * Delete expired sessions
-   */
-  deleteExpired(): Promise<void>;
-
-  /**
    * Check if session exists and is valid
    */
   isValidSession(sessionId: string): Promise<boolean>;
