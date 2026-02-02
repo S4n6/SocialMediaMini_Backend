@@ -71,3 +71,12 @@ export class ProfileUpdateTooFrequentException extends BusinessRuleException {
     );
   }
 }
+
+/**
+ * Exception thrown when user is not found
+ */
+export class UserNotFoundException extends DomainException {
+  constructor(identifier: string) {
+    super(`User with identifier '${identifier}' not found`);
+  }
+}

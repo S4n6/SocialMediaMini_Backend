@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { IUserRepository } from '../../domain/repositories';
 import { USER_REPOSITORY_TOKEN } from '../../users.constants';
-import { User } from '../../domain';
+import { User, UserNotFoundException } from '../../domain';
 import { UserFactory } from '../../domain/factories/user.factory';
 
 /**
@@ -18,7 +18,7 @@ export class UpdateUserPasswordUseCase {
   async execute(userId: string, hashedPassword: string): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
+      throw new UserNotFoundException(userId);
     }
 
     // Update password using domain method
@@ -77,12 +77,11 @@ export class UpdateVerificationTimestampUseCase {
   async execute(userId: string, timestamp: Date): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
+      throw new UserNotFoundException(userId);
     }
 
-    // For now, we'll update the lastProfileUpdate field as a workaround
-    // In the future, we should add a specific lastVerificationSentAt field to User entity
-    user.updateLastProfileUpdateTimestamp(timestamp);
+    // Use the proper method for tracking verification timestamps
+    user.updateLastVerificationSentAt(timestamp);
 
     // Save the updated user
     await this.userRepository.save(user);

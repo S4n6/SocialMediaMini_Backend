@@ -276,6 +276,9 @@ export class UserPrismaRepository implements IUserRepository {
       createdAt: this.safeDate(row.createdAt),
       updatedAt: this.safeDate(row.updatedAt),
       lastProfileUpdate: this.safeDateOrUndefined(row.lastProfileUpdate), // Optional - CRITICAL FIX
+      lastVerificationSentAt: this.safeDateOrUndefined(
+        row.lastVerificationSentAt,
+      ), // Optional
       profile,
       followingIds: following,
       followerIds: followers,
@@ -314,56 +317,6 @@ export class UserPrismaRepository implements IUserRepository {
     return this.mapToDomainModel(userData);
   }
 
-  async updateProfile(userId: string, profileData: any): Promise<User> {
-    const updatedUserData = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        fullName: profileData.fullName,
-        bio: profileData.bio,
-        avatar: profileData.avatar,
-        location: profileData.location,
-        websiteUrl: profileData.websiteUrl,
-        dateOfBirth: profileData.dateOfBirth,
-        phoneNumber: profileData.phoneNumber,
-        gender: profileData.gender,
-        lastProfileUpdate: new Date(),
-      },
-      include: {
-        followers: { select: { followerId: true } },
-        following: { select: { followingId: true } },
-      },
-    });
-
-    return this.mapToDomainModel(updatedUserData);
-  }
-
-  async updatePassword(userId: string, hashedPassword: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: hashedPassword },
-    });
-  }
-
-  async verifyEmail(userId: string): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isEmailVerified: true,
-        emailVerifiedAt: new Date(),
-      },
-    });
-  }
-
-  async updateLastVerificationSentAt(
-    userId: string,
-    timestamp: Date,
-  ): Promise<void> {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { lastVerificationSentAt: timestamp },
-    });
-  }
-
   async findMultipleByIds(ids: string[]): Promise<User[]> {
     const usersData = await this.prisma.user.findMany({
       where: {
@@ -391,7 +344,8 @@ export class UserPrismaRepository implements IUserRepository {
       emailVerifiedAt: user.emailVerifiedAt,
       updatedAt: user.updatedAt,
       // Profile fields are now direct on User model
-      lastProfileUpdate: user.profile.lastProfileUpdate,
+      lastProfileUpdate: user.lastProfileUpdate,
+      lastVerificationSentAt: user.lastVerificationSentAt,
       fullName: user.profile.fullName,
       bio: user.profile.bio,
       avatar: user.profile.avatar,

@@ -79,7 +79,7 @@ describe('CreateUserUseCase', () => {
       mockUserRepository.findByEmail.mockResolvedValue(existingUser);
 
       await expect(useCase.execute(command)).rejects.toThrow(
-        'User with email existing@example.com already exists',
+        "User email with identifier 'existing@example.com' already exists",
       );
       expect(mockUserRepository.save).not.toHaveBeenCalled();
       expect(mockEventBus.publish).not.toHaveBeenCalled();
@@ -105,7 +105,7 @@ describe('CreateUserUseCase', () => {
       mockUserRepository.findByUsername.mockResolvedValue(existingUser);
 
       await expect(useCase.execute(command)).rejects.toThrow(
-        'User with username existinguser already exists',
+        "User with identifier 'existinguser' already exists",
       );
       expect(mockUserRepository.save).not.toHaveBeenCalled();
     });

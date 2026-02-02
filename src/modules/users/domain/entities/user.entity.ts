@@ -43,6 +43,7 @@ export class User extends Entity<string> {
   private _createdAt: Date;
   private _updatedAt: Date;
   private _lastProfileUpdate?: Date;
+  private _lastVerificationSentAt?: Date;
   private _followingIds: Set<string> = new Set();
   private _followerIds: Set<string> = new Set();
 
@@ -61,6 +62,7 @@ export class User extends Entity<string> {
       createdAt?: Date;
       updatedAt?: Date;
       lastProfileUpdate?: Date;
+      lastVerificationSentAt?: Date;
       avatar?: string;
     },
   ) {
@@ -77,6 +79,7 @@ export class User extends Entity<string> {
     this._createdAt = options?.createdAt || new Date();
     this._updatedAt = options?.updatedAt || new Date();
     this._lastProfileUpdate = options?.lastProfileUpdate;
+    this._lastVerificationSentAt = options?.lastVerificationSentAt;
     this._avatar = options?.avatar;
 
     // If it's a new registration, raise domain event
@@ -134,6 +137,10 @@ export class User extends Entity<string> {
 
   get lastProfileUpdate(): Date | undefined {
     return this._lastProfileUpdate;
+  }
+
+  get lastVerificationSentAt(): Date | undefined {
+    return this._lastVerificationSentAt;
   }
 
   get followingCount(): number {
@@ -231,7 +238,15 @@ export class User extends Entity<string> {
    * Check if user can create posts (business rule)
    */
   public canCreatePost(): boolean {
-    this.canPerformAction(true);
+    // Must be active
+    if (this._status !== UserStatus.ACTIVE) {
+      return false;
+    }
+
+    // Must have verified email
+    if (!this._isEmailVerified) {
+      return false;
+    }
 
     // Business rule: User must be registered for at least 1 hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -242,8 +257,17 @@ export class User extends Entity<string> {
    * Check if user can comment (business rule)
    */
   public canComment(): boolean {
-    this.canPerformAction(true);
-    return true; // Email verified users can comment
+    // Must be active
+    if (this._status !== UserStatus.ACTIVE) {
+      return false;
+    }
+
+    // Must have verified email
+    if (!this._isEmailVerified) {
+      return false;
+    }
+
+    return true; // Email verified active users can comment
   }
 
   /**
@@ -335,10 +359,22 @@ export class User extends Entity<string> {
     return mutual;
   }
 
-  /**\n   * Update user password\n   */
+  /**
+   * Update user password
+   * @param hashedPassword - Must be a valid bcrypt hash
+   */
   public updatePassword(hashedPassword: string): void {
     if (!hashedPassword || hashedPassword.length === 0) {
       throw new ValidationException('Password hash cannot be empty');
+    }
+
+    // Validate bcrypt hash format
+    // Bcrypt hashes start with $2a$, $2b$, or $2y$ followed by cost and 53-character hash
+    const bcryptRegex = /^\$2[aby]\$\d{2}\$.{53}$/;
+    if (!bcryptRegex.test(hashedPassword)) {
+      throw new ValidationException(
+        'Invalid password hash format. Must be a valid bcrypt hash',
+      );
     }
 
     this._passwordHash = hashedPassword;
@@ -346,15 +382,17 @@ export class User extends Entity<string> {
   }
 
   /**
-   * Update last profile update timestamp (temporary method for verification email tracking)
+   * Update last verification sent timestamp
+   * Used to track when verification emails are sent to prevent spam
    */
-  public updateLastProfileUpdateTimestamp(timestamp: Date): void {
-    this._lastProfileUpdate = timestamp;
+  public updateLastVerificationSentAt(timestamp: Date): void {
+    this._lastVerificationSentAt = timestamp;
     this._updatedAt = new Date();
   }
 
   /**
    * Get user statistics with enhanced metrics
+   * Safe to call for any user state (verified or unverified)
    */
   public getStats() {
     return {

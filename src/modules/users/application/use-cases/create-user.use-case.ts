@@ -5,6 +5,8 @@ import {
   IUserRepository,
   UserEmail,
   Username,
+  EmailAlreadyExistsException,
+  UsernameAlreadyExistsException,
 } from '../../domain';
 import { IEventBus } from '../../../../infrastructure/events';
 import { CreateUserCommand, UserDto } from '../dto/application.dto';
@@ -40,14 +42,14 @@ export class CreateUserUseCase {
       command.email,
     );
     if (existingUserByEmail) {
-      throw new Error(`User with email ${command.email} already exists`);
+      throw new EmailAlreadyExistsException(command.email);
     }
 
     const existingUserByUsername = await this.userRepository.findByUsername(
       command.username,
     );
     if (existingUserByUsername) {
-      throw new Error(`User with username ${command.username} already exists`);
+      throw new UsernameAlreadyExistsException(command.username);
     }
 
     // Create user using factory
@@ -84,27 +86,7 @@ export class CreateUserUseCase {
   }
 
   private mapToDto(user: User): UserDto {
-    // Get stats - handle case where user isn't verified yet
-    let stats;
-    try {
-      stats = user.getStats();
-    } catch (error) {
-      // If getStats() throws (e.g., unverified user), provide safe defaults
-      stats = {
-        followersCount: user.followersCount,
-        followingCount: user.followingCount,
-        isProfileComplete: user.profile.isComplete(),
-        isEmailVerified: user.isEmailVerified,
-        isVerified: false,
-        isPopular: false,
-        isFresh: true,
-        accountAge: 0,
-        canCreatePost: false,
-        canComment: false,
-        canModerate: false,
-        hasReachedFollowingLimit: false,
-      };
-    }
+    const stats = user.getStats();
 
     return {
       id: user.id,
