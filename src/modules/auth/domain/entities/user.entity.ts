@@ -135,6 +135,11 @@ export class User {
       throw new Error('Hashed password is required');
     }
 
+    // Validate that it's a hashed password (bcrypt hashes are 60 characters)
+    if (newHashedPassword.length < 20) {
+      throw new Error('Invalid password hash - must be hashed password string');
+    }
+
     return new User(
       this.id,
       this.email,

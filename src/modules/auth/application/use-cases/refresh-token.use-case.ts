@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { RefreshTokenRequest } from './auth.dtos';
 import { TokenRefreshResult } from '../../domain/entities';
 import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
+import { InvalidTokenException } from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class RefreshTokenUseCase extends BaseUseCase<
@@ -23,7 +24,7 @@ export class RefreshTokenUseCase extends BaseUseCase<
     console.log('RefreshTokenUseCase called with request:', request);
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
+      throw new InvalidTokenException('refresh');
     }
 
     try {
@@ -37,10 +38,10 @@ export class RefreshTokenUseCase extends BaseUseCase<
         refreshToken: tokens.refreshToken,
       };
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
+      if (error instanceof InvalidTokenException) {
         throw error;
       }
-      throw new UnauthorizedException('Failed to refresh token');
+      throw new InvalidTokenException('refresh');
     }
   }
 }
