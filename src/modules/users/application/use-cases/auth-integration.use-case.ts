@@ -18,13 +18,7 @@ export class FindUserByCredentialsUseCase {
    * Find user by email or username
    */
   async execute(identifier: string): Promise<User | null> {
-    // Try to find by email first
-    let user = await this.userRepository.findByEmail(identifier);
-    if (!user) {
-      // If not found by email, try by username
-      user = await this.userRepository.findByUsername(identifier);
-    }
-    return user;
+    return this.userRepository.findByEmailOrUsername(identifier);
   }
 }
 
@@ -72,12 +66,10 @@ export class CheckUserExistenceUseCase {
   ) {}
 
   async existsByEmail(email: string): Promise<boolean> {
-    const user = await this.userRepository.findByEmail(email);
-    return user !== null;
+    return this.userRepository.existsByEmail(email);
   }
 
   async existsByUsername(username: string): Promise<boolean> {
-    const user = await this.userRepository.findByUsername(username);
-    return user !== null;
+    return this.userRepository.existsByUsername(username);
   }
 }

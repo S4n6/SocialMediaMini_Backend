@@ -22,12 +22,6 @@ export interface IUserRepository {
   // User authentication queries
   findByEmailOrUsername(emailOrUsername: string): Promise<User | null>;
 
-  // User profile queries
-  updateProfile(userId: string, profileData: any): Promise<User>;
-  updatePassword(userId: string, hashedPassword: string): Promise<void>;
-  verifyEmail(userId: string): Promise<void>;
-  updateLastVerificationSentAt(userId: string, timestamp: Date): Promise<void>;
-
   // Search operations
   searchUsers(
     query: string,

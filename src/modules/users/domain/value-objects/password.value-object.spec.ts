@@ -132,4 +132,114 @@ describe('Password Value Object', () => {
       expect(password1.equals(password2)).toBe(false);
     });
   });
+
+  describe('edge cases and security', () => {
+    it('should handle passwords with all special characters', async () => {
+      const password = await Password.createFromPlainText('P@$$w0rd!#$%^&*()');
+      expect(password.getValue()).toBeDefined();
+    });
+
+    it('should handle passwords with mixed scripts (unicode)', async () => {
+      const password = await Password.createFromPlainText('PäSsw0rd!2024');
+      expect(password.getValue()).toBeDefined();
+    });
+
+    it('should handle passwords with emojis', async () => {
+      const password = await Password.createFromPlainText('MyPass123!😀');
+      expect(password.getValue()).toBeDefined();
+    });
+
+    it('should reject passwords with only spaces', async () => {
+      // Empty after trim
+      await expect(Password.createFromPlainText('        ')).rejects.toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should accept passwords with leading/trailing spaces', async () => {
+      // Password validates the FULL string including spaces
+      // '   MyPass123!   ' = 17 chars total, valid
+      await expect(
+        Password.createFromPlainText('   MyPass123!   '),
+      ).resolves.toBeDefined();
+    });
+
+    it('should handle boundary length (exactly 8 chars)', async () => {
+      await expect(
+        Password.createFromPlainText('Pass123!'),
+      ).resolves.toBeDefined();
+    });
+
+    it('should handle boundary length (exactly 128 chars)', async () => {
+      const maxLengthPassword = 'A'.repeat(121) + 'a1!@#$%'; // 128 chars total
+      await expect(
+        Password.createFromPlainText(maxLengthPassword),
+      ).resolves.toBeDefined();
+    });
+
+    it('should reject password with 129 characters', async () => {
+      const tooLongPassword = 'A'.repeat(122) + 'a1!@#$%'; // 129 chars
+      await expect(
+        Password.createFromPlainText(tooLongPassword),
+      ).rejects.toThrow(ValidationException);
+    });
+
+    it('should consistently hash same password differently (salt)', async () => {
+      const plainPassword = 'MySecurePass123!';
+      const password1 = await Password.createFromPlainText(plainPassword);
+      const password2 = await Password.createFromPlainText(plainPassword);
+
+      // Hashes should be different due to different salts
+      expect(password1.getValue()).not.toBe(password2.getValue());
+
+      // But both should validate correctly
+      expect(await password1.compare(plainPassword)).toBe(true);
+      expect(await password2.compare(plainPassword)).toBe(true);
+    });
+
+    it('should handle bcrypt hash format validation', () => {
+      const validBcryptHash =
+        '$2b$12$KIXcoRPNGFRbXwLhLTzZce5YGOvRxSn3Z9K9qD0YpQq0XYZvFpJQe';
+      expect(() => Password.createFromHash(validBcryptHash)).not.toThrow();
+    });
+
+    it('should reject passwords with only numbers and special chars (no letters)', async () => {
+      await expect(Password.createFromPlainText('12345678!@#')).rejects.toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject passwords with only letters (no numbers/special)', async () => {
+      await expect(
+        Password.createFromPlainText('OnlyLettersHere'),
+      ).rejects.toThrow(ValidationException);
+    });
+
+    it('should handle passwords with consecutive special chars', async () => {
+      await expect(
+        Password.createFromPlainText('MyP@ss!!!123'),
+      ).resolves.toBeDefined();
+    });
+
+    it('should handle passwords with numbers at different positions', async () => {
+      await expect(
+        Password.createFromPlainText('1MyStr0ng!'),
+      ).resolves.toBeDefined();
+      await expect(
+        Password.createFromPlainText('MyStr0ng!2'),
+      ).resolves.toBeDefined();
+      await expect(
+        Password.createFromPlainText('My3Str0ng!'),
+      ).resolves.toBeDefined();
+    });
+
+    it('should reject password with null or undefined', async () => {
+      await expect(Password.createFromPlainText(null as any)).rejects.toThrow(
+        ValidationException,
+      );
+      await expect(
+        Password.createFromPlainText(undefined as any),
+      ).rejects.toThrow(ValidationException);
+    });
+  });
 });

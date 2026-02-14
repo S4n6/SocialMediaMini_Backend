@@ -60,6 +60,12 @@ export class Username extends ValueObject<string> {
       );
     }
 
+    if (value.startsWith('-') || value.endsWith('-')) {
+      throw new ValidationException(
+        'Username cannot start or end with a hyphen',
+      );
+    }
+
     if (value.includes('..')) {
       throw new ValidationException('Username cannot contain consecutive dots');
     }

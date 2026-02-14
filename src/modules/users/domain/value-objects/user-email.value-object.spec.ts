@@ -84,4 +84,129 @@ describe('UserEmail Value Object', () => {
       expect(email1.equals(email2)).toBe(false);
     });
   });
+
+  describe('edge cases and internationalization', () => {
+    it('should handle plus addressing (gmail style)', () => {
+      const email = UserEmail.create('user+test@example.com');
+      expect(email.getValue()).toBe('user+test@example.com');
+      expect(email.getLocalPart()).toBe('user+test');
+    });
+
+    it('should handle subdomain emails', () => {
+      const email = UserEmail.create('user@mail.example.com');
+      expect(email.getValue()).toBe('user@mail.example.com');
+      expect(email.getDomain()).toBe('mail.example.com');
+    });
+
+    it('should handle country-code TLDs', () => {
+      const validEmails = [
+        'user@example.co.uk',
+        'user@example.com.au',
+        'user@example.fr',
+      ];
+      validEmails.forEach((email) => {
+        expect(() => UserEmail.create(email)).not.toThrow();
+      });
+    });
+
+    it('should handle new gTLDs', () => {
+      const validEmails = [
+        'user@example.tech',
+        'user@example.dev',
+        'user@example.app',
+      ];
+      validEmails.forEach((email) => {
+        expect(() => UserEmail.create(email)).not.toThrow();
+      });
+    });
+
+    it('should reject email with consecutive dots in local part', () => {
+      expect(() => UserEmail.create('user..name@example.com')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject email with leading dot in local part', () => {
+      expect(() => UserEmail.create('.user@example.com')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject email with trailing dot in local part', () => {
+      expect(() => UserEmail.create('user.@example.com')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject email without TLD', () => {
+      expect(() => UserEmail.create('user@localhost')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject email with spaces', () => {
+      expect(() => UserEmail.create('user name@example.com')).toThrow(
+        ValidationException,
+      );
+      expect(() => UserEmail.create('user@example .com')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should handle very long local parts', () => {
+      const longLocal = 'a'.repeat(64); // Max local part is 64 chars
+      const email = UserEmail.create(`${longLocal}@example.com`);
+      expect(email.getLocalPart()).toBe(longLocal);
+    });
+
+    it('should reject email exceeding 255 total characters', () => {
+      const longLocal = 'a'.repeat(200);
+      const longDomain = 'b'.repeat(60) + '.com';
+      expect(() => UserEmail.create(`${longLocal}@${longDomain}`)).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should handle email normalization consistently', () => {
+      const email1 = UserEmail.create('  TEST@EXAMPLE.COM  ');
+      const email2 = UserEmail.create('test@example.com');
+      expect(email1.equals(email2)).toBe(true);
+      expect(email1.getValue()).toBe('test@example.com');
+    });
+
+    it('should reject null or undefined', () => {
+      expect(() => UserEmail.create(null as any)).toThrow(ValidationException);
+      expect(() => UserEmail.create(undefined as any)).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should handle underscore in local part', () => {
+      const email = UserEmail.create('user_name@example.com');
+      expect(email.getLocalPart()).toBe('user_name');
+    });
+
+    it('should handle hyphen in domain', () => {
+      const email = UserEmail.create('user@my-domain.com');
+      expect(email.getDomain()).toBe('my-domain.com');
+    });
+
+    it('should reject email with multiple @ symbols', () => {
+      expect(() => UserEmail.create('user@@example.com')).toThrow(
+        ValidationException,
+      );
+      expect(() => UserEmail.create('user@domain@example.com')).toThrow(
+        ValidationException,
+      );
+    });
+
+    it('should reject email with special chars in domain', () => {
+      expect(() => UserEmail.create('user@exam ple.com')).toThrow(
+        ValidationException,
+      );
+      expect(() => UserEmail.create('user@exam_ple.com')).toThrow(
+        ValidationException,
+      );
+    });
+  });
 });

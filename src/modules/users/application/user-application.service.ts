@@ -71,24 +71,36 @@ export class UserApplicationService {
     userId: string,
     command: UpdateProfileCommand,
   ): Promise<UserDto> {
-    // Execute use case
+    // Execute use case - get updated user response
     const result = await this.updateProfileUseCase.execute(
       userId,
       command as any,
     );
 
-    // Convert UserResponseDto to UserDto (add missing fields with defaults)
+    // Re-fetch the full user entity to get accurate domain-computed fields
+    const user = await this.findUserByIdUseCase.execute(userId);
+    if (user) {
+      const stats = user.getStats();
+      return {
+        ...result,
+        role: user.role,
+        status: user.status,
+        canCreatePost: stats.canCreatePost,
+        canComment: stats.canComment,
+        accountAge: stats.accountAge,
+        isProfileComplete: stats.isProfileComplete,
+      };
+    }
+
+    // Fallback if user somehow can't be re-fetched after update
     return {
       ...result,
-      role: 'user', // Default role
-      status: 'active', // Default status
-      canCreatePost: true, // Default permission
-      canComment: true, // Default permission
-      accountAge: Math.floor(
-        (Date.now() - new Date(result.createdAt).getTime()) /
-          (1000 * 60 * 60 * 24),
-      ), // Calculate age in days
-      isProfileComplete: !!(result.fullName && result.bio), // Basic completeness check
+      role: 'USER',
+      status: 'ACTIVE',
+      canCreatePost: false,
+      canComment: false,
+      accountAge: 0,
+      isProfileComplete: false,
     };
   }
 

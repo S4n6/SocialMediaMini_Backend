@@ -128,6 +128,7 @@ export class UserFactory {
     createdAt: Date;
     updatedAt: Date;
     lastProfileUpdate?: Date;
+    lastVerificationSentAt?: Date;
     profile: any; // Raw profile data from DB
     followingIds?: string[];
     followerIds?: string[];
@@ -153,6 +154,7 @@ export class UserFactory {
         createdAt: data.createdAt,
         updatedAt: data.updatedAt,
         lastProfileUpdate: data.lastProfileUpdate,
+        lastVerificationSentAt: data.lastVerificationSentAt,
       },
     );
 

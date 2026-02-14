@@ -18,6 +18,12 @@ interface UserProfileProps {
  * Encapsulates user profile information and validation rules
  */
 export class UserProfile extends ValueObject<UserProfileProps> {
+  // Validation constants
+  private static readonly FULL_NAME_MIN_LENGTH = 2;
+  private static readonly FULL_NAME_MAX_LENGTH = 100;
+  private static readonly BIO_MAX_LENGTH = 500;
+  private static readonly PHONE_MIN_DIGITS = 10;
+
   constructor(props: UserProfileProps) {
     super(props);
   }
@@ -78,22 +84,27 @@ export class UserProfile extends ValueObject<UserProfileProps> {
   protected validateInvariants(props: UserProfileProps): void {
     const errors: Record<string, string[]> = {};
 
-    // Validate full name - allow empty string during reconstruction (DB may have legacy data)
-    // But ensure if provided, it meets requirements
-    if (props.fullName !== undefined && props.fullName !== null) {
-      const trimmed = props.fullName.trim();
-      if (trimmed.length > 0) {
-        if (trimmed.length < 2) {
-          errors.fullName = ['Full name must be at least 2 characters'];
-        } else if (props.fullName.length > 100) {
-          errors.fullName = ['Full name cannot exceed 100 characters'];
-        }
+    // Validate full name - required and must meet length requirements
+    if (!props.fullName || props.fullName.trim().length === 0) {
+      errors.fullName = ['Full name is required'];
+    } else {
+      const trimmedName = props.fullName.trim();
+      if (trimmedName.length < UserProfile.FULL_NAME_MIN_LENGTH) {
+        errors.fullName = [
+          `Full name must be at least ${UserProfile.FULL_NAME_MIN_LENGTH} characters`,
+        ];
+      } else if (props.fullName.length > UserProfile.FULL_NAME_MAX_LENGTH) {
+        errors.fullName = [
+          `Full name cannot exceed ${UserProfile.FULL_NAME_MAX_LENGTH} characters`,
+        ];
       }
     }
 
     // Validate bio
-    if (props.bio && props.bio.length > 500) {
-      errors.bio = ['Bio cannot exceed 500 characters'];
+    if (props.bio && props.bio.length > UserProfile.BIO_MAX_LENGTH) {
+      errors.bio = [
+        `Bio cannot exceed ${UserProfile.BIO_MAX_LENGTH} characters`,
+      ];
     }
 
     // Validate website URL
@@ -142,6 +153,9 @@ export class UserProfile extends ValueObject<UserProfileProps> {
   private isValidPhoneNumber(phone: string): boolean {
     // Basic phone number validation (can be enhanced)
     const phoneRegex = /^\+?[\d\s-()]+$/;
-    return phoneRegex.test(phone) && phone.replace(/\D/g, '').length >= 10;
+    return (
+      phoneRegex.test(phone) &&
+      phone.replace(/\D/g, '').length >= UserProfile.PHONE_MIN_DIGITS
+    );
   }
 }

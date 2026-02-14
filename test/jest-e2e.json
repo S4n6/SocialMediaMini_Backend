@@ -6,6 +6,7 @@
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
+  "transformIgnorePatterns": ["node_modules/(?!(uuid)/)"],
   "setupFilesAfterEnv": ["<rootDir>/setup-e2e.ts"],
   "collectCoverageFrom": ["**/*.(t|j)s"],
   "coverageDirectory": "../coverage-e2e",
