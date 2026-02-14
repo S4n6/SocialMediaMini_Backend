@@ -1,22 +1,23 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { LoginRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository';
 import { ITokenRepository } from '../../domain/repositories/token.repository';
 import { ISessionRepository } from '../../domain/repositories/session.repository';
+import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import {
   TOKEN_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,
+  PASSWORD_HASHER_TOKEN,
 } from '../../auth.constants';
 import { UserApplicationService } from '../../../users/application/user-application.service';
-import * as bcrypt from 'bcrypt';
+import {
+  InvalidPasswordException,
+  UserNotVerifiedException,
+} from '../../domain/exceptions/auth.exceptions';
+import { Password } from '../../domain/value-objects/password.vo';
 
 @Injectable()
 export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
@@ -26,6 +27,8 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     private sessionService: ISessionRepository, // Use interface with DI token
     @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenService: ITokenRepository, // Use interface with DI token
+    @Inject(PASSWORD_HASHER_TOKEN)
+    private passwordHasher: IPasswordHasher, // Use interface with DI token
   ) {
     super();
   }
@@ -36,7 +39,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     // Find user by email or username
     const identifier = email || username;
     if (!identifier) {
-      throw new UnauthorizedException('Email or username is required');
+      throw new InvalidPasswordException();
     }
 
     // Try to find user by email first, then by username
@@ -46,27 +49,27 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
       );
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidPasswordException();
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      throw new ForbiddenException(
-        'Please verify your email before logging in. Check your email for verification instructions.',
-      );
+      throw new UserNotVerifiedException();
     }
 
     // Check if user has a password set
     if (!user.passwordHash) {
-      throw new UnauthorizedException(
-        'No password set for this account. Please use social login or reset your password.',
-      );
+      throw new InvalidPasswordException();
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    const passwordVO = new Password(password);
+    const isPasswordValid = await this.passwordHasher.verify(
+      passwordVO,
+      user.passwordHash,
+    );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new InvalidPasswordException();
     }
 
     // Clean up old sessions from same device/user agent
