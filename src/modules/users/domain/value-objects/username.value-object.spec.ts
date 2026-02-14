@@ -104,6 +104,11 @@ describe('Username Value Object', () => {
       expect(() => Username.create('user-name')).not.toThrow();
     });
 
+    it('should reject username starting/ending with hyphen', () => {
+      expect(() => Username.create('-username')).toThrow(ValidationException);
+      expect(() => Username.create('username-')).toThrow(ValidationException);
+    });
+
     it('should accept username with dots', () => {
       expect(() => Username.create('user.name')).not.toThrow();
     });

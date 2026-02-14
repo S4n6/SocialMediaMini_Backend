@@ -234,5 +234,31 @@ describe('Users - Registration (E2E)', () => {
         : response.body.message.toLowerCase();
       expect(message).toContain('username');
     });
+
+    it('should reject missing required fields', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .send({
+          username: 'testuser',
+          // missing email, password, fullName
+        })
+        .expect(400);
+
+      expect(response.body.message).toBeDefined();
+    });
+
+    it('should reject password shorter than 8 characters', async () => {
+      const response = await request(app.getHttpServer())
+        .post('/users')
+        .send({
+          username: 'testuser',
+          email: 'test@example.com',
+          password: 'Short1!', // 7 chars - under domain minimum of 8
+          fullName: 'Test User',
+        })
+        .expect(400);
+
+      expect(response.body.message).toBeDefined();
+    });
   });
 });

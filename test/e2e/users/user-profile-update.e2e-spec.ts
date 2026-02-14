@@ -131,5 +131,25 @@ describe('Users - Profile Update (E2E)', () => {
         .send({ fullName: 'New Name' })
         .expect(404);
     });
+
+    it('should reject second profile update within 24 hours', async () => {
+      // First update should succeed
+      await request(app.getHttpServer())
+        .patch(`/users/${testUser.id}`)
+        .send({ bio: 'First update' })
+        .expect(200);
+
+      // Second update within 24 hours should fail
+      const response = await request(app.getHttpServer())
+        .patch(`/users/${testUser.id}`)
+        .send({ bio: 'Second update' })
+        .expect(400);
+
+      const message =
+        typeof response.body.message === 'string'
+          ? response.body.message.toLowerCase()
+          : '';
+      expect(message).toContain('profile');
+    });
   });
 });
