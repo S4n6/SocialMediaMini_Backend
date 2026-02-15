@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { PrismaService } from './database/prisma.service';
 import { ValidationPipe } from '@nestjs/common';
 import { GlobalExceptionFilter } from './shared/filters/global-exception.filter';
 import { ErrorMonitoringService } from './shared/services/error-monitoring.service';

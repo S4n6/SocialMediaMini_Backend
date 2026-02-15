@@ -25,4 +25,4 @@ COPY --from=builder /usr/src/app/prisma ./prisma
 EXPOSE 3107
 
 # default: start API
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]

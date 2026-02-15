@@ -1,76 +1,14 @@
-/*
-  Warnings:
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN', 'MODERATOR', 'SUPER_ADMIN');
 
-  - You are about to drop the `Comment` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Friend` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Message` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Post` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `PostMedia` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Reaction` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
-
-*/
--- DropForeignKey
-ALTER TABLE "Comment" DROP CONSTRAINT "Comment_PostId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Comment" DROP CONSTRAINT "Comment_UserId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Friend" DROP CONSTRAINT "Friend_FriendId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Friend" DROP CONSTRAINT "Friend_UserId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Message" DROP CONSTRAINT "Message_ReceiverId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Message" DROP CONSTRAINT "Message_SenderId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Post" DROP CONSTRAINT "Post_UserId_fkey";
-
--- DropForeignKey
-ALTER TABLE "PostMedia" DROP CONSTRAINT "PostMedia_PostId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Reaction" DROP CONSTRAINT "Reaction_CommentId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Reaction" DROP CONSTRAINT "Reaction_PostId_fkey";
-
--- DropForeignKey
-ALTER TABLE "Reaction" DROP CONSTRAINT "Reaction_UserId_fkey";
-
--- DropTable
-DROP TABLE "Comment";
-
--- DropTable
-DROP TABLE "Friend";
-
--- DropTable
-DROP TABLE "Message";
-
--- DropTable
-DROP TABLE "Post";
-
--- DropTable
-DROP TABLE "PostMedia";
-
--- DropTable
-DROP TABLE "Reaction";
-
--- DropTable
-DROP TABLE "User";
+-- CreateEnum
+CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED', 'BANNED');
 
 -- CreateTable
 CREATE TABLE "Users" (
     "UserId" TEXT NOT NULL,
     "FullName" TEXT NOT NULL,
-    "UserName" TEXT NOT NULL,
     "Email" TEXT NOT NULL,
-    "Password" TEXT,
     "GoogleId" TEXT,
     "DateOfBirth" TIMESTAMP(3),
     "PhoneNumber" TEXT,
@@ -78,11 +16,18 @@ CREATE TABLE "Users" (
     "Bio" TEXT,
     "Location" TEXT,
     "Gender" TEXT,
-    "Role" TEXT NOT NULL DEFAULT 'USER',
     "IsEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "EmailVerifiedAt" TIMESTAMP(3),
     "CreatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "UpdatedAt" TIMESTAMP(3) NOT NULL,
+    "WebsiteUrl" TEXT,
+    "LastProfileUpdate" TIMESTAMP(3),
+    "PasswordHash" TEXT,
+    "Status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
+    "Username" TEXT NOT NULL,
+    "Role" "UserRole" NOT NULL DEFAULT 'USER',
+    "LastVerificationSentAt" TIMESTAMP(3),
+    "LastPasswordResetSentAt" TIMESTAMP(3),
 
     CONSTRAINT "Users_pkey" PRIMARY KEY ("UserId")
 );
@@ -174,13 +119,25 @@ CREATE TABLE "UserConversations" (
 CREATE TABLE "Stories" (
     "StoryId" TEXT NOT NULL,
     "Content" TEXT,
-    "MediaUrl" TEXT NOT NULL,
-    "MediaType" TEXT NOT NULL,
+    "MediaUrl" TEXT,
+    "MediaType" TEXT,
     "ExpiresAt" TIMESTAMP(3) NOT NULL,
     "CreatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "AuthorId" TEXT NOT NULL,
+    "IsActive" BOOLEAN NOT NULL DEFAULT true,
+    "UpdatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Stories_pkey" PRIMARY KEY ("StoryId")
+);
+
+-- CreateTable
+CREATE TABLE "StoryViews" (
+    "StoryViewId" TEXT NOT NULL,
+    "ViewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "StoryId" TEXT NOT NULL,
+    "ViewerId" TEXT NOT NULL,
+
+    CONSTRAINT "StoryViews_pkey" PRIMARY KEY ("StoryViewId")
 );
 
 -- CreateTable
@@ -244,14 +201,54 @@ CREATE TABLE "PostMedias" (
     CONSTRAINT "PostMedias_pkey" PRIMARY KEY ("PostMediaId")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "Users_UserName_key" ON "Users"("UserName");
+-- CreateTable
+CREATE TABLE "Sessions" (
+    "SessionId" TEXT NOT NULL,
+    "SessionIdentifier" TEXT NOT NULL,
+    "ExpiresAt" TIMESTAMP(3) NOT NULL,
+    "CreatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "LastUsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "IsRevoked" BOOLEAN NOT NULL DEFAULT false,
+    "RevokedAt" TIMESTAMP(3),
+    "UserAgent" TEXT,
+    "IpAddress" TEXT,
+    "UserId" TEXT NOT NULL,
+    "ClientType" TEXT NOT NULL DEFAULT 'web',
+    "DeviceName" TEXT,
+    "DeviceType" TEXT,
+
+    CONSTRAINT "Sessions_pkey" PRIMARY KEY ("SessionId")
+);
+
+-- CreateTable
+CREATE TABLE "SearchHistories" (
+    "SearchHistoryId" TEXT NOT NULL,
+    "UserId" TEXT NOT NULL,
+    "CreatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "UpdatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SearchHistories_pkey" PRIMARY KEY ("SearchHistoryId")
+);
+
+-- CreateTable
+CREATE TABLE "SearchHistoryEntries" (
+    "SearchHistoryEntryId" TEXT NOT NULL,
+    "SearchedUserId" TEXT NOT NULL,
+    "SearchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "CreatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "SearchHistoryId" TEXT NOT NULL,
+
+    CONSTRAINT "SearchHistoryEntries_pkey" PRIMARY KEY ("SearchHistoryEntryId")
+);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Users_Email_key" ON "Users"("Email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Users_GoogleId_key" ON "Users"("GoogleId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Users_Username_key" ON "Users"("Username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Reactions_ReactorId_PostId_key" ON "Reactions"("ReactorId", "PostId");
@@ -266,31 +263,49 @@ CREATE UNIQUE INDEX "Follows_FollowerId_FollowingId_key" ON "Follows"("FollowerI
 CREATE UNIQUE INDEX "UserConversations_UserId_ConversationId_key" ON "UserConversations"("UserId", "ConversationId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "StoryViews_StoryId_ViewerId_key" ON "StoryViews"("StoryId", "ViewerId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Hashtags_Name_key" ON "Hashtags"("Name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PostHashtags_PostId_HashtagId_key" ON "PostHashtags"("PostId", "HashtagId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Sessions_SessionIdentifier_key" ON "Sessions"("SessionIdentifier");
+
+-- CreateIndex
+CREATE INDEX "Sessions_SessionIdentifier_idx" ON "Sessions"("SessionIdentifier");
+
+-- CreateIndex
+CREATE INDEX "Sessions_UserId_SessionIdentifier_idx" ON "Sessions"("UserId", "SessionIdentifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SearchHistories_UserId_key" ON "SearchHistories"("UserId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SearchHistoryEntries_SearchHistoryId_SearchedUserId_key" ON "SearchHistoryEntries"("SearchHistoryId", "SearchedUserId");
+
 -- AddForeignKey
 ALTER TABLE "Posts" ADD CONSTRAINT "Posts_AuthorId_fkey" FOREIGN KEY ("AuthorId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Reactions" ADD CONSTRAINT "Reactions_ReactorId_fkey" FOREIGN KEY ("ReactorId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Reactions" ADD CONSTRAINT "Reactions_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Reactions" ADD CONSTRAINT "Reactions_CommentId_fkey" FOREIGN KEY ("CommentId") REFERENCES "Comments"("CommentId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Reactions" ADD CONSTRAINT "Reactions_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Reactions" ADD CONSTRAINT "Reactions_ReactorId_fkey" FOREIGN KEY ("ReactorId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Comments" ADD CONSTRAINT "Comments_AuthorId_fkey" FOREIGN KEY ("AuthorId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comments" ADD CONSTRAINT "Comments_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Comments" ADD CONSTRAINT "Comments_ParentId_fkey" FOREIGN KEY ("ParentId") REFERENCES "Comments"("CommentId") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comments" ADD CONSTRAINT "Comments_ParentId_fkey" FOREIGN KEY ("ParentId") REFERENCES "Comments"("CommentId") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Comments" ADD CONSTRAINT "Comments_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Follows" ADD CONSTRAINT "Follows_FollowerId_fkey" FOREIGN KEY ("FollowerId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -299,37 +314,55 @@ ALTER TABLE "Follows" ADD CONSTRAINT "Follows_FollowerId_fkey" FOREIGN KEY ("Fol
 ALTER TABLE "Follows" ADD CONSTRAINT "Follows_FollowingId_fkey" FOREIGN KEY ("FollowingId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Messages" ADD CONSTRAINT "Messages_SenderId_fkey" FOREIGN KEY ("SenderId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Messages" ADD CONSTRAINT "Messages_ConversationId_fkey" FOREIGN KEY ("ConversationId") REFERENCES "Conversations"("ConversationId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "UserConversations" ADD CONSTRAINT "UserConversations_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Messages" ADD CONSTRAINT "Messages_SenderId_fkey" FOREIGN KEY ("SenderId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "UserConversations" ADD CONSTRAINT "UserConversations_ConversationId_fkey" FOREIGN KEY ("ConversationId") REFERENCES "Conversations"("ConversationId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserConversations" ADD CONSTRAINT "UserConversations_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Stories" ADD CONSTRAINT "Stories_AuthorId_fkey" FOREIGN KEY ("AuthorId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViews" ADD CONSTRAINT "StoryViews_StoryId_fkey" FOREIGN KEY ("StoryId") REFERENCES "Stories"("StoryId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StoryViews" ADD CONSTRAINT "StoryViews_ViewerId_fkey" FOREIGN KEY ("ViewerId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Reports" ADD CONSTRAINT "Reports_ReporterId_fkey" FOREIGN KEY ("ReporterId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reports" ADD CONSTRAINT "Reports_TargetUserId_fkey" FOREIGN KEY ("TargetUserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Reports" ADD CONSTRAINT "Reports_TargetPostId_fkey" FOREIGN KEY ("TargetPostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Reports" ADD CONSTRAINT "Reports_TargetPostId_fkey" FOREIGN KEY ("TargetPostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Reports" ADD CONSTRAINT "Reports_TargetUserId_fkey" FOREIGN KEY ("TargetUserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Notifications" ADD CONSTRAINT "Notifications_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PostHashtags" ADD CONSTRAINT "PostHashtags_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "PostHashtags" ADD CONSTRAINT "PostHashtags_HashtagId_fkey" FOREIGN KEY ("HashtagId") REFERENCES "Hashtags"("HashtagId") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "PostHashtags" ADD CONSTRAINT "PostHashtags_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PostMedias" ADD CONSTRAINT "PostMedias_PostId_fkey" FOREIGN KEY ("PostId") REFERENCES "Posts"("PostId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Sessions" ADD CONSTRAINT "Sessions_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SearchHistories" ADD CONSTRAINT "SearchHistories_UserId_fkey" FOREIGN KEY ("UserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SearchHistoryEntries" ADD CONSTRAINT "SearchHistoryEntries_SearchHistoryId_fkey" FOREIGN KEY ("SearchHistoryId") REFERENCES "SearchHistories"("SearchHistoryId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SearchHistoryEntries" ADD CONSTRAINT "SearchHistoryEntries_SearchedUserId_fkey" FOREIGN KEY ("SearchedUserId") REFERENCES "Users"("UserId") ON DELETE CASCADE ON UPDATE CASCADE;

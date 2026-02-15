@@ -9,8 +9,7 @@ import {
 } from '@nestjs/common';
 import { ErrorMonitoringService } from '../services/error-monitoring.service';
 import { Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { Prisma } from '../../generated/prisma/client';
 import { MulterError } from 'multer';
 import { JsonWebTokenError, TokenExpiredError } from 'jsonwebtoken';
 import {
@@ -88,7 +87,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         requestId,
       ));
       shouldReport = false;
-    } else if (exception instanceof PrismaClientKnownRequestError) {
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       ({ errorResponse, severity, category } = this.handlePrismaError(
         exception,
         request,
@@ -300,7 +299,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   private handlePrismaError(
-    exception: PrismaClientKnownRequestError,
+    exception: Prisma.PrismaClientKnownRequestError,
     request: Request,
     requestId: string,
   ): {
