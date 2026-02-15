@@ -21,6 +21,8 @@
   "exclude": [
     "node_modules",
     "dist",
+    "prisma",
+    "prisma.config.ts",
     "src/modules/messaging/**/*",
     "src/modules/posts/**/*",
     "src/modules/notification/**/*"
