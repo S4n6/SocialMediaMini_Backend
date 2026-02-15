@@ -182,7 +182,7 @@ describe('Users - Registration (E2E)', () => {
         typeof response.body.message === 'string'
           ? response.body.message.toLowerCase()
           : '';
-      expect(message).toContain('username');
+      expect(message).toContain('already exists');
     });
   });
 

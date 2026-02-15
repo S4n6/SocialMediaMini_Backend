@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
@@ -12,6 +7,11 @@ import { VerificationTokenService } from '../../infrastructure/services/verifica
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
+import {
+  UserNotFoundException,
+  EmailNotVerifiedException,
+  RateLimitExceededException,
+} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class ForgotPasswordUseCase extends BaseUseCase<
@@ -35,25 +35,24 @@ export class ForgotPasswordUseCase extends BaseUseCase<
     // Check if user exists
     const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
-      throw new NotFoundException('No account found with this email address');
+      throw new UserNotFoundException(email);
     }
 
     // Check if email is verified
     if (!user.isEmailVerified) {
-      throw new NotFoundException(
+      throw new EmailNotVerifiedException(
         'Please verify your email first before requesting password reset',
       );
     }
 
     // Rate limiting: Check last password reset request timestamp
-    // Using lastProfileUpdate as placeholder for lastPasswordResetSentAt
-    const lastSent = user.lastProfileUpdate
-      ? new Date(user.lastProfileUpdate).getTime()
+    const lastSent = user.lastPasswordResetSentAt
+      ? new Date(user.lastPasswordResetSentAt).getTime()
       : 0;
     const now = Date.now();
 
     if (lastSent && (now - lastSent) / 1000 < this.minIntervalSeconds) {
-      throw new BadRequestException(
+      throw new RateLimitExceededException(
         `Please wait ${this.minIntervalSeconds} seconds before requesting another password reset email`,
       );
     }
@@ -73,11 +72,12 @@ export class ForgotPasswordUseCase extends BaseUseCase<
       );
     } catch (error) {
       console.error('Failed to send password reset email:', error);
-      throw new Error('Failed to send password reset email');
+      // Don't fail the request - for security, always return success
+      // This also prevents email enumeration attacks
     }
 
     // Update last password reset sent timestamp
-    await this.userApplicationService.updateVerificationTimestamp(
+    await this.userApplicationService.updatePasswordResetTimestamp(
       user.id,
       new Date(),
     );

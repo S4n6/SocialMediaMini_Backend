@@ -8,8 +8,9 @@ import {
   Matches,
   IsDate,
   IsBoolean,
+  ValidateNested,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 // ===== AUTHENTICATION REQUEST DTOs =====
@@ -111,6 +112,24 @@ export class RegisterRequestDto {
   avatar?: string;
 }
 
+export class DeviceInfoDto {
+  @ApiPropertyOptional({
+    description: 'Device name (e.g., iPhone 13, Samsung Galaxy S21)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  deviceName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Device type/OS (e.g., iOS, Android, Windows)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  deviceType?: string;
+}
+
 export class LoginRequestDto {
   @ApiProperty({
     description: 'Email or username',
@@ -133,6 +152,15 @@ export class LoginRequestDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean = false;
+
+  @ApiPropertyOptional({
+    description: 'Device information for session tracking',
+    type: DeviceInfoDto,
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DeviceInfoDto)
+  deviceInfo?: DeviceInfoDto;
 }
 
 export class GoogleAuthRequestDto {

@@ -128,16 +128,17 @@ export class User {
   }
 
   /**
-   * Change user password (with new hashed password)
+   * Change user password (accepts already hashed password)
+   * Note: Password should be hashed using IPasswordHasher before calling this method
    */
   changePassword(newHashedPassword: string): User {
     if (!newHashedPassword) {
       throw new Error('Hashed password is required');
     }
 
-    // Validate that it's a hashed password (bcrypt hashes are 60 characters)
-    if (newHashedPassword.length < 20) {
-      throw new Error('Invalid password hash - must be hashed password string');
+    // Validate bcrypt hash format: $2a$, $2b$, or $2y$ followed by cost and 53-char hash
+    if (!/^\$2[aby]\$\d{2}\$.{53}$/.test(newHashedPassword)) {
+      throw new Error('Invalid password hash - must be a valid bcrypt hash');
     }
 
     return new User(

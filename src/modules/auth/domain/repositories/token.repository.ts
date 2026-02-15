@@ -6,7 +6,7 @@ export interface ITokenRepository {
   /**
    * Generate access token for user
    */
-  generateAccessToken(userId: string, email: string): string;
+  generateAccessToken(userId: string, email: string, role: string): string;
 
   /**
    * Generate refresh token for session
@@ -22,6 +22,8 @@ export interface ITokenRepository {
     role: string,
     userAgent?: string,
     ipAddress?: string,
+    deviceName?: string,
+    deviceType?: string,
   ): Promise<{ accessToken: string; refreshToken: string }>;
 
   /**

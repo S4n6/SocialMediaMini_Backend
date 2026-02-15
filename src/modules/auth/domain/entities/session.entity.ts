@@ -20,6 +20,9 @@ export class AuthSession {
     public readonly refreshToken: Token,
     public readonly ipAddress: string | null,
     public readonly userAgent: string | null,
+    public readonly deviceName: string | null,
+    public readonly deviceType: string | null,
+    public readonly clientType: string,
     public readonly isRevoked: boolean,
     public readonly createdAt: Date,
     public readonly expiresAt: Date,
@@ -37,6 +40,9 @@ export class AuthSession {
     refreshToken: Token;
     ipAddress?: string;
     userAgent?: string;
+    deviceName?: string;
+    deviceType?: string;
+    clientType?: string;
     expiresAt: Date;
     sessionId?: string; // Optional - will be generated from refresh token hash if not provided
   }): AuthSession {
@@ -50,6 +56,9 @@ export class AuthSession {
       props.refreshToken,
       props.ipAddress || null,
       props.userAgent || null,
+      props.deviceName || null,
+      props.deviceType || null,
+      props.clientType || 'web',
       false, // Not revoked by default
       new Date(),
       props.expiresAt,
@@ -67,6 +76,9 @@ export class AuthSession {
     refreshToken: Token;
     ipAddress: string | null;
     userAgent: string | null;
+    deviceName: string | null;
+    deviceType: string | null;
+    clientType: string;
     isRevoked: boolean;
     createdAt: Date;
     expiresAt: Date;
@@ -79,6 +91,9 @@ export class AuthSession {
       props.refreshToken,
       props.ipAddress,
       props.userAgent,
+      props.deviceName,
+      props.deviceType,
+      props.clientType,
       props.isRevoked,
       props.createdAt,
       props.expiresAt,
@@ -115,6 +130,9 @@ export class AuthSession {
       this.refreshToken,
       this.ipAddress,
       this.userAgent,
+      this.deviceName,
+      this.deviceType,
+      this.clientType,
       true, // Now revoked
       this.createdAt,
       this.expiresAt,
@@ -145,6 +163,9 @@ export class AuthSession {
       this.refreshToken,
       this.ipAddress,
       this.userAgent,
+      this.deviceName,
+      this.deviceType,
+      this.clientType,
       this.isRevoked,
       this.createdAt,
       newExpiryDate,
@@ -225,6 +246,9 @@ export class AuthSession {
     refreshToken: string;
     ipAddress: string | null;
     userAgent: string | null;
+    deviceName: string | null;
+    deviceType: string | null;
+    clientType: string;
     isRevoked: boolean;
     createdAt: Date;
     expiresAt: Date;
@@ -237,6 +261,9 @@ export class AuthSession {
       refreshToken: this.refreshToken.value,
       ipAddress: this.ipAddress,
       userAgent: this.userAgent,
+      deviceName: this.deviceName,
+      deviceType: this.deviceType,
+      clientType: this.clientType,
       isRevoked: this.isRevoked,
       createdAt: this.createdAt,
       expiresAt: this.expiresAt,

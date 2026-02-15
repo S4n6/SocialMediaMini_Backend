@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   UseGuards,
+  UseFilters,
   Request,
   HttpCode,
   HttpStatus,
@@ -12,9 +13,16 @@ import {
   Ip,
   Inject,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { GoogleAuthGuard } from '../../../shared/guards/google.guard';
+import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
 import { Response } from 'express';
+import { AuthExceptionFilter } from './filters/auth-exception.filter';
+import {
+  ClientType,
+  isValidClientType,
+} from '../domain/enums/client-type.enum';
 
 // Application layer
 import { AuthApplicationService } from '../application/auth-application.service';
@@ -31,6 +39,7 @@ import {
 import { RegisterUserDto } from '../application';
 
 @Controller('auth')
+@UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
     @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
@@ -85,6 +94,13 @@ export class AuthController {
     @Ip() clientIp?: string,
   ) {
     try {
+      // Validate clientType
+      if (clientType && !isValidClientType(clientType.toLowerCase())) {
+        throw new BadRequestException(
+          `Invalid clientType. Must be one of: ${Object.values(ClientType).join(', ')}`,
+        );
+      }
+
       console.log(
         `Login attempt: ${loginDto.identifier}, User-Agent: ${userAgent}, IP: ${clientIp}`,
       );
@@ -95,6 +111,8 @@ export class AuthController {
         rememberMe: loginDto.rememberMe || false,
         userAgent: userAgent || 'unknown',
         ipAddress: clientIp || 'unknown',
+        deviceName: loginDto.deviceInfo?.deviceName,
+        deviceType: loginDto.deviceInfo?.deviceType,
       };
 
       const result = await this.authApplicationService.login(applicationDto);
@@ -234,14 +252,21 @@ export class AuthController {
       const cookieRefresh = req.cookies
         ? req.cookies['refresh_token']
         : undefined;
+      const bodyRefresh = body?.refreshToken;
       const refreshToken = isWeb
-        ? cookieRefresh || body.refreshToken
-        : body.refreshToken || cookieRefresh;
+        ? cookieRefresh || bodyRefresh
+        : bodyRefresh || cookieRefresh;
 
-      // Call logout once if we have a refresh token
-      if (refreshToken) {
-        await this.authApplicationService.logout({ refreshToken });
+      // Require refresh token for logout (strict validation)
+      if (!refreshToken) {
+        return {
+          success: false,
+          message: 'Logout failed',
+        };
       }
+
+      // Logout with valid token
+      await this.authApplicationService.logout({ refreshToken });
 
       const isProd = process.env.NODE_ENV === 'production';
       const cookieOptions = {
@@ -263,6 +288,34 @@ export class AuthController {
         success: false,
         message: 'Logout failed',
       };
+    }
+  }
+
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logoutAll(@Request() req, @Res({ passthrough: true }) res: Response) {
+    try {
+      // JWT strategy returns user with 'id' field
+      const userId = req.user?.id || req.user?.sub;
+
+      if (!userId) {
+        throw new Error('User ID not found in request');
+      }
+
+      const result = await this.authApplicationService.logoutAll(userId);
+
+      // Clear cookies for web clients
+      res.clearCookie('access_token');
+      res.clearCookie('refresh_token');
+
+      return {
+        success: true,
+        message: result.message,
+        sessionsRevoked: result.sessionsRevoked,
+      };
+    } catch (error) {
+      throw error;
     }
   }
 

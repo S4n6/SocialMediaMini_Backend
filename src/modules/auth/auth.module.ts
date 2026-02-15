@@ -24,6 +24,9 @@ import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-
 import { JwtTokenGenerator } from './infrastructure/security/jwt-token-generator';
 import { MailerEmailSender } from './infrastructure/services/mailer-email.service';
 
+// Domain Services
+import { SessionDomainService } from './domain/services/session-domain.service';
+
 // Presentation Layer
 import { AuthController } from './presentation/auth.controller';
 
@@ -38,6 +41,7 @@ import { ResetPasswordUseCase } from './application/use-cases/reset-password.use
 import { VerifyEmailUseCase } from './application/use-cases/verify-email.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { LogoutAllUseCase } from './application/use-cases/logout-all.use-case';
 import { ResendVerificationUseCase } from './application/use-cases/resend-verification.use-case';
 import { AuthenticationService } from './infrastructure/repositories/authentication.repository';
 import { VerificationTokenService } from './infrastructure/services/verification-token.service';
@@ -49,6 +53,13 @@ import { MailerModule } from '../mailer/mailer.module';
 // import { NotificationModule } from '../notification/notification.module'; // TODO: Refactor notification module
 import { RedisCacheModule } from '../cache/cache.module';
 import { PrismaModule } from '../../database/prisma.module';
+
+// Event Subscribers
+import {
+  PasswordChangedSubscriber,
+  EmailVerifiedSubscriber,
+  UserLoggedInSubscriber,
+} from './application/subscribers';
 
 @Module({
   imports: [
@@ -80,6 +91,9 @@ import { PrismaModule } from '../../database/prisma.module';
     // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
     AuthUserRepository,
 
+    // Domain Services
+    SessionDomainService,
+
     // Services
     {
       provide: PASSWORD_HASHER_TOKEN,
@@ -109,6 +123,7 @@ import { PrismaModule } from '../../database/prisma.module';
     VerifyEmailUseCase,
     RefreshTokenUseCase,
     LogoutUseCase,
+    LogoutAllUseCase,
     ResendVerificationUseCase,
 
     // Legacy infra
@@ -122,6 +137,11 @@ import { PrismaModule } from '../../database/prisma.module';
     // Presentation
     JwtStrategy,
     GoogleStrategy,
+
+    // Event Subscribers
+    PasswordChangedSubscriber,
+    EmailVerifiedSubscriber,
+    UserLoggedInSubscriber,
 
     // Compatibility token
     {

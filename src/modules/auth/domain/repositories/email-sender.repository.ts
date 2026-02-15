@@ -10,8 +10,8 @@ export interface IEmailSender {
    */
   sendVerificationEmail(
     to: Email,
-    verificationToken: string,
     userName: string,
+    verificationToken: string,
   ): Promise<void>;
 
   /**

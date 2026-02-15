@@ -279,6 +279,9 @@ export class UserPrismaRepository implements IUserRepository {
       lastVerificationSentAt: this.safeDateOrUndefined(
         row.lastVerificationSentAt,
       ), // Optional
+      lastPasswordResetSentAt: this.safeDateOrUndefined(
+        row.lastPasswordResetSentAt,
+      ), // Optional
       profile,
       followingIds: following,
       followerIds: followers,
@@ -346,6 +349,7 @@ export class UserPrismaRepository implements IUserRepository {
       // Profile fields are now direct on User model
       lastProfileUpdate: user.lastProfileUpdate,
       lastVerificationSentAt: user.lastVerificationSentAt,
+      lastPasswordResetSentAt: user.lastPasswordResetSentAt,
       fullName: user.profile.fullName,
       bio: user.profile.bio,
       avatar: user.profile.avatar,

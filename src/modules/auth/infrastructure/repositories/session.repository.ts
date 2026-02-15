@@ -24,11 +24,17 @@ export class SessionRepository implements ISessionRepository {
     userId: string,
     userAgent?: string,
     ipAddress?: string,
+    deviceName?: string,
+    deviceType?: string,
+    clientType?: string,
   ): Promise<string>;
   async create(
     sessionOrUserId: AuthSession | string,
     userAgent?: string,
     ipAddress?: string,
+    deviceName?: string,
+    deviceType?: string,
+    clientType?: string,
   ): Promise<AuthSession | string> {
     // If first parameter is a string (userId), create session from parameters
     if (typeof sessionOrUserId === 'string') {
@@ -47,6 +53,9 @@ export class SessionRepository implements ISessionRepository {
         refreshToken,
         ipAddress,
         userAgent,
+        deviceName,
+        deviceType,
+        clientType,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       };
 
@@ -68,6 +77,9 @@ export class SessionRepository implements ISessionRepository {
         userId: sessionData.userId,
         ipAddress: sessionData.ipAddress,
         userAgent: sessionData.userAgent,
+        deviceName: sessionData.deviceName,
+        deviceType: sessionData.deviceType,
+        clientType: sessionData.clientType,
         isRevoked: sessionData.isRevoked,
         createdAt: sessionData.createdAt,
         expiresAt: sessionData.expiresAt,
@@ -83,10 +95,40 @@ export class SessionRepository implements ISessionRepository {
       refreshToken: session.refreshToken,
       ipAddress: createdSession.ipAddress,
       userAgent: createdSession.userAgent,
+      deviceName: createdSession.deviceName,
+      deviceType: createdSession.deviceType,
+      clientType: createdSession.clientType,
       isRevoked: createdSession.isRevoked,
       createdAt: createdSession.createdAt,
       expiresAt: createdSession.expiresAt,
       revokedAt: null, // New sessions are not revoked
+    });
+  }
+
+  async save(session: AuthSession): Promise<void> {
+    const sessionData = session.toPlainObject();
+    
+    await this.prisma.session.upsert({
+      where: { id: sessionData.id },
+      create: {
+        id: sessionData.id,
+        sessionId: sessionData.sessionId,
+        userId: sessionData.userId,
+        ipAddress: sessionData.ipAddress,
+        userAgent: sessionData.userAgent,
+        deviceName: sessionData.deviceName,
+        deviceType: sessionData.deviceType,
+        clientType: sessionData.clientType,
+        isRevoked: sessionData.isRevoked,
+        createdAt: sessionData.createdAt,
+        expiresAt: sessionData.expiresAt,
+        revokedAt: sessionData.revokedAt,
+      },
+      update: {
+        isRevoked: sessionData.isRevoked,
+        revokedAt: sessionData.revokedAt,
+        expiresAt: sessionData.expiresAt,
+      },
     });
   }
 
@@ -192,6 +234,9 @@ export class SessionRepository implements ISessionRepository {
       refreshToken: token,
       ipAddress: prismaSession.ipAddress,
       userAgent: prismaSession.userAgent,
+      deviceName: prismaSession.deviceName,
+      deviceType: prismaSession.deviceType,
+      clientType: prismaSession.clientType,
       isRevoked: prismaSession.isRevoked,
       createdAt: prismaSession.createdAt,
       expiresAt: prismaSession.expiresAt,

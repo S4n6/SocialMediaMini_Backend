@@ -13,6 +13,7 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -172,23 +173,42 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateProfileDto: UpdateProfileRequestDto,
   ): Promise<ApiSuccessResponseDto<UserResponseDto>> {
-    // Convert presentation DTO to application command
-    const appCommand =
-      PresentationMapper.toUpdateProfileCommand(updateProfileDto);
+    try {
+      // Convert presentation DTO to application command
+      const appCommand =
+        PresentationMapper.toUpdateProfileCommand(updateProfileDto);
 
-    // Execute use case
-    const appResult = await this.userApplicationService.updateProfile(
-      id,
-      appCommand,
-    );
+      // Execute use case
+      const appResult = await this.userApplicationService.updateProfile(
+        id,
+        appCommand,
+      );
 
-    // Convert application result to presentation DTO
-    const result = PresentationMapper.toUserResponseDto(appResult);
+      // Convert application result to presentation DTO
+      const result = PresentationMapper.toUserResponseDto(appResult);
 
-    return PresentationMapper.toApiSuccessResponse(
-      result,
-      'Profile updated successfully',
-    );
+      return PresentationMapper.toApiSuccessResponse(
+        result,
+        'Profile updated successfully',
+      );
+    } catch (error) {
+      // Convert domain exceptions to HTTP exceptions
+      if (
+        error.message.includes('not found') ||
+        error.message.includes('not exist')
+      ) {
+        throw new NotFoundException(error.message);
+      }
+      if (
+        error.message.includes('Profile can be updated') ||
+        error.message.includes('too frequent') ||
+        error.message.includes('inactive') ||
+        error.message.includes('Invalid')
+      ) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
   }
 
   @Post(':id/verify-email')

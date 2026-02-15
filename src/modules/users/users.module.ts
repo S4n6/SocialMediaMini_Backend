@@ -44,6 +44,7 @@ import {
   UpdateUserPasswordUseCase,
   CreateUserFromGoogleUseCase,
   UpdateVerificationTimestampUseCase,
+  UpdatePasswordResetTimestampUseCase,
   SaveUserUseCase,
 } from './application/use-cases/user-management.use-case';
 
@@ -98,6 +99,7 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
     UpdateUserPasswordUseCase,
     CreateUserFromGoogleUseCase,
     UpdateVerificationTimestampUseCase,
+    UpdatePasswordResetTimestampUseCase,
     SaveUserUseCase,
   ],
   exports: [

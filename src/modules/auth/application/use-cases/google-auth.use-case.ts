@@ -6,7 +6,11 @@ import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository';
 import { ITokenRepository } from '../../domain/repositories/token.repository';
-import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
+import { ISessionRepository } from '../../domain/repositories/session.repository';
+import {
+  TOKEN_REPOSITORY_TOKEN,
+  SESSION_REPOSITORY_TOKEN,
+} from '../../auth.constants';
 import {
   UserEmail,
   Username,
@@ -26,6 +30,8 @@ export class GoogleAuthUseCase extends BaseUseCase<
     private userRepository: IUserRepository,
     @Inject(TOKEN_REPOSITORY_TOKEN)
     private tokenRepository: ITokenRepository,
+    @Inject(SESSION_REPOSITORY_TOKEN)
+    private sessionRepository: ISessionRepository,
   ) {
     super();
   }
@@ -44,6 +50,12 @@ export class GoogleAuthUseCase extends BaseUseCase<
         user.role.toString(),
       );
 
+      // Extract actual sessionId from refresh token
+      const sessionInfo =
+        await this.sessionRepository.getSessionFromRefreshToken(
+          tokens.refreshToken,
+        );
+
       return {
         success: true,
         message: 'Google login successful',
@@ -57,38 +69,93 @@ export class GoogleAuthUseCase extends BaseUseCase<
         },
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-        sessionId: `google_session_${Date.now()}`,
+        sessionId: sessionInfo?.sessionId || 'unknown',
       };
     } else {
       // User doesn't exist, create new user
       let userName = email.split('@')[0]; // Generate username from email
+      let userCreated = false;
+      let attempts = 0;
+      const maxAttempts = 3;
 
-      // Check if username already exists
-      const existingUserByUsername =
-        await this.userRepository.findByUsername(userName);
-      if (existingUserByUsername) {
-        // Use email prefix with random number if username taken
-        const randomSuffix = Math.floor(Math.random() * 1000);
-        userName = `${email.split('@')[0]}${randomSuffix}`;
+      // Retry loop with exponential backoff to handle race conditions
+      while (!userCreated && attempts < maxAttempts) {
+        try {
+          // Generate username with random suffix if not first attempt
+          if (attempts > 0) {
+            const randomSuffix = Math.floor(Math.random() * 10000);
+            userName = `${email.split('@')[0]}${randomSuffix}`;
+
+            // Exponential backoff: 100ms, 200ms, 400ms
+            const backoffDelay = 100 * Math.pow(2, attempts - 1);
+            await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+          }
+
+          // Check if username already exists
+          const existingUserByUsername =
+            await this.userRepository.findByUsername(userName);
+
+          if (existingUserByUsername) {
+            attempts++;
+            continue; // Try again with new username
+          }
+
+          // Create user profile
+          const profile = new UserProfile({
+            fullName: fullName,
+            avatar: profilePicture,
+          });
+
+          // Create new user
+          const userId = uuidv4();
+          user = new User(userId, userName, email, profile, {
+            googleId: googleId,
+            isEmailVerified: true, // Google accounts are pre-verified
+            role: UserRole.USER,
+            emailVerifiedAt: new Date(),
+          });
+
+          // Save user to repository - this may throw on unique constraint violation
+          await this.userRepository.save(user);
+          userCreated = true;
+        } catch (error) {
+          // Check if it's a unique constraint violation
+          if (
+            error.code === 'P2002' ||
+            error.message?.includes('unique constraint')
+          ) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+              // Last resort: use UUID suffix (guaranteed unique)
+              userName = `${email.split('@')[0]}_${uuidv4().substring(0, 8)}`;
+
+              const profile = new UserProfile({
+                fullName: fullName,
+                avatar: profilePicture,
+              });
+
+              const userId = uuidv4();
+              user = new User(userId, userName, email, profile, {
+                googleId: googleId,
+                isEmailVerified: true,
+                role: UserRole.USER,
+                emailVerifiedAt: new Date(),
+              });
+
+              await this.userRepository.save(user);
+              userCreated = true;
+            }
+          } else {
+            // Re-throw non-constraint errors
+            throw error;
+          }
+        }
       }
 
-      // Create user profile
-      const profile = new UserProfile({
-        fullName: fullName,
-        avatar: profilePicture,
-      });
-
-      // Create new user
-      const userId = uuidv4();
-      user = new User(userId, userName, email, profile, {
-        googleId: googleId,
-        isEmailVerified: true, // Google accounts are pre-verified
-        role: UserRole.USER,
-        emailVerifiedAt: new Date(),
-      });
-
-      // Save user to repository
-      await this.userRepository.save(user);
+      // Ensure user was created successfully
+      if (!user) {
+        throw new Error('Failed to create user after multiple attempts');
+      }
 
       // Generate tokens for new user
       const tokens = await this.tokenRepository.createTokensForUser(
@@ -96,6 +163,12 @@ export class GoogleAuthUseCase extends BaseUseCase<
         user.email,
         user.role.toString(),
       );
+
+      // Extract actual sessionId from refresh token
+      const sessionInfo =
+        await this.sessionRepository.getSessionFromRefreshToken(
+          tokens.refreshToken,
+        );
 
       return {
         success: true,
@@ -110,7 +183,7 @@ export class GoogleAuthUseCase extends BaseUseCase<
         },
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
-        sessionId: `google_session_${Date.now()}`,
+        sessionId: sessionInfo?.sessionId || 'unknown',
       };
     }
   }

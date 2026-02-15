@@ -18,6 +18,8 @@ export class LoginDto {
   rememberMe?: boolean;
   ipAddress?: string;
   userAgent?: string;
+  deviceName?: string;
+  deviceType?: string;
 }
 
 export class GoogleAuthDto {

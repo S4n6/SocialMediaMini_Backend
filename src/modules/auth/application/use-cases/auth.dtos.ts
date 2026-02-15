@@ -14,6 +14,8 @@ export interface LoginRequest {
   password: string;
   ipAddress?: string;
   userAgent?: string;
+  deviceName?: string;
+  deviceType?: string;
 }
 
 export interface RefreshTokenRequest {

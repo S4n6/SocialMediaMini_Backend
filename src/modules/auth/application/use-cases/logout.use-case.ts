@@ -3,13 +3,8 @@ import { BaseUseCase } from './base.use-case';
 import { LogoutRequest } from './auth.dtos';
 import { AuthResult } from '../../domain/entities';
 import { ISessionRepository } from '../../domain/repositories/session.repository';
-import { ITokenRepository } from '../../domain/repositories/token.repository';
-// import { IRefreshTokenParser } from '../../domain/repositories/IRefreshTokenParser';
 import { Inject } from '@nestjs/common';
-// Avoid importing tokens from auth.module to prevent circular dependency
-const SESSION_REPOSITORY_TOKEN = 'SESSION_REPOSITORY';
-const TOKEN_REPOSITORY_TOKEN = 'TOKEN_REPOSITORY';
-const REFRESH_TOKEN_PARSER_TOKEN = 'REFRESH_TOKEN_PARSER';
+import { SESSION_REPOSITORY_TOKEN } from '../../auth.constants';
 
 @Injectable()
 export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
@@ -23,6 +18,7 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
   async execute(request: LogoutRequest): Promise<AuthResult> {
     const { refreshToken } = request;
     if (!refreshToken) {
+      console.log('[Logout] No refresh token provided');
       return {
         success: true,
         message: 'Logout successful',
@@ -33,6 +29,7 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
       await this.sessionRepository.findByRefreshToken(refreshToken);
 
     if (!session) {
+      console.log('[Logout] Session not found for refresh token');
       return {
         success: true,
         message: 'Logout successful',
@@ -42,6 +39,7 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
     // Validate that the refresh token matches this session
     if (!session.isValidRefreshToken(refreshToken)) {
       // Token doesn't match session - treat as success to avoid failing logout
+      console.log('[Logout] Refresh token mismatch for session:', session.id);
       return {
         success: true,
         message: 'Logout successful',
@@ -51,14 +49,16 @@ export class LogoutUseCase extends BaseUseCase<LogoutRequest, AuthResult> {
     // Validate session is not expired or revoked
     if (!session.isValid()) {
       // Session already expired/revoked - treat as successful
+      console.log('[Logout] Session already expired/revoked:', session.id);
       return {
         success: true,
         message: 'Logout successful',
       };
     }
 
-    // Delete session completely using the database ID (not just revoke)
-    await this.sessionRepository.delete(session.id);
+    // Revoke the session (marks as revoked, keeps record for audit)
+    const revokedSession = session.revoke();
+    await this.sessionRepository.save(revokedSession);
 
     return {
       success: true,
