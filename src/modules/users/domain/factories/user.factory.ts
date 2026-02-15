@@ -129,6 +129,7 @@ export class UserFactory {
     updatedAt: Date;
     lastProfileUpdate?: Date;
     lastVerificationSentAt?: Date;
+    lastPasswordResetSentAt?: Date;
     profile: any; // Raw profile data from DB
     followingIds?: string[];
     followerIds?: string[];
@@ -155,6 +156,7 @@ export class UserFactory {
         updatedAt: data.updatedAt,
         lastProfileUpdate: data.lastProfileUpdate,
         lastVerificationSentAt: data.lastVerificationSentAt,
+        lastPasswordResetSentAt: data.lastPasswordResetSentAt,
       },
     );
 

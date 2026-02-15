@@ -89,6 +89,31 @@ export class UpdateVerificationTimestampUseCase {
 }
 
 /**
+ * Update Password Reset Timestamp Use Case
+ * Used by Auth module to track when password reset emails are sent
+ */
+@Injectable()
+export class UpdatePasswordResetTimestampUseCase {
+  constructor(
+    @Inject(USER_REPOSITORY_TOKEN)
+    private readonly userRepository: IUserRepository,
+  ) {}
+
+  async execute(userId: string, timestamp: Date): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new UserNotFoundException(userId);
+    }
+
+    // Use the proper method for tracking password reset timestamps
+    user.updateLastPasswordResetSentAt(timestamp);
+
+    // Save the updated user
+    await this.userRepository.save(user);
+  }
+}
+
+/**
  * Save User Use Case
  * Generic use case for saving user entities (used by Auth module)
  */

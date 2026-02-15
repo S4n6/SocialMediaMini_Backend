@@ -8,12 +8,9 @@ export interface CreateTestUserData {
   email?: string;
   password?: string;
   fullName?: string;
-  bio?: string;
   avatar?: string;
-  location?: string;
-  websiteUrl?: string;
   phoneNumber?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+  gender?: 'male' | 'female' | 'other';
   dateOfBirth?: Date;
 }
 
@@ -25,19 +22,15 @@ export class TestDataFactory {
    */
   static createUserData(overrides?: CreateTestUserData): CreateTestUserData {
     const id = ++this.counter;
-    // Generate valid phone number with at least 10 digits
-    const paddedId = id.toString().padStart(4, '0');
+    const paddedId = id.toString().padStart(5, '0'); // Pad to 5 digits
     return {
       username: `testuser${id}`,
       email: `testuser${id}@example.com`,
       password: 'SecurePass123!',
       fullName: `Test User ${id}`,
-      bio: `Bio for test user ${id}`,
       avatar: `https://example.com/avatar${id}.jpg`,
-      location: 'Test City',
-      websiteUrl: `https://testuser${id}.com`,
-      phoneNumber: `+1234567${paddedId}`, // Now has 10+ digits: +1234567XXXX
-      gender: 'PREFER_NOT_TO_SAY' as const,
+      phoneNumber: `+123456${paddedId}`, // +1 + 10 digits = +12345600001
+      gender: 'other',
       dateOfBirth: new Date('1990-01-01'),
       ...overrides,
     };

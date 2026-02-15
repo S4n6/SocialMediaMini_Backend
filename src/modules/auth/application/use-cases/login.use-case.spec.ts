@@ -15,10 +15,11 @@ import {
   PASSWORD_HASHER_TOKEN,
 } from '../../auth.constants';
 import {
-  InvalidPasswordException,
-  UserNotVerifiedException,
+  InvalidCredentialsException,
+  EmailNotVerifiedException,
 } from '../../domain/exceptions/auth.exceptions';
 import { UserRole } from '../../../users/domain';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('LoginUseCase', () => {
   let useCase: LoginUseCase;
@@ -72,7 +73,6 @@ describe('LoginUseCase', () => {
 
     const mockSessionService: jest.Mocked<ISessionRepository> = {
       deleteSessionsByUserAgent: jest.fn(),
-      deleteAllByUserId: jest.fn(),
       getSessionFromRefreshToken: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
@@ -97,6 +97,11 @@ describe('LoginUseCase', () => {
       revokeSession: jest.fn(),
     } as any;
 
+    const mockEventEmitter: jest.Mocked<EventEmitter2> = {
+      emit: jest.fn(),
+      emitAsync: jest.fn(),
+    } as any;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LoginUseCase,
@@ -119,6 +124,10 @@ describe('LoginUseCase', () => {
         {
           provide: SessionDomainService,
           useValue: mockSessionDomainService,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: mockEventEmitter,
         },
       ],
     }).compile();
@@ -174,6 +183,8 @@ describe('LoginUseCase', () => {
         mockUser.role,
         request.userAgent,
         request.ipAddress,
+        undefined,
+        undefined,
       );
       expect(sessionService.getSessionFromRefreshToken).toHaveBeenCalledWith(
         mockTokens.refreshToken,
@@ -250,7 +261,7 @@ describe('LoginUseCase', () => {
   });
 
   describe('Authentication Errors', () => {
-    it('should throw InvalidPasswordException when both email and username are missing', async () => {
+    it('should throw InvalidCredentialsException when both email and username are missing', async () => {
       // Arrange
       const request = createValidLoginRequest({
         email: undefined,
@@ -259,14 +270,14 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
       expect(
         userApplicationService.findUserEntityByEmailOrUsername,
       ).not.toHaveBeenCalled();
     });
 
-    it('should throw InvalidPasswordException when email is empty string', async () => {
+    it('should throw InvalidCredentialsException when email is empty string', async () => {
       // Arrange
       const request = createValidLoginRequest({
         email: '',
@@ -275,11 +286,11 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
     });
 
-    it('should throw InvalidPasswordException when user not found', async () => {
+    it('should throw InvalidCredentialsException when user not found', async () => {
       // Arrange
       const request = createValidLoginRequest();
 
@@ -289,7 +300,7 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
       expect(
         userApplicationService.findUserEntityByEmailOrUsername,
@@ -297,7 +308,7 @@ describe('LoginUseCase', () => {
       expect(passwordHasher.verify).not.toHaveBeenCalled();
     });
 
-    it('should throw InvalidPasswordException when user has no password hash', async () => {
+    it('should throw InvalidCredentialsException when user has no password hash', async () => {
       // Arrange
       const request = createValidLoginRequest();
       const mockUser = createTestUser({ passwordHash: null });
@@ -308,12 +319,12 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
       expect(passwordHasher.verify).not.toHaveBeenCalled();
     });
 
-    it('should throw InvalidPasswordException when user has empty password hash', async () => {
+    it('should throw InvalidCredentialsException when user has empty password hash', async () => {
       // Arrange
       const request = createValidLoginRequest();
       const mockUser = createTestUser({ passwordHash: '' });
@@ -324,12 +335,12 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
       expect(passwordHasher.verify).not.toHaveBeenCalled();
     });
 
-    it('should throw InvalidPasswordException when password verification fails', async () => {
+    it('should throw InvalidCredentialsException when password verification fails', async () => {
       // Arrange
       const request = createValidLoginRequest();
       const mockUser = createTestUser();
@@ -341,7 +352,7 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        InvalidPasswordException,
+        InvalidCredentialsException,
       );
       expect(passwordHasher.verify).toHaveBeenCalledWith(
         expect.any(Password),
@@ -352,7 +363,7 @@ describe('LoginUseCase', () => {
   });
 
   describe('Email Verification', () => {
-    it('should throw UserNotVerifiedException when user email is not verified', async () => {
+    it('should throw EmailNotVerifiedException when user email is not verified', async () => {
       // Arrange
       const request = createValidLoginRequest();
       const mockUser = createTestUser({ isEmailVerified: false });
@@ -363,7 +374,7 @@ describe('LoginUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(request)).rejects.toThrow(
-        UserNotVerifiedException,
+        EmailNotVerifiedException,
       );
       expect(passwordHasher.verify).not.toHaveBeenCalled();
     });
@@ -517,6 +528,8 @@ describe('LoginUseCase', () => {
         mockUser.role,
         request.userAgent,
         request.ipAddress,
+        undefined,
+        undefined,
       );
     });
   });

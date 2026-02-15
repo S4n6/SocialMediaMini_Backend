@@ -23,6 +23,7 @@ import { ResetPasswordUseCase } from './use-cases/reset-password.use-case';
 import { VerifyEmailUseCase } from './use-cases/verify-email.use-case';
 import { RefreshTokenUseCase } from './use-cases/refresh-token.use-case';
 import { LogoutUseCase } from './use-cases/logout.use-case';
+import { LogoutAllUseCase } from './use-cases/logout-all.use-case';
 import { ResendVerificationUseCase } from './use-cases/resend-verification.use-case';
 
 /**
@@ -40,6 +41,7 @@ export class AuthApplicationService {
     private readonly verifyEmailUseCase: VerifyEmailUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly logoutAllUseCase: LogoutAllUseCase,
     private readonly resendVerificationUseCase: ResendVerificationUseCase,
   ) {}
 
@@ -80,16 +82,21 @@ export class AuthApplicationService {
   }
 
   async login(loginDto: LoginDto): Promise<AuthResultDto> {
+    // Normalize identifier (trim and lowercase for email/username lookup)
+    const normalizedIdentifier = loginDto.identifier.trim().toLowerCase();
+
     const result = await this.loginUseCase.execute({
-      email: loginDto.identifier.includes('@')
-        ? loginDto.identifier
+      email: normalizedIdentifier.includes('@')
+        ? normalizedIdentifier
         : undefined,
-      username: !loginDto.identifier.includes('@')
-        ? loginDto.identifier
+      username: !normalizedIdentifier.includes('@')
+        ? normalizedIdentifier
         : undefined,
       password: loginDto.password,
       ipAddress: loginDto.ipAddress,
       userAgent: loginDto.userAgent,
+      deviceName: loginDto.deviceName,
+      deviceType: loginDto.deviceType,
     });
 
     return {
@@ -234,6 +241,13 @@ export class AuthApplicationService {
       });
       return { revokedSessions: 1 };
     }
+  }
+
+  async logoutAll(
+    userId: string,
+  ): Promise<{ success: boolean; message: string; sessionsRevoked: number }> {
+    const result = await this.logoutAllUseCase.execute({ userId });
+    return result;
   }
 
   async changePassword(changePasswordDto: ChangePasswordDto): Promise<void> {

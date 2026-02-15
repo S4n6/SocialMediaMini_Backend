@@ -8,7 +8,7 @@ describe('User Entity', () => {
     email: new Email('john@example.com'),
     username: 'johnsmith',
     fullName: 'John Smith',
-    hashedPassword: 'hashed_password_123_with_proper_length',
+    hashedPassword: '$2a$10$' + 'A'.repeat(53), // Valid 60-char bcrypt hash
     role: UserRole.USER,
     ...overrides,
   });
@@ -18,7 +18,7 @@ describe('User Entity', () => {
     email: new Email('john@example.com'),
     username: 'johnsmith',
     fullName: 'John Smith',
-    hashedPassword: 'hashed_password_123_with_proper_length',
+    hashedPassword: '$2a$10$' + 'B'.repeat(53), // Valid 60-char bcrypt hash
     role: UserRole.USER,
     isEmailVerified: false,
     emailVerifiedAt: null,
@@ -254,7 +254,7 @@ describe('User Entity', () => {
     describe('changePassword()', () => {
       it('should change password with valid hash', () => {
         const originalUser = User.create(createValidUserProps());
-        const newHashedPassword = 'new_hashed_password_with_proper_length';
+        const newHashedPassword = '$2a$10$' + 'N'.repeat(53); // Valid 60-char bcrypt
 
         const before = new Date();
         const updatedUser = originalUser.changePassword(newHashedPassword);
@@ -288,13 +288,46 @@ describe('User Entity', () => {
         const user = User.create(createValidUserProps());
 
         expect(() => user.changePassword('short')).toThrow(
-          'Invalid password hash - must be hashed password string',
+          'Invalid password hash - must be a valid bcrypt hash',
         );
+      });
+
+      it('should throw error when password is not a valid bcrypt hash', () => {
+        const user = User.create(createValidUserProps());
+
+        // Test invalid bcrypt hashes (not matching bcrypt format)
+        expect(() =>
+          user.changePassword('invalid_hash_not_bcrypt_format_here'),
+        ).toThrow('Invalid password hash - must be a valid bcrypt hash');
+
+        expect(() =>
+          user.changePassword(
+            'plaintext_password_that_is_long_enough_but_not_hashed',
+          ),
+        ).toThrow('Invalid password hash - must be a valid bcrypt hash');
+      });
+
+      it('should accept valid bcrypt hash formats', () => {
+        const user = User.create(createValidUserProps());
+
+        // Valid bcrypt $2a$ format (60 characters total: $2a$10$ + 53 chars)
+        const bcrypt2a = '$2a$10$' + 'a'.repeat(53);
+        expect(() => user.changePassword(bcrypt2a)).not.toThrow();
+
+        // Valid bcrypt $2b$ format (60 characters total)
+        const bcrypt2b = '$2b$12$' + 'a'.repeat(53); // $2b$12$ + 53 chars = 60 total
+        const user2 = User.create(createValidUserProps());
+        expect(() => user2.changePassword(bcrypt2b)).not.toThrow();
+
+        // Valid bcrypt $2y$ format (60 characters total)
+        const bcrypt2y = '$2y$10$' + 'x'.repeat(53); // $2y$10$ + 53 chars = 60 total
+        const user3 = User.create(createValidUserProps());
+        expect(() => user3.changePassword(bcrypt2y)).not.toThrow();
       });
 
       it('should maintain other properties when changing password', () => {
         const originalUser = User.create(createValidUserProps());
-        const newHashedPassword = 'new_hashed_password_with_proper_length';
+        const newHashedPassword = '$2b$12$' + 'X'.repeat(53); // Valid 60-char bcrypt
         const updatedUser = originalUser.changePassword(newHashedPassword);
 
         expect(updatedUser.id).toBe(originalUser.id);
@@ -579,7 +612,7 @@ describe('User Entity', () => {
       const originalUser = User.create(createValidUserProps());
       const originalPassword = originalUser.hashedPassword;
 
-      originalUser.changePassword('new_hashed_password_with_proper_length');
+      originalUser.changePassword('$2b$12$' + 'X'.repeat(53));
 
       expect(originalUser.hashedPassword).toBe(originalPassword);
     });

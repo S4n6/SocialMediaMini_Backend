@@ -1,18 +1,293 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note: Using Prisma 6.x syntax. The `url` property works correctly.
-// VSCode Prisma extension may show false warnings if configured for Prisma 7.
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ========== ENUMS ==========
+model User {
+  id                      String               @id @default(uuid()) @map("UserId")
+  fullName                String               @map("FullName")
+  email                   String               @unique @map("Email")
+  googleId                String?              @unique @map("GoogleId")
+  dateOfBirth             DateTime?            @map("DateOfBirth")
+  phoneNumber             String?              @map("PhoneNumber")
+  avatar                  String?              @map("Avatar")
+  bio                     String?              @map("Bio")
+  location                String?              @map("Location")
+  gender                  String?              @map("Gender")
+  isEmailVerified         Boolean              @default(false) @map("IsEmailVerified")
+  emailVerifiedAt         DateTime?            @map("EmailVerifiedAt")
+  createdAt               DateTime             @default(now()) @map("CreatedAt")
+  updatedAt               DateTime             @updatedAt @map("UpdatedAt")
+  websiteUrl              String?              @map("WebsiteUrl")
+  lastProfileUpdate       DateTime?            @map("LastProfileUpdate")
+  passwordHash            String?              @map("PasswordHash")
+  status                  UserStatus           @default(ACTIVE) @map("Status")
+  username                String               @unique @map("Username")
+  role                    UserRole             @default(USER) @map("Role")
+  lastVerificationSentAt  DateTime?            @map("LastVerificationSentAt")
+  lastPasswordResetSentAt DateTime?            @map("LastPasswordResetSentAt")
+  comments                Comment[]
+  following               Follow[]             @relation("UserFollowing")
+  followers               Follow[]             @relation("UserFollowers")
+  sentMessages            Message[]
+  notifications           Notification[]
+  posts                   Post[]
+  reactions               Reaction[]
+  reportsSubmitted        Report[]             @relation("ReportSubmitter")
+  reportsReceived         Report[]             @relation("ReportTarget")
+  searchHistory           SearchHistory?       @relation("UserSearchHistory")
+  searchedHistory         SearchHistoryEntry[] @relation("UserSearchedHistory")
+  sessions                Session[]
+  stories                 Story[]
+  storyViews              StoryView[]          @relation("UserStoryViews")
+  conversations           UserConversation[]
+
+  @@map("Users")
+}
+
+model Post {
+  id        String        @id @default(uuid()) @map("PostId")
+  content   String?       @map("Content")
+  privacy   String        @default("public") @map("Privacy")
+  createdAt DateTime      @default(now()) @map("CreatedAt")
+  updatedAt DateTime      @updatedAt @map("UpdatedAt")
+  authorId  String        @map("AuthorId")
+  comments  Comment[]
+  hashtags  PostHashtag[]
+  postMedia PostMedia[]
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+  reports   Report[]
+
+  @@map("Posts")
+}
+
+model Reaction {
+  id        String   @id @default(uuid()) @map("ReactionId")
+  type      String   @map("Type")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+  reactorId String   @map("ReactorId")
+  postId    String?  @map("PostId")
+  commentId String?  @map("CommentId")
+  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reactor   User     @relation(fields: [reactorId], references: [id], onDelete: Cascade)
+
+  @@unique([reactorId, postId])
+  @@unique([reactorId, commentId])
+  @@map("Reactions")
+}
+
+model Comment {
+  id        String     @id @default(uuid()) @map("CommentId")
+  content   String     @map("Content")
+  createdAt DateTime   @default(now()) @map("CreatedAt")
+  updatedAt DateTime   @updatedAt @map("UpdatedAt")
+  authorId  String     @map("AuthorId")
+  postId    String     @map("PostId")
+  parentId  String?    @map("ParentId")
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[]  @relation("CommentReplies")
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+
+  @@map("Comments")
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @map("FollowId")
+  createdAt   DateTime @default(now()) @map("CreatedAt")
+  followerId  String   @map("FollowerId")
+  followingId String   @map("FollowingId")
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("Follows")
+}
+
+model Conversation {
+  id           String             @id @default(uuid()) @map("ConversationId")
+  name         String?            @map("Name")
+  isGroup      Boolean            @default(false) @map("IsGroup")
+  createdAt    DateTime           @default(now()) @map("CreatedAt")
+  updatedAt    DateTime           @updatedAt @map("UpdatedAt")
+  messages     Message[]
+  participants UserConversation[]
+
+  @@map("Conversations")
+}
+
+model Message {
+  id             String       @id @default(uuid()) @map("MessageId")
+  content        String       @map("Content")
+  messageType    String       @default("text") @map("MessageType")
+  isRead         Boolean      @default(false) @map("IsRead")
+  createdAt      DateTime     @default(now()) @map("CreatedAt")
+  senderId       String       @map("SenderId")
+  conversationId String       @map("ConversationId")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("Messages")
+}
+
+model UserConversation {
+  id             String       @id @default(uuid()) @map("UserConversationId")
+  role           String       @default("member") @map("Role")
+  joinedAt       DateTime     @default(now()) @map("JoinedAt")
+  lastReadAt     DateTime?    @map("LastReadAt")
+  userId         String       @map("UserId")
+  conversationId String       @map("ConversationId")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conversationId])
+  @@map("UserConversations")
+}
+
+model Story {
+  id        String      @id @default(uuid()) @map("StoryId")
+  content   String?     @map("Content")
+  mediaUrl  String?     @map("MediaUrl")
+  mediaType String?     @map("MediaType")
+  expiresAt DateTime    @map("ExpiresAt")
+  createdAt DateTime    @default(now()) @map("CreatedAt")
+  authorId  String      @map("AuthorId")
+  isActive  Boolean     @default(true) @map("IsActive")
+  updatedAt DateTime    @updatedAt @map("UpdatedAt")
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  views     StoryView[]
+
+  @@map("Stories")
+}
+
+model StoryView {
+  id       String   @id @default(uuid()) @map("StoryViewId")
+  viewedAt DateTime @default(now()) @map("ViewedAt")
+  storyId  String   @map("StoryId")
+  viewerId String   @map("ViewerId")
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer   User     @relation("UserStoryViews", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@map("StoryViews")
+}
+
+model Report {
+  id           String    @id @default(uuid()) @map("ReportId")
+  reason       String    @map("Reason")
+  description  String?   @map("Description")
+  status       String    @default("pending") @map("Status")
+  createdAt    DateTime  @default(now()) @map("CreatedAt")
+  resolvedAt   DateTime? @map("ResolvedAt")
+  reporterId   String    @map("ReporterId")
+  targetUserId String?   @map("TargetUserId")
+  targetPostId String?   @map("TargetPostId")
+  reporter     User      @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost   Post?     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetUser   User?     @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@map("Reports")
+}
+
+model Notification {
+  id         String   @id @default(uuid()) @map("NotificationId")
+  type       String   @map("Type")
+  title      String   @map("Title")
+  content    String   @map("Content")
+  isRead     Boolean  @default(false) @map("IsRead")
+  createdAt  DateTime @default(now()) @map("CreatedAt")
+  userId     String   @map("UserId")
+  entityId   String?  @map("EntityId")
+  entityType String?  @map("EntityType")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("Notifications")
+}
+
+model Hashtag {
+  id         String        @id @default(uuid()) @map("HashtagId")
+  name       String        @unique @map("Name")
+  usageCount Int           @default(0) @map("UsageCount")
+  createdAt  DateTime      @default(now()) @map("CreatedAt")
+  posts      PostHashtag[]
+
+  @@map("Hashtags")
+}
+
+model PostHashtag {
+  id        String  @id @default(uuid()) @map("PostHashtagId")
+  postId    String  @map("PostId")
+  hashtagId String  @map("HashtagId")
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, hashtagId])
+  @@map("PostHashtags")
+}
+
+model PostMedia {
+  id        String   @id @default(uuid()) @map("PostMediaId")
+  url       String   @map("Url")
+  type      String   @map("Type")
+  order     Int?     @map("Order")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+  postId    String   @map("PostId")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("PostMedias")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @map("SessionId")
+  sessionId  String    @unique @map("SessionIdentifier")
+  expiresAt  DateTime  @map("ExpiresAt")
+  createdAt  DateTime  @default(now()) @map("CreatedAt")
+  lastUsedAt DateTime  @default(now()) @map("LastUsedAt")
+  isRevoked  Boolean   @default(false) @map("IsRevoked")
+  revokedAt  DateTime? @map("RevokedAt")
+  userAgent  String?   @map("UserAgent")
+  ipAddress  String?   @map("IpAddress")
+  userId     String    @map("UserId")
+  clientType String    @default("web") @map("ClientType")
+  deviceName String?   @map("DeviceName")
+  deviceType String?   @map("DeviceType")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId, sessionId])
+  @@map("Sessions")
+}
+
+model SearchHistory {
+  id        String               @id @default(uuid()) @map("SearchHistoryId")
+  userId    String               @unique @map("UserId")
+  createdAt DateTime             @default(now()) @map("CreatedAt")
+  updatedAt DateTime             @updatedAt @map("UpdatedAt")
+  user      User                 @relation("UserSearchHistory", fields: [userId], references: [id], onDelete: Cascade)
+  entries   SearchHistoryEntry[]
+
+  @@map("SearchHistories")
+}
+
+model SearchHistoryEntry {
+  id              String        @id @default(uuid()) @map("SearchHistoryEntryId")
+  searchedUserId  String        @map("SearchedUserId")
+  searchedAt      DateTime      @default(now()) @map("SearchedAt")
+  createdAt       DateTime      @default(now()) @map("CreatedAt")
+  searchHistoryId String        @map("SearchHistoryId")
+  searchHistory   SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
+  searchedUser    User          @relation("UserSearchedHistory", fields: [searchedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([searchHistoryId, searchedUserId])
+  @@map("SearchHistoryEntries")
+}
 
 enum UserRole {
   USER
@@ -27,333 +302,3 @@ enum UserStatus {
   SUSPENDED
   BANNED
 }
-
-// ========== CORE MODELS ==========
-
-model User {
-  id                  String        @id @default(uuid()) @map("UserId")
-  fullName            String        @map("FullName")
-  username            String        @unique @map("Username")
-  email               String        @unique @map("Email")
-  passwordHash        String?       @map("PasswordHash") // Make optional for Google users
-  googleId            String?       @unique @map("GoogleId") // Add Google ID field
-  dateOfBirth         DateTime?     @map("DateOfBirth") // Make optional for Google users
-  phoneNumber         String?       @map("PhoneNumber")
-  avatar              String?       @map("Avatar")
-  bio                 String?       @map("Bio")
-  location            String?       @map("Location")
-  gender              String?       @map("Gender")
-  websiteUrl          String?       @map("WebsiteUrl") // New optional website URL field
-  role                UserRole      @default(USER) @map("Role")
-  status              UserStatus    @default(ACTIVE) @map("Status")
-  isEmailVerified     Boolean       @default(false) @map("IsEmailVerified")
-  emailVerifiedAt     DateTime?     @map("EmailVerifiedAt")
-  lastProfileUpdate   DateTime?     @map("LastProfileUpdate")
-  lastVerificationSentAt DateTime? @map("LastVerificationSentAt")
-  createdAt           DateTime      @default(now()) @map("CreatedAt")
-  updatedAt           DateTime      @updatedAt @map("UpdatedAt")
-
-  // Core relationships
-  posts             Post[]
-  reactions         Reaction[]
-  comments          Comment[]
-  following         Follow[]  @relation("UserFollowing")
-  followers         Follow[]  @relation("UserFollowers")
-
-  // Advanced relationships
-  conversations     UserConversation[]
-  sentMessages      Message[]
-  stories           Story[]
-  storyViews        StoryView[] @relation("UserStoryViews")
-  reportsSubmitted  Report[]  @relation("ReportSubmitter")
-  reportsReceived   Report[]  @relation("ReportTarget")
-  notifications     Notification[]
-  sessions          Session[]
-  
-  // Search history relationships
-  searchHistory     SearchHistory?     @relation("UserSearchHistory")
-  searchedHistory   SearchHistoryEntry[] @relation("UserSearchedHistory")
-
-  @@map("Users")
-}
-
-model Post {
-  id              String       @id @default(uuid()) @map("PostId")
-  content         String?      @map("Content")
-  privacy         String       @default("public") @map("Privacy") // public, followers, private
-  createdAt       DateTime     @default(now()) @map("CreatedAt")
-  updatedAt       DateTime     @updatedAt @map("UpdatedAt")
-
-  authorId        String       @map("AuthorId")
-  author          User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  // Core relationships
-  reactions       Reaction[]
-  comments        Comment[]
-  postMedia       PostMedia[]
-
-  // Advanced relationships
-  hashtags        PostHashtag[]
-  reports         Report[]
-
-  @@map("Posts")
-}
-
-model Reaction {
-  id         String       @id @default(uuid()) @map("ReactionId")
-  type      String       @map("Type")
-  createdAt  DateTime     @default(now()) @map("CreatedAt")
-
-  reactorId  String       @map("ReactorId")
-  reactor    User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
-
-  postId     String?      @map("PostId")
-  post       Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  commentId  String?      @map("CommentId")
-  comment    Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
-
-  @@unique([reactorId, postId])
-  @@unique([reactorId, commentId])
-  @@map("Reactions")
-}
-
-model Comment {
-  id        String    @id @default(uuid()) @map("CommentId")
-  content   String    @map("Content")
-  createdAt DateTime  @default(now()) @map("CreatedAt")
-  updatedAt DateTime  @updatedAt @map("UpdatedAt")
-
-  authorId  String    @map("AuthorId")
-  author    User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  postId    String    @map("PostId")
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  // Self-referencing for replies
-  parentId  String?   @map("ParentId")
-  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   Comment[] @relation("CommentReplies")
-  reactions Reaction[]
-
-  @@map("Comments")
-}
-
-model Follow {
-  id          String   @id @default(uuid()) @map("FollowId")
-  createdAt   DateTime @default(now()) @map("CreatedAt")
-
-  followerId  String   @map("FollowerId")
-  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
-
-  followingId String   @map("FollowingId")
-  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
-
-  @@unique([followerId, followingId])
-  @@map("Follows")
-}
-
-// ========== ADVANCED MODELS ==========
-
-model Conversation {
-  id           String    @id @default(uuid()) @map("ConversationId")
-  name         String?   @map("Name") // For group conversations
-  isGroup      Boolean   @default(false) @map("IsGroup")
-  createdAt    DateTime  @default(now()) @map("CreatedAt")
-  updatedAt    DateTime  @updatedAt @map("UpdatedAt")
-
-  participants UserConversation[]
-  messages     Message[]
-
-  @@map("Conversations")
-}
-
-model Message {
-  id             String       @id @default(uuid()) @map("MessageId")
-  content        String       @map("Content")
-  messageType    String       @default("text") @map("MessageType") // text, image, file
-  isRead         Boolean      @default(false) @map("IsRead")
-  createdAt      DateTime     @default(now()) @map("CreatedAt")
-
-  senderId       String       @map("SenderId")
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
-
-  conversationId String       @map("ConversationId")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@map("Messages")
-}
-
-model UserConversation {
-  id               String       @id @default(uuid()) @map("UserConversationId")
-  role             String       @default("member") @map("Role") // admin, member
-  joinedAt         DateTime     @default(now()) @map("JoinedAt")
-  lastReadAt       DateTime?    @map("LastReadAt")
-
-  userId           String       @map("UserId")
-  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  conversationId   String       @map("ConversationId")
-  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, conversationId])
-  @@map("UserConversations")
-}
-
-model Story {
-  id          String   @id @default(uuid()) @map("StoryId")
-  content     String?  @map("Content") // Text content (optional)
-  mediaUrl    String?  @map("MediaUrl") // Image URL from Cloudinary (optional)
-  mediaType   String?  @map("MediaType") // 'image' or 'text'
-  expiresAt   DateTime @map("ExpiresAt") // 24 hours from creation
-  isActive    Boolean  @default(true) @map("IsActive")
-  createdAt   DateTime @default(now()) @map("CreatedAt")
-  updatedAt   DateTime @updatedAt @map("UpdatedAt")
-
-  authorId    String   @map("AuthorId")
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  // Story views
-  views       StoryView[]
-
-  @@map("Stories")
-}
-
-model StoryView {
-  id        String   @id @default(uuid()) @map("StoryViewId")
-  viewedAt  DateTime @default(now()) @map("ViewedAt")
-
-  storyId   String   @map("StoryId")
-  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-
-  viewerId  String   @map("ViewerId")
-  viewer    User     @relation("UserStoryViews", fields: [viewerId], references: [id], onDelete: Cascade)
-
-  // Prevent duplicate views from same user
-  @@unique([storyId, viewerId])
-  @@map("StoryViews")
-}
-
-model Report {
-  id          String   @id @default(uuid()) @map("ReportId")
-  reason      String   @map("Reason")
-  description String?  @map("Description")
-  status      String   @default("pending") @map("Status") // pending, reviewed, resolved
-  createdAt   DateTime @default(now()) @map("CreatedAt")
-  resolvedAt  DateTime? @map("ResolvedAt")
-
-  reporterId  String   @map("ReporterId")
-  reporter    User     @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
-
-  // Can report either user or post
-  targetUserId String? @map("TargetUserId")
-  targetUser   User?   @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
-
-  targetPostId String? @map("TargetPostId")
-  targetPost   Post?   @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-
-  @@map("Reports")
-}
-
-model Notification {
-  id        String   @id @default(uuid()) @map("NotificationId")
-  type      String   @map("Type") // like, comment, follow, message
-  title     String   @map("Title")
-  content   String   @map("Content")
-  isRead    Boolean  @default(false) @map("IsRead")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-
-  userId    String   @map("UserId")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Optional references to related entities
-  entityId  String?  @map("EntityId") // ID of the related post, user, etc.
-  entityType String? @map("EntityType") // post, user, comment, etc.
-
-  @@map("Notifications")
-}
-
-model Hashtag {
-  id        String   @id @default(uuid()) @map("HashtagId")
-  name      String   @unique @map("Name")
-  usageCount Int     @default(0) @map("UsageCount")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-
-  posts     PostHashtag[]
-
-  @@map("Hashtags")
-}
-
-model PostHashtag {
-  id        String  @id @default(uuid()) @map("PostHashtagId")
-
-  postId    String  @map("PostId")
-  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  hashtagId String  @map("HashtagId")
-  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, hashtagId])
-  @@map("PostHashtags")
-}
-
-model PostMedia {
-  id        String    @id @default(uuid()) @map("PostMediaId")
-  url       String    @map("Url")
-  type      String    @map("Type")
-  order     Int?      @map("Order")
-  createdAt DateTime  @default(now()) @map("CreatedAt")
-
-  postId    String    @map("PostId")
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@map("PostMedias")
-}
-
-model Session {
-  id          String   @id @default(uuid()) @map("SessionId")
-  sessionId   String   @unique @map("SessionIdentifier") // Hash of refresh token for efficient lookups
-  expiresAt   DateTime @map("ExpiresAt")
-  createdAt   DateTime @default(now()) @map("CreatedAt")
-  lastUsedAt  DateTime @default(now()) @map("LastUsedAt")
-  isRevoked   Boolean  @default(false) @map("IsRevoked")
-  userAgent   String?  @map("UserAgent") // Optional user agent for security
-  ipAddress   String?  @map("IpAddress")  // Optional IP address for security
-
-  userId      String   @map("UserId")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId])
-  @@index([userId, sessionId])
-  @@map("Sessions")
-}
-
-// ========== SEARCH HISTORY MODELS ==========
-
-model SearchHistory {
-  id        String   @id @default(uuid()) @map("SearchHistoryId")
-  userId    String   @unique @map("UserId")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-  updatedAt DateTime @updatedAt @map("UpdatedAt")
-
-  user      User     @relation("UserSearchHistory", fields: [userId], references: [id], onDelete: Cascade)
-  entries   SearchHistoryEntry[]
-
-  @@map("SearchHistories")
-}
-
-model SearchHistoryEntry {
-  id              String        @id @default(uuid()) @map("SearchHistoryEntryId")
-  searchedUserId  String        @map("SearchedUserId")
-  searchedAt      DateTime      @default(now()) @map("SearchedAt")
-  createdAt       DateTime      @default(now()) @map("CreatedAt")
-
-  searchHistoryId String        @map("SearchHistoryId")
-  searchHistory   SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
-
-  searchedUser    User          @relation("UserSearchedHistory", fields: [searchedUserId], references: [id], onDelete: Cascade)
-
-  @@unique([searchHistoryId, searchedUserId])
-  @@map("SearchHistoryEntries")
-}
-

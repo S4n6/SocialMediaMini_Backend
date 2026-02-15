@@ -18,6 +18,7 @@ import {
   UpdateUserPasswordUseCase,
   CreateUserFromGoogleUseCase,
   UpdateVerificationTimestampUseCase,
+  UpdatePasswordResetTimestampUseCase,
   SaveUserUseCase,
 } from './use-cases/user-management.use-case';
 
@@ -58,6 +59,7 @@ export class UserApplicationService {
     private readonly updateUserPasswordUseCase: UpdateUserPasswordUseCase,
     private readonly createUserFromGoogleUseCase: CreateUserFromGoogleUseCase,
     private readonly updateVerificationTimestampUseCase: UpdateVerificationTimestampUseCase,
+    private readonly updatePasswordResetTimestampUseCase: UpdatePasswordResetTimestampUseCase,
     private readonly saveUserUseCase: SaveUserUseCase,
   ) {}
 
@@ -204,6 +206,13 @@ export class UserApplicationService {
     timestamp: Date,
   ): Promise<void> {
     return this.updateVerificationTimestampUseCase.execute(userId, timestamp);
+  }
+
+  async updatePasswordResetTimestamp(
+    userId: string,
+    timestamp: Date,
+  ): Promise<void> {
+    return this.updatePasswordResetTimestampUseCase.execute(userId, timestamp);
   }
 
   async saveUser(user: any): Promise<void> {

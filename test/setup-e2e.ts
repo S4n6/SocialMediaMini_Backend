@@ -36,7 +36,7 @@ process.env.DATABASE_URL = databaseUrl;
 process.env.NODE_ENV = 'test';
 
 // Increase timeout for E2E tests (they're slower than unit tests)
-jest.setTimeout(30000); // 30 seconds
+jest.setTimeout(60000); // 60 seconds (increased for slower cleanup)
 
 console.log('🧪 E2E Test Environment Configured');
 console.log('📦 Database:', databaseUrl.replace(/:[^:@]+@/, ':****@')); // Hide password

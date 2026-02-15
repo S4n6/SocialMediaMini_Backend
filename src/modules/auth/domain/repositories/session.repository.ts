@@ -11,6 +11,11 @@ export interface ISessionRepository {
   create(session: AuthSession): Promise<AuthSession>;
 
   /**
+   * Save (upsert) session - for updating existing sessions
+   */
+  save(session: AuthSession): Promise<void>;
+
+  /**
    * Find session by ID (database ID)
    */
   findById(sessionId: string): Promise<AuthSession | null>;

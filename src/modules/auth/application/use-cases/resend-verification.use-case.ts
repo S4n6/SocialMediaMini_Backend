@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
 import { UserApplicationService } from '../../../users/application/user-application.service';
@@ -13,6 +8,11 @@ import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
+import {
+  UserNotFoundException,
+  EmailAlreadyVerifiedException,
+  RateLimitExceededException,
+} from '../../domain/exceptions/auth.exceptions';
 
 @Injectable()
 export class ResendVerificationUseCase extends BaseUseCase<
@@ -38,22 +38,21 @@ export class ResendVerificationUseCase extends BaseUseCase<
 
     const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new UserNotFoundException(email);
     }
 
     if (user.isEmailVerified) {
-      throw new BadRequestException('Email already verified');
+      throw new EmailAlreadyVerifiedException();
     }
 
-    // Optional rate-limiting: Check last verification sent timestamp
-    // Using lastProfileUpdate as placeholder for lastVerificationSentAt
-    const lastSent = user.lastProfileUpdate
-      ? new Date(user.lastProfileUpdate).getTime()
+    // Rate limiting: Check last verification sent timestamp
+    const lastSent = user.lastVerificationSentAt
+      ? new Date(user.lastVerificationSentAt).getTime()
       : 0;
     const now = Date.now();
 
     if (lastSent && (now - lastSent) / 1000 < this.minIntervalSeconds) {
-      throw new BadRequestException(
+      throw new RateLimitExceededException(
         `Please wait ${this.minIntervalSeconds} seconds before requesting another verification email`,
       );
     }
@@ -65,11 +64,16 @@ export class ResendVerificationUseCase extends BaseUseCase<
     );
 
     // Send email via injected email sender
-    await this.emailSender.sendVerificationEmail(
-      new Email(user.email),
-      user.profile.fullName,
-      token,
-    );
+    try {
+      await this.emailSender.sendVerificationEmail(
+        new Email(user.email),
+        user.profile.fullName,
+        token,
+      );
+    } catch (error) {
+      console.error('Failed to resend verification email:', error);
+      // Don't fail the request - token was generated successfully
+    }
 
     // Update last verification sent timestamp
     await this.userApplicationService.updateVerificationTimestamp(

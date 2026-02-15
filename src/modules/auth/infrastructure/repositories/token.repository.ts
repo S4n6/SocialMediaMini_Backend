@@ -28,8 +28,8 @@ export class TokenRepository implements ITokenRepository {
   // reintroduce CRUD methods and Prisma Token model.
 
   // High-level business operations
-  generateAccessToken(userId: string, email: string): string {
-    return this.generateAccessTokenWithRole(userId, email, 'USER'); // Default role
+  generateAccessToken(userId: string, email: string, role: string): string {
+    return this.generateAccessTokenWithRole(userId, email, role);
   }
 
   private generateAccessTokenWithRole(
@@ -72,6 +72,8 @@ export class TokenRepository implements ITokenRepository {
     role: string,
     userAgent?: string,
     ipAddress?: string,
+    deviceName?: string,
+    deviceType?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // Generate unique database ID for the session
     const databaseId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -91,6 +93,8 @@ export class TokenRepository implements ITokenRepository {
         userId: userId,
         ipAddress: ipAddress,
         userAgent: userAgent,
+        deviceName: deviceName || null,
+        deviceType: deviceType || null,
         isRevoked: false,
         createdAt: new Date(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days

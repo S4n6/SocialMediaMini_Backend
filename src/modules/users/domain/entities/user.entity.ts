@@ -43,6 +43,7 @@ export class User extends Entity<string> {
   private _updatedAt: Date;
   private _lastProfileUpdate?: Date;
   private _lastVerificationSentAt?: Date;
+  private _lastPasswordResetSentAt?: Date;
   private _followingIds: Set<string> = new Set();
   private _followerIds: Set<string> = new Set();
 
@@ -62,6 +63,7 @@ export class User extends Entity<string> {
       updatedAt?: Date;
       lastProfileUpdate?: Date;
       lastVerificationSentAt?: Date;
+      lastPasswordResetSentAt?: Date;
     },
   ) {
     super(id);
@@ -78,6 +80,7 @@ export class User extends Entity<string> {
     this._updatedAt = options?.updatedAt || new Date();
     this._lastProfileUpdate = options?.lastProfileUpdate;
     this._lastVerificationSentAt = options?.lastVerificationSentAt;
+    this._lastPasswordResetSentAt = options?.lastPasswordResetSentAt;
 
     // If it's a new registration, raise domain event
     if (!options?.createdAt) {
@@ -138,6 +141,10 @@ export class User extends Entity<string> {
 
   get lastVerificationSentAt(): Date | undefined {
     return this._lastVerificationSentAt;
+  }
+
+  get lastPasswordResetSentAt(): Date | undefined {
+    return this._lastPasswordResetSentAt;
   }
 
   get followingCount(): number {
@@ -384,6 +391,15 @@ export class User extends Entity<string> {
    */
   public updateLastVerificationSentAt(timestamp: Date): void {
     this._lastVerificationSentAt = timestamp;
+    this._updatedAt = new Date();
+  }
+
+  /**
+   * Update last password reset sent timestamp
+   * Used to track when password reset emails are sent to prevent spam
+   */
+  public updateLastPasswordResetSentAt(timestamp: Date): void {
+    this._lastPasswordResetSentAt = timestamp;
     this._updatedAt = new Date();
   }
 

@@ -21,8 +21,6 @@ export class RefreshTokenUseCase extends BaseUseCase<
   async execute(request: RefreshTokenRequest): Promise<TokenRefreshResult> {
     const { refreshToken } = request;
 
-    console.log('RefreshTokenUseCase called with request:', request);
-
     if (!refreshToken) {
       throw new InvalidTokenException('refresh');
     }
@@ -38,9 +36,6 @@ export class RefreshTokenUseCase extends BaseUseCase<
         refreshToken: tokens.refreshToken,
       };
     } catch (error) {
-      if (error instanceof InvalidTokenException) {
-        throw error;
-      }
       throw new InvalidTokenException('refresh');
     }
   }
