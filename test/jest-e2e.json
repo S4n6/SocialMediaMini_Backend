@@ -3,12 +3,14 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
-  "maxWorkers": 1,
+  "maxWorkers": 4,
   "testTimeout": 60000,
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
   "transformIgnorePatterns": ["node_modules/(?!(uuid)/)"],
+  "globalSetup": "<rootDir>/global-setup.ts",
+  "globalTeardown": "<rootDir>/global-teardown.ts",
   "setupFilesAfterEnv": ["<rootDir>/setup-e2e.ts"],
   "collectCoverageFrom": ["**/*.(t|j)s"],
   "coverageDirectory": "../coverage-e2e",
