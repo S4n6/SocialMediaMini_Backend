@@ -3,5 +3,6 @@ import { TestController } from './test.controller';
 
 @Module({
   controllers: [TestController],
+  providers: [],
 })
 export class TestModule {}

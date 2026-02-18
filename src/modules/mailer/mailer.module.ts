@@ -2,13 +2,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { MailerService } from './mailer.service';
-import { MailerController } from './mailer.controller';
-import mailerConfig from 'src/config/mailer.config';
+import { RabbitMQPublisher } from './infrastructure/rabbitmq-publisher';
+import { MESSAGE_PUBLISHER_TOKEN } from './mailer.constants';
 
 @Module({
-  imports: [ConfigModule.forFeature(mailerConfig)],
-  controllers: [MailerController],
-  providers: [MailerService],
+  imports: [ConfigModule],
+  providers: [
+    {
+      provide: MESSAGE_PUBLISHER_TOKEN,
+      useClass: RabbitMQPublisher,
+    },
+    MailerService,
+  ],
   exports: [MailerService],
 })
 export class MailerModule {}
