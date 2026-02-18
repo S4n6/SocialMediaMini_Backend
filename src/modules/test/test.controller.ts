@@ -1,7 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { RabbitMQService } from './rabbitmq.service';
 
 @Controller('test')
 export class TestController {
+  constructor(private readonly rabbitmqService: RabbitMQService) {}
+
   @Get()
   getTest() {
     return {
