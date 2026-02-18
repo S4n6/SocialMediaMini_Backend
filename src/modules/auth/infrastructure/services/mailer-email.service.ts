@@ -5,7 +5,10 @@ import { MailerService } from '../../../mailer/mailer.service';
 
 /**
  * Mailer Email Sender Implementation
- * Implements IEmailSender using MailerService
+ *
+ * Implements the auth domain's IEmailSender by delegating to
+ * MailerService, which publishes tasks to RabbitMQ.
+ * The Go worker handles rendering + delivery.
  */
 @Injectable()
 export class MailerEmailSender implements IEmailSender {
@@ -19,13 +22,7 @@ export class MailerEmailSender implements IEmailSender {
     userName: string,
     verificationToken: string,
   ): Promise<void> {
-    console.log(
-      'Sending verification email to:',
-      to.value,
-      userName,
-      verificationToken,
-    );
-    await this.mailerService.sendEmailVerification(
+    await this.mailerService.sendVerificationEmail(
       to.value,
       userName,
       verificationToken,
@@ -45,9 +42,7 @@ export class MailerEmailSender implements IEmailSender {
   }
 
   async sendWelcomeEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
-    // For now, we'll just log it
-    console.log(`Welcome email would be sent to ${to.value} for ${userName}`);
+    await this.mailerService.sendWelcomeEmail(to.value, userName);
   }
 
   async sendLoginNotificationEmail(
@@ -56,23 +51,15 @@ export class MailerEmailSender implements IEmailSender {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<void> {
-    // This would need to be implemented in MailerService
-    console.log(
-      `Login notification would be sent to ${to.value} for ${userName}`,
+    await this.mailerService.sendLoginNotificationEmail(
+      to.value,
+      userName,
+      ipAddress,
+      userAgent,
     );
   }
 
   async sendPasswordChangedEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
-    console.log(
-      `Password changed notification would be sent to ${to.value} for ${userName}`,
-    );
-  }
-
-  async sendAccountLockedEmail(to: Email, userName: string): Promise<void> {
-    // This would need to be implemented in MailerService
-    console.log(
-      `Account locked notification would be sent to ${to.value} for ${userName}`,
-    );
+    await this.mailerService.sendPasswordChangedEmail(to.value, userName);
   }
 }
