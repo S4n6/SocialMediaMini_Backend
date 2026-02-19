@@ -8,9 +8,8 @@ import { TestModule } from './modules/test/test.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { S3Module } from './modules/s3/s3.module';
 import { WebSocketModule } from './infrastructure/websocket';
-
-
 
 import {
   CorsMiddleware,
@@ -45,6 +44,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     MailerModule,
     RedisCacheModule,
     CloudinaryModule,
+    S3Module,
 
     // ✅ Core Modules (Clean Architecture)
     AuthModule,
@@ -52,7 +52,6 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
 
     // 🧪 Test Module
     TestModule,
-
   ],
   controllers: [],
   providers: [ErrorMonitoringService],

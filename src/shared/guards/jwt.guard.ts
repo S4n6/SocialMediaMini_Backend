@@ -14,11 +14,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
-    // Skip authentication in test environment
-    if (process.env.NODE_ENV === 'test') {
-      return true;
-    }
-
+    // Check if guards should be skipped for this route (via @SkipGuards decorator)
     const skipGuards = this.reflector.getAllAndOverride<boolean>(
       SKIP_GUARDS_KEY,
       [context.getHandler(), context.getClass()],

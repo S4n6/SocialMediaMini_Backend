@@ -6,11 +6,10 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { RabbitMQService } from './rabbitmq.service';
 
 @Controller('test')
 export class TestController {
-  constructor(private readonly rabbitmqService: RabbitMQService) {}
+  constructor() {}
 
   @Get()
   getTest() {
