@@ -63,7 +63,7 @@ export class ChangePasswordDto {
 
 export class AuthResultDto {
   user: AuthUserDto;
-  tokens: AuthTokensDto;
+  tokens?: AuthTokensDto;
   session?: AuthSessionDto;
 }
 

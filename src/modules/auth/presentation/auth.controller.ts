@@ -27,6 +27,14 @@ import {
 // Application layer
 import { AuthApplicationService } from '../application/auth-application.service';
 
+// Application DTOs
+import {
+  RegisterUserDto,
+  LoginDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from '../application/dto/auth-use-case.dto';
+
 // Presentation DTOs
 import {
   RegisterRequestDto,
@@ -36,7 +44,6 @@ import {
   VerifyEmailRequestDto,
   ResendVerificationRequestDto,
 } from './dto';
-import { RegisterUserDto } from '../application';
 
 @Controller('auth')
 @UseFilters(AuthExceptionFilter)
@@ -111,7 +118,7 @@ export class AuthController {
         `Login attempt: ${loginDto.identifier}, User-Agent: ${userAgent}, IP: ${clientIp}`,
       );
 
-      const applicationDto: any = {
+      const applicationDto: LoginDto = {
         identifier: loginDto.identifier,
         password: loginDto.password,
         rememberMe: loginDto.rememberMe || false,
@@ -208,7 +215,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordRequestDto) {
     try {
-      const applicationDto: any = {
+      const applicationDto: ForgotPasswordDto = {
         email: forgotPasswordDto.email,
       };
 
@@ -227,7 +234,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordRequestDto) {
     try {
-      const applicationDto: any = {
+      const applicationDto: ResetPasswordDto = {
         token: resetPasswordDto.token,
         newPassword: resetPasswordDto.newPassword,
       };
