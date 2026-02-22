@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { GOOGLE_CONFIG } from '../../../../config/google.config';
@@ -8,7 +8,6 @@ import { AuthApplicationService } from '../../application/auth-application.servi
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
-    @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
     private authApplicationService: AuthApplicationService,
   ) {
     const clientID = GOOGLE_CONFIG.clientID;

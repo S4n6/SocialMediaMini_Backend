@@ -169,21 +169,6 @@ export class UserApplicationService {
 
   // ===== AUTH INTEGRATION METHODS =====
 
-  async findUserByCredentials(identifier: string): Promise<UserDto | null> {
-    const result = await this.findUserByCredentialsUseCase.execute(identifier);
-    return result ? (result as unknown as UserDto) : null;
-  }
-
-  async findUserById(userId: string): Promise<UserDto | null> {
-    const result = await this.findUserByIdUseCase.execute(userId);
-    return result ? (result as unknown as UserDto) : null;
-  }
-
-  async findUserByEmail(email: string): Promise<UserDto | null> {
-    const result = await this.findUserByEmailUseCase.execute(email);
-    return result ? (result as unknown as UserDto) : null;
-  }
-
   async checkUserExistence(
     email: string,
     username: string,
@@ -200,16 +185,6 @@ export class UserApplicationService {
     hashedPassword: string,
   ): Promise<void> {
     return this.updateUserPasswordUseCase.execute(userId, hashedPassword);
-  }
-
-  async createUserFromGoogle(googleData: {
-    googleId: string;
-    email: string;
-    fullName: string;
-    avatar?: string;
-  }): Promise<UserDto> {
-    const result = await this.createUserFromGoogleUseCase.execute(googleData);
-    return result as unknown as UserDto;
   }
 
   async updateVerificationTimestamp(
@@ -243,40 +218,8 @@ export class UserApplicationService {
     return await this.findUserByEmailUseCase.execute(email);
   }
 
-  async createUserEntityFromGoogle(googleData: {
-    googleId: string;
-    email: string;
-    fullName: string;
-    avatar?: string;
-  }): Promise<User> {
-    return await this.createUserFromGoogleUseCase.execute(googleData);
-  }
-
   async saveUser(user: User): Promise<void> {
     return this.saveUserUseCase.execute(user);
   }
 
-  // ===== LEGACY AUTH COMPATIBILITY METHODS =====
-  // These methods are kept for backward compatibility with Auth module
-
-  async findUserByEmailOrUsername(identifier: string): Promise<UserDto | null> {
-    return this.findUserByCredentials(identifier);
-  }
-
-  async existsByEmail(email: string): Promise<boolean> {
-    const result = await this.checkUserExistence(email, '');
-    return result.emailExists;
-  }
-
-  async existsByUsername(username: string): Promise<boolean> {
-    const result = await this.checkUserExistence('', username);
-    return result.usernameExists;
-  }
-
-  async updateLastVerificationSentAt(
-    userId: string,
-    timestamp: Date,
-  ): Promise<void> {
-    return this.updateVerificationTimestamp(userId, timestamp);
-  }
 }
