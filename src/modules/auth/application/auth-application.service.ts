@@ -8,10 +8,8 @@ import {
   VerifyEmailDto,
   RefreshTokenDto,
   LogoutDto,
-  ChangePasswordDto,
   AuthResultDto,
   AuthUserDto,
-  SessionListDto,
 } from './dto/auth-use-case.dto';
 
 // Use Cases
@@ -59,25 +57,20 @@ export class AuthApplicationService {
       throw new Error(result.message || 'Registration failed');
     }
 
-    // For registration, we return user info without tokens (user needs to verify email first)
+    // Registration returns user info without tokens (user needs to verify email first)
     return {
       user: {
         id: result.user.id,
         fullName: result.user.fullName,
         username: result.user.username,
         email: result.user.email,
-        role: 'user',
+        role: result.user.role || 'user',
         avatar: result.user.avatar || undefined,
-        isEmailVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        isEmailVerified: result.user.isEmailVerified ?? false,
+        createdAt: result.user.createdAt || new Date(),
+        updatedAt: result.user.updatedAt || new Date(),
       },
-      tokens: {
-        accessToken: '',
-        refreshToken: '',
-        expiresIn: 0,
-        tokenType: 'bearer',
-      },
+      // No tokens for registration - user must verify email first
     };
   }
 
@@ -107,8 +100,8 @@ export class AuthApplicationService {
         email: result.user.email,
         avatar: result.user.avatar,
         role: result.user.role,
-        isEmailVerified: true, // User is logged in, so email must be verified
-        createdAt: new Date(),
+        isEmailVerified: true, // LoginUseCase already verifies email status before allowing login
+        createdAt: new Date(), // Not available from LoginResult — use current timestamp
         updatedAt: new Date(),
       },
       tokens: {
@@ -230,17 +223,10 @@ export class AuthApplicationService {
   }
 
   async logout(logoutDto: LogoutDto): Promise<{ revokedSessions: number }> {
-    if (logoutDto.revokeAll) {
-      await this.logoutUseCase.execute({
-        refreshToken: logoutDto.refreshToken,
-      });
-      return { revokedSessions: 1 };
-    } else {
-      await this.logoutUseCase.execute({
-        refreshToken: logoutDto.refreshToken,
-      });
-      return { revokedSessions: 1 };
-    }
+    await this.logoutUseCase.execute({
+      refreshToken: logoutDto.refreshToken,
+    });
+    return { revokedSessions: 1 };
   }
 
   async logoutAll(
@@ -248,24 +234,5 @@ export class AuthApplicationService {
   ): Promise<{ success: boolean; message: string; sessionsRevoked: number }> {
     const result = await this.logoutAllUseCase.execute({ userId });
     return result;
-  }
-
-  async changePassword(changePasswordDto: ChangePasswordDto): Promise<void> {
-    // This would need a dedicated use case - for now just throw
-    throw new Error('Change password use case not implemented yet');
-  }
-
-  async getUserSessions(userId: string): Promise<SessionListDto> {
-    // This would need a dedicated use case - for now return empty
-    return {
-      sessions: [],
-      total: 0,
-      current: undefined,
-    };
-  }
-
-  async revokeSession(userId: string, sessionId: string): Promise<void> {
-    // This would need a dedicated use case - for now just return
-    return;
   }
 }
