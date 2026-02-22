@@ -32,12 +32,15 @@ import {
   UserSearchResultDto,
 } from './dto/application.dto';
 
+// Domain types (for auth module integration)
+import { User } from '../domain';
+
 /**
  * Application Service for User domain
  * Coordinates use cases and provides a clean interface for controllers
  *
- * Note: This service includes auth integration methods that are used by the Auth module
- * Business logic specific to users (like follow relationships) is preserved here
+ * Note: This service includes auth integration methods that are used by the Auth module.
+ * Methods returning domain entities are typed explicitly (not `any`).
  */
 @Injectable()
 export class UserApplicationService {
@@ -73,11 +76,22 @@ export class UserApplicationService {
     userId: string,
     command: UpdateProfileCommand,
   ): Promise<UserDto> {
+    // Convert application command to use-case DTO format
+    const useCaseDto = {
+      fullName: command.fullName,
+      bio: command.bio,
+      avatar: command.avatar,
+      location: command.location,
+      websiteUrl: command.websiteUrl,
+      dateOfBirth: command.dateOfBirth
+        ? command.dateOfBirth.toISOString()
+        : undefined,
+      phoneNumber: command.phoneNumber,
+      gender: command.gender,
+    };
+
     // Execute use case - get updated user response
-    const result = await this.updateProfileUseCase.execute(
-      userId,
-      command as any,
-    );
+    const result = await this.updateProfileUseCase.execute(userId, useCaseDto);
 
     // Re-fetch the full user entity to get accurate domain-computed fields
     const user = await this.findUserByIdUseCase.execute(userId);
@@ -125,17 +139,14 @@ export class UserApplicationService {
       userId,
       requesterId,
     );
-    // Convert to UserDto format
-    return result as any;
+    // GetUserProfileUseCase returns UserResponseDto | UserProfileResponseDto
+    // which are structurally compatible with UserDto
+    return result as unknown as UserDto;
   }
 
   async searchUsers(query: SearchUsersQuery): Promise<UserSearchResultDto> {
     const result = await this.searchUsersUseCase.execute(
-      {
-        query: query.query,
-        page: query.page,
-        limit: query.limit,
-      } as any,
+      { query: query.query, page: query.page, limit: query.limit },
       query.requesterId,
     );
 
@@ -160,17 +171,17 @@ export class UserApplicationService {
 
   async findUserByCredentials(identifier: string): Promise<UserDto | null> {
     const result = await this.findUserByCredentialsUseCase.execute(identifier);
-    return result ? (result as any) : null;
+    return result ? (result as unknown as UserDto) : null;
   }
 
   async findUserById(userId: string): Promise<UserDto | null> {
     const result = await this.findUserByIdUseCase.execute(userId);
-    return result ? (result as any) : null;
+    return result ? (result as unknown as UserDto) : null;
   }
 
   async findUserByEmail(email: string): Promise<UserDto | null> {
     const result = await this.findUserByEmailUseCase.execute(email);
-    return result ? (result as any) : null;
+    return result ? (result as unknown as UserDto) : null;
   }
 
   async checkUserExistence(
@@ -198,7 +209,7 @@ export class UserApplicationService {
     avatar?: string;
   }): Promise<UserDto> {
     const result = await this.createUserFromGoogleUseCase.execute(googleData);
-    return result as any;
+    return result as unknown as UserDto;
   }
 
   async updateVerificationTimestamp(
@@ -215,26 +226,20 @@ export class UserApplicationService {
     return this.updatePasswordResetTimestampUseCase.execute(userId, timestamp);
   }
 
-  async saveUser(user: any): Promise<void> {
-    // Note: This method expects a User entity, not plain data
-    // Should be used carefully by Auth module
-    return this.saveUserUseCase.execute(user);
-  }
-
   // ===== AUTH MODULE INTEGRATION METHODS =====
-  // These methods return domain entities for Auth module compatibility
+  // These methods return domain User entities for Auth module compatibility
 
   async findUserEntityByEmailOrUsername(
     identifier: string,
-  ): Promise<any | null> {
+  ): Promise<User | null> {
     return await this.findUserByCredentialsUseCase.execute(identifier);
   }
 
-  async findUserEntityById(userId: string): Promise<any | null> {
+  async findUserEntityById(userId: string): Promise<User | null> {
     return await this.findUserByIdUseCase.execute(userId);
   }
 
-  async findUserEntityByEmail(email: string): Promise<any | null> {
+  async findUserEntityByEmail(email: string): Promise<User | null> {
     return await this.findUserByEmailUseCase.execute(email);
   }
 
@@ -243,8 +248,12 @@ export class UserApplicationService {
     email: string;
     fullName: string;
     avatar?: string;
-  }): Promise<any> {
+  }): Promise<User> {
     return await this.createUserFromGoogleUseCase.execute(googleData);
+  }
+
+  async saveUser(user: User): Promise<void> {
+    return this.saveUserUseCase.execute(user);
   }
 
   // ===== LEGACY AUTH COMPATIBILITY METHODS =====

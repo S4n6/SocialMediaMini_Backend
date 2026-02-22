@@ -14,6 +14,8 @@ import {
   ParseIntPipe,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -40,7 +42,6 @@ import {
 import { PresentationMapper } from '../mappers/presentation.mapper';
 
 // Guards and decorators
-import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { SkipGuards } from '../../../../shared/decorators/skipGuard.decorator';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
@@ -49,7 +50,7 @@ import { ROLES } from '../../../../shared/constants/roles.constant';
 @ApiTags('Users')
 @Controller('users')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(
     private readonly userApplicationService: UserApplicationService,
@@ -109,6 +110,7 @@ export class UsersController {
     @Query('q') query: string,
     @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 20,
+    @Request() req,
   ): Promise<ApiSuccessResponseDto<UserListResponseDto>> {
     // Create request DTO
     const requestDto = new SearchUsersRequestDto();
@@ -116,8 +118,11 @@ export class UsersController {
     requestDto.page = page;
     requestDto.limit = limit;
 
-    // Convert to application query
-    const appQuery = PresentationMapper.toSearchUsersQuery(requestDto);
+    // Convert to application query, pass requesterId for isFollowing context
+    const appQuery = PresentationMapper.toSearchUsersQuery(
+      requestDto,
+      req.user?.id,
+    );
 
     // Execute use case
     const appResult = await this.userApplicationService.searchUsers(appQuery);
@@ -141,9 +146,13 @@ export class UsersController {
   })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
   ): Promise<ApiSuccessResponseDto<UserResponseDto | UserProfileResponseDto>> {
-    // Execute use case
-    const appResult = await this.userApplicationService.getUserProfile(id);
+    // Execute use case — pass requesterId so own profile returns full data
+    const appResult = await this.userApplicationService.getUserProfile(
+      id,
+      req.user?.id,
+    );
 
     // Convert application result to presentation DTO
     let result;
@@ -172,8 +181,14 @@ export class UsersController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(ValidationPipe) updateProfileDto: UpdateProfileRequestDto,
+    @Request() req,
   ): Promise<ApiSuccessResponseDto<UserResponseDto>> {
     try {
+      // Ownership check: users can only update their own profile
+      if (req.user?.id !== id) {
+        throw new ForbiddenException('You can only update your own profile');
+      }
+
       // Convert presentation DTO to application command
       const appCommand =
         PresentationMapper.toUpdateProfileCommand(updateProfileDto);
@@ -212,8 +227,9 @@ export class UsersController {
   }
 
   @Post(':id/verify-email')
+  @Roles(ROLES.ADMIN, ROLES.SUPER_ADMIN)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify user email' })
+  @ApiOperation({ summary: 'Verify user email (admin only)' })
   @ApiParam({ name: 'id', type: String, description: 'User ID' })
   @SwaggerResponse({
     status: 200,
@@ -222,8 +238,16 @@ export class UsersController {
   })
   async verifyEmail(
     @Param('id', ParseUUIDPipe) userId: string,
+    @Request() req,
   ): Promise<ApiSuccessResponseDto<null>> {
-    // Execute use case
+    // Only admins can manually verify emails (normal flow is via token in auth module)
+    const userRole = req.user?.role?.toLowerCase();
+    if (userRole !== 'admin' && userRole !== 'super_admin') {
+      throw new ForbiddenException(
+        'Only administrators can manually verify user emails',
+      );
+    }
+
     const command = PresentationMapper.toVerifyEmailCommand(userId);
     await this.userApplicationService.verifyEmail(command);
 
