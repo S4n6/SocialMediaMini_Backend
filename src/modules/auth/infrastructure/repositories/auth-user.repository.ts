@@ -1,23 +1,42 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { IUserRepository as AuthIUserRepository } from '../../domain/repositories/user.repository';
-import { User as AuthUser } from '../../domain/entities/user.entity';
+import {
+  User as AuthUser,
+  UserRole as AuthUserRole,
+} from '../../domain/entities/user.entity';
 import { Email } from '../../domain/value-objects/email.vo';
 
 // Import Users module dependencies
 import { UserPrismaRepository } from '../../../users/infrastructure/persistence/repositories/user.repository';
-import { User as UsersUser } from '../../../users/domain/entities/user.entity';
 import {
-  UserId,
-  UserEmail,
-  Username,
-} from '../../../users/domain/value-objects';
+  User as UsersUser,
+  UserRole as UsersUserRole,
+} from '../../../users/domain/entities/user.entity';
+import { UserId, UserEmail } from '../../../users/domain/value-objects';
 import { UserProfile } from '../../../users/domain/value-objects/user-profile.value-object';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 
 /**
+ * Role mapping between Auth and Users bounded contexts.
+ * Both enums have identical string values (USER, ADMIN, MODERATOR),
+ * but are separate types to respect domain boundaries.
+ */
+const AUTH_TO_USERS_ROLE: Record<AuthUserRole, UsersUserRole> = {
+  [AuthUserRole.USER]: UsersUserRole.USER,
+  [AuthUserRole.ADMIN]: UsersUserRole.ADMIN,
+  [AuthUserRole.MODERATOR]: UsersUserRole.MODERATOR,
+};
+
+const USERS_TO_AUTH_ROLE: Record<UsersUserRole, AuthUserRole> = {
+  [UsersUserRole.USER]: AuthUserRole.USER,
+  [UsersUserRole.ADMIN]: AuthUserRole.ADMIN,
+  [UsersUserRole.MODERATOR]: AuthUserRole.MODERATOR,
+};
+
+/**
  * Auth User Repository Adapter
- * Adapts Users module repository to Auth domain interface
- * Follows Clean Architecture principles with proper domain mapping
+ * Adapts Users module repository to Auth domain interface.
+ * Follows Clean Architecture: Auth domain never touches Users persistence directly.
  */
 @Injectable()
 export class AuthUserRepository implements AuthIUserRepository {
@@ -25,14 +44,10 @@ export class AuthUserRepository implements AuthIUserRepository {
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly usersRepository: UserPrismaRepository,
   ) {}
+
   async create(user: AuthUser): Promise<AuthUser> {
-    // Map Auth User to Users Domain User
     const usersUser = this.mapAuthUserToUsersUser(user);
-
-    // Save using Users repository
     await this.usersRepository.save(usersUser);
-
-    // Return the created user (Auth domain entity)
     return user;
   }
 
@@ -54,60 +69,66 @@ export class AuthUserRepository implements AuthIUserRepository {
   }
 
   async update(id: string, userData: Partial<AuthUser>): Promise<AuthUser> {
-    throw new Error(
-      'Auth User Repository update method not yet implemented - will integrate with Users module',
-    );
+    // Load current user, apply partial changes, and save
+    const usersUser = await this.usersRepository.findById(new UserId(id));
+    if (!usersUser) {
+      throw new Error(`User with id '${id}' not found`);
+    }
+
+    // For now, delegate to save — Auth domain mutations (verifyEmail, changePassword)
+    // should use dedicated methods below, not generic update.
+    await this.usersRepository.save(usersUser);
+    return this.mapUsersUserToAuthUser(usersUser);
   }
 
   async delete(id: string): Promise<void> {
-    throw new Error(
-      'Auth User Repository delete method not yet implemented - will integrate with Users module',
-    );
+    await this.usersRepository.delete(id);
   }
 
   async existsByEmail(email: string): Promise<boolean> {
-    throw new Error(
-      'Auth User Repository existsByEmail method not yet implemented - will integrate with Users module',
-    );
+    return this.usersRepository.existsByEmail(email);
   }
 
   async updateVerificationStatus(
     id: string,
     isVerified: boolean,
   ): Promise<void> {
-    throw new Error(
-      'Auth User Repository updateVerificationStatus method not yet implemented - will integrate with Users module',
-    );
+    const usersUser = await this.usersRepository.findById(new UserId(id));
+    if (!usersUser) {
+      throw new Error(`User with id '${id}' not found`);
+    }
+
+    if (isVerified) {
+      usersUser.verifyEmail();
+    }
+    await this.usersRepository.save(usersUser);
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
-    const user = await this.usersRepository.findById(new UserId(id));
-    if (!user) {
-      throw new Error('User not found');
+    const usersUser = await this.usersRepository.findById(new UserId(id));
+    if (!usersUser) {
+      throw new Error(`User with id '${id}' not found`);
     }
 
-    user.updatePassword(hashedPassword);
-    await this.usersRepository.save(user);
+    usersUser.updatePassword(hashedPassword);
+    await this.usersRepository.save(usersUser);
   }
 
-  /**
-   * Map Auth User to Users User for persistence
-   */
+  // ===== Domain Mapping =====
+
   private mapAuthUserToUsersUser(authUser: AuthUser): UsersUser {
-    // Create Users domain profile from Auth user data
     const profile = new UserProfile({
       fullName: authUser.fullName,
-      bio: undefined, // Not available in Auth user
+      bio: undefined,
       avatar: authUser.avatar || undefined,
-      location: undefined, // Not available in Auth user
-      websiteUrl: undefined, // Not available in Auth user
-      dateOfBirth: undefined, // Not available in Auth user
-      phoneNumber: undefined, // Not available in Auth user
-      gender: undefined, // Not available in Auth user
-      lastProfileUpdate: undefined, // Not available in Auth user
+      location: undefined,
+      websiteUrl: undefined,
+      dateOfBirth: undefined,
+      phoneNumber: undefined,
+      gender: undefined,
+      lastProfileUpdate: undefined,
     });
 
-    // Create Users domain user
     return new UsersUser(
       authUser.id,
       authUser.username,
@@ -115,7 +136,7 @@ export class AuthUserRepository implements AuthIUserRepository {
       profile,
       {
         passwordHash: authUser.hashedPassword,
-        role: authUser.role as any, // Map role enum
+        role: AUTH_TO_USERS_ROLE[authUser.role],
         isEmailVerified: authUser.isEmailVerified,
         emailVerifiedAt: authUser.emailVerifiedAt || undefined,
         createdAt: authUser.createdAt,
@@ -124,23 +145,20 @@ export class AuthUserRepository implements AuthIUserRepository {
     );
   }
 
-  /**
-   * Map Users User to Auth User for Auth domain use
-   */
   private mapUsersUserToAuthUser(usersUser: UsersUser): AuthUser {
     return AuthUser.fromPersistence({
       id: usersUser.id,
       email: new Email(usersUser.email),
       username: usersUser.username,
-      fullName: usersUser.profile.fullName, // Use fullName property
+      fullName: usersUser.profile.fullName,
       hashedPassword: usersUser.passwordHash || '',
-      role: usersUser.role as any, // Map role enum
+      role: USERS_TO_AUTH_ROLE[usersUser.role],
       isEmailVerified: usersUser.isEmailVerified,
-      emailVerifiedAt: usersUser.emailVerifiedAt || null, // Convert undefined to null
+      emailVerifiedAt: usersUser.emailVerifiedAt || null,
       avatar: usersUser.profile.avatar || null,
       createdAt: usersUser.createdAt,
       updatedAt: usersUser.updatedAt,
-      lastLoginAt: null, // Auth specific field not in Users domain
+      lastLoginAt: null,
     });
   }
 }

@@ -1,10 +1,17 @@
-import { AuthUser } from './user.entity';
-import { AuthToken } from './token.entity';
+import { User } from './user.entity';
 
 export interface AuthResult {
   success: boolean;
   message: string;
-  user?: Partial<AuthUser>;
+  user?: Partial<{
+    id: string;
+    email: string;
+    username: string;
+    fullName: string;
+    avatar?: string;
+    role: string;
+    isEmailVerified: boolean;
+  }>;
   accessToken?: string;
   refreshToken?: string;
   sessionId?: string;
@@ -55,5 +62,13 @@ export interface PasswordResetResult {
 export interface EmailVerificationResult {
   success: boolean;
   message: string;
-  user?: Partial<AuthUser>;
+  user?: Partial<{
+    id: string;
+    email: string;
+    username: string;
+    fullName: string;
+    avatar?: string;
+    role: string;
+    isEmailVerified: boolean;
+  }>;
 }

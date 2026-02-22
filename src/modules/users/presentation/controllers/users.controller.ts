@@ -29,6 +29,18 @@ import {
 // Clean Architecture imports
 import { UserApplicationService } from '../../application/user-application.service';
 
+// Domain exceptions
+import {
+  DomainException,
+  ValidationException,
+} from '../../domain/exceptions/domain.exceptions';
+import {
+  EntityAlreadyExistsException,
+  BusinessRuleException,
+  UserNotFoundException,
+  ProfileUpdateTooFrequentException,
+} from '../../domain/exceptions/user.exceptions';
+
 // Presentation DTOs and Mappers
 import {
   CreateUserRequestDto,
@@ -86,9 +98,9 @@ export class UsersController {
     } catch (error) {
       // Convert domain exceptions to HTTP exceptions
       if (
-        error.message.includes('already exists') ||
-        error.message.includes('Invalid') ||
-        error.message.includes('must be')
+        error instanceof EntityAlreadyExistsException ||
+        error instanceof ValidationException ||
+        error instanceof BusinessRuleException
       ) {
         throw new BadRequestException(error.message);
       }
@@ -208,17 +220,13 @@ export class UsersController {
       );
     } catch (error) {
       // Convert domain exceptions to HTTP exceptions
-      if (
-        error.message.includes('not found') ||
-        error.message.includes('not exist')
-      ) {
+      if (error instanceof UserNotFoundException) {
         throw new NotFoundException(error.message);
       }
       if (
-        error.message.includes('Profile can be updated') ||
-        error.message.includes('too frequent') ||
-        error.message.includes('inactive') ||
-        error.message.includes('Invalid')
+        error instanceof ProfileUpdateTooFrequentException ||
+        error instanceof BusinessRuleException ||
+        error instanceof ValidationException
       ) {
         throw new BadRequestException(error.message);
       }

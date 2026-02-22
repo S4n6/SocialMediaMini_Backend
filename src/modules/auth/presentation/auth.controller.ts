@@ -11,7 +11,6 @@ import {
   Res,
   Headers,
   Ip,
-  Inject,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
@@ -49,7 +48,6 @@ import {
 @UseFilters(AuthExceptionFilter)
 export class AuthController {
   constructor(
-    @Inject('LEGACY_AUTH_APPLICATION_SERVICE')
     private readonly authApplicationService: AuthApplicationService,
   ) {}
 

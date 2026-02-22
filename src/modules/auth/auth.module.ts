@@ -12,7 +12,7 @@ import {
 } from './auth.constants';
 
 // Application Layer
-import { AuthApplicationService } from './application/services/auth.service';
+import { AuthApplicationService } from './application/auth-application.service';
 
 // Infrastructure Layer - Repository Implementations
 import { SessionRepository } from './infrastructure/repositories/session.repository';
@@ -30,9 +30,7 @@ import { SessionDomainService } from './domain/services/session-domain.service';
 // Presentation Layer
 import { AuthController } from './presentation/auth.controller';
 
-// Legacy Components (will be phased out)
-
-import { AuthApplicationService as LegacyAuthApplicationService } from './application/auth-application.service';
+// Use Cases
 import { RegisterUserUseCase } from './application/use-cases/register-user.use-case';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { GoogleAuthUseCase } from './application/use-cases/google-auth.use-case';
@@ -76,7 +74,7 @@ import {
   ],
   controllers: [AuthController],
   providers: [
-    // Application
+    // Application Service
     AuthApplicationService,
 
     // Repositories
@@ -88,7 +86,6 @@ import {
       provide: TOKEN_REPOSITORY_TOKEN,
       useClass: TokenRepository,
     },
-    // Note: AuthUserRepository is provided automatically by injecting USER_REPOSITORY_TOKEN from UsersModule
     AuthUserRepository,
 
     // Domain Services
@@ -108,13 +105,7 @@ import {
       useClass: MailerEmailSender,
     },
 
-    // Legacy/Compatibility
-    {
-      provide: 'LEGACY_AUTH_APPLICATION_SERVICE',
-      useClass: LegacyAuthApplicationService,
-    },
-
-    // Legacy use-cases
+    // Use Cases
     RegisterUserUseCase,
     LoginUseCase,
     GoogleAuthUseCase,
@@ -126,12 +117,8 @@ import {
     LogoutAllUseCase,
     ResendVerificationUseCase,
 
-    // Legacy infra
+    // Infrastructure Services
     AuthenticationService,
-    {
-      provide: 'AUTHENTICATION_SERVICE',
-      useExisting: AuthenticationService,
-    },
     VerificationTokenService,
 
     // Presentation
@@ -142,28 +129,17 @@ import {
     PasswordChangedSubscriber,
     EmailVerifiedSubscriber,
     UserLoggedInSubscriber,
-
-    // Compatibility token
-    {
-      provide: 'TOKEN_GENERATOR',
-      useExisting: VerificationTokenService,
-    },
   ],
   exports: [
-    // New Clean Architecture Exports
     AuthApplicationService,
     SESSION_REPOSITORY_TOKEN,
     TOKEN_REPOSITORY_TOKEN,
     PASSWORD_HASHER_TOKEN,
     TOKEN_GENERATOR_TOKEN,
     EMAIL_SENDER_TOKEN,
-    AuthUserRepository, // Export the adapter itself
-
-    // Legacy Exports (for backward compatibility)
-    'LEGACY_AUTH_APPLICATION_SERVICE',
-    'TOKEN_GENERATOR',
-    'AUTHENTICATION_SERVICE',
-    // Removed: PassportAuthAdapter (file was deleted)
+    AuthUserRepository,
+    AuthenticationService,
+    VerificationTokenService,
   ],
 })
 export class AuthModule {}
