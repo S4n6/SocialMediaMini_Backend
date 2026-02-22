@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../../shared/guards/jwt.guard';
 import { GetPresignedUrlDto } from './dto/get-presigned-url.dto';
 
 @Controller('s3')
-@UseGuards(JwtAuthGuard)
+// @UseGuards(JwtAuthGuard)
 export class S3Controller {
   constructor(private readonly s3Service: S3Service) {}
 
