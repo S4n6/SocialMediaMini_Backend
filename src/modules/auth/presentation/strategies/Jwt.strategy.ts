@@ -10,22 +10,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private userApplicationService: UserApplicationService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        // First try Bearer token from header (for mobile clients)
+        // 1. Try Bearer token from Authorization header (mobile/API clients)
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        // Then try cookie (for web clients)
+        // 2. Fallback to access_token cookie (web clients)
         (request: Request) => {
-          const clientType = (
-            request.headers['x-client-type'] ||
-            request.query.client ||
-            ''
-          ).toString();
-          const isWeb = clientType.toLowerCase() === 'web';
-
-          // Only extract from cookie for web clients
-          if (isWeb && request.cookies) {
-            return request.cookies['access_token'];
-          }
-          return null;
+          return request.cookies?.['access_token'] || null;
         },
       ]),
       ignoreExpiration: false,

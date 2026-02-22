@@ -26,23 +26,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers.authorization;
-    const clientHeader =
-      request.headers['x-client-type'] || request.query.client || '';
-    const clientType = String(clientHeader || '').toLowerCase();
-    const isWeb = clientType === 'web';
+    const hasBearerToken = authHeader && authHeader.startsWith('Bearer ');
+    const hasCookieToken = !!request.cookies?.['access_token'];
 
-    // For web clients, check for token in cookie if no Authorization header
-    if (isWeb && (!authHeader || !authHeader.startsWith('Bearer '))) {
-      const accessTokenCookie = request.cookies?.['access_token'];
-      if (!accessTokenCookie) {
-        throw new UnauthorizedException(
-          'Access token not found in cookies or Authorization header',
-        );
-      }
-    } else if (!isWeb && (!authHeader || !authHeader.startsWith('Bearer '))) {
-      // For non-web clients, require Authorization header
+    // Auto-detect: Accept token from either Bearer header or cookie
+    if (!hasBearerToken && !hasCookieToken) {
       throw new UnauthorizedException(
-        'Authorization header missing or invalid',
+        'Access token not found. Provide a Bearer token in Authorization header or access_token cookie.',
       );
     }
 

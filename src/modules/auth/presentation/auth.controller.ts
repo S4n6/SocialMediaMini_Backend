@@ -94,8 +94,14 @@ export class AuthController {
     @Ip() clientIp?: string,
   ) {
     try {
+      // Normalize clientType in case header is sent multiple times (joined with commas)
+      const normalizedClientType = clientType.split(',')[0].trim();
+
       // Validate clientType
-      if (clientType && !isValidClientType(clientType.toLowerCase())) {
+      if (
+        normalizedClientType &&
+        !isValidClientType(normalizedClientType.toLowerCase())
+      ) {
         throw new BadRequestException(
           `Invalid clientType. Must be one of: ${Object.values(ClientType).join(', ')}`,
         );
@@ -117,7 +123,7 @@ export class AuthController {
 
       const result = await this.authApplicationService.login(applicationDto);
 
-      const isWeb = clientType.toLowerCase() === 'web';
+      const isWeb = normalizedClientType.toLowerCase() === 'web';
       const isProd = process.env.NODE_ENV === 'production';
 
       if (isWeb) {
@@ -245,17 +251,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      const clientType = (req.headers['x-client-type'] || '').toString();
-      const isWeb = clientType.toLowerCase() === 'web';
-
-      // Prefer cookie for web clients, fallback to body.refreshToken.
-      const cookieRefresh = req.cookies
-        ? req.cookies['refresh_token']
-        : undefined;
+      // Auto-detect: try body first, then cookie fallback
+      const cookieRefresh = req.cookies?.['refresh_token'];
       const bodyRefresh = body?.refreshToken;
-      const refreshToken = isWeb
-        ? cookieRefresh || bodyRefresh
-        : bodyRefresh || cookieRefresh;
+      const refreshToken = bodyRefresh || cookieRefresh;
 
       // Require refresh token for logout (strict validation)
       if (!refreshToken) {
@@ -325,27 +324,26 @@ export class AuthController {
     @Body() body: { refreshToken?: string },
     @Request() req,
     @Res({ passthrough: true }) res: Response,
+    @Headers('x-client-type') clientType: string = 'web',
   ) {
     try {
-      const clientType = req.headers['x-client-type'].toString();
-      const isWeb = clientType.toLowerCase() === 'web';
-
-      const refreshToken = isWeb
-        ? req.cookies['refresh_token']
-        : body.refreshToken;
-
-      console.log('Refresh token received:', refreshToken);
+      // Auto-detect: try body first, then cookie fallback
+      const refreshToken = body?.refreshToken || req.cookies?.['refresh_token'];
 
       if (!refreshToken) {
         throw new UnauthorizedException('Refresh token not found');
       }
 
-      const applicationDto: any = {
+      const tokens = await this.authApplicationService.refreshToken({
         refreshToken,
-      };
+      });
 
-      const tokens =
-        await this.authApplicationService.refreshToken(applicationDto);
+      // Determine response strategy from x-client-type (only needed for WRITING tokens)
+      const normalizedClientType = clientType
+        .split(',')[0]
+        .trim()
+        .toLowerCase();
+      const isWeb = normalizedClientType === 'web';
 
       if (isWeb) {
         const isProd = process.env.NODE_ENV === 'production';
@@ -400,61 +398,40 @@ export class AuthController {
   async googleAuthCallback(
     @Request() req,
     @Res({ passthrough: true }) res: Response,
-    @Headers('x-client-type') clientType: string = 'web',
   ) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
     try {
       const result = req.user; // This comes from GoogleStrategy
-      const isWeb = clientType.toLowerCase() === 'web';
+      const isProd = process.env.NODE_ENV === 'production';
 
-      if (isWeb) {
-        const isProd = process.env.NODE_ENV === 'production';
-
-        // Set tokens as cookies for web clients
-        if (result.tokens?.accessToken) {
-          res.cookie('access_token', result.tokens.accessToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? 'none' : 'lax',
-            maxAge: 24 * 60 * 60 * 1000, // 24 hours
-          });
-        }
-
-        if (result.tokens?.refreshToken) {
-          res.cookie('refresh_token', result.tokens.refreshToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? 'none' : 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-          });
-        }
-
-        // Redirect to frontend with success
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        return res.redirect(
-          `${frontendUrl}/auth/success?message=Login successful`,
-        );
+      // Google OAuth callback is always a browser redirect, so always set cookies
+      if (result.tokens?.accessToken) {
+        res.cookie('access_token', result.tokens.accessToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        });
       }
 
-      // For mobile/API clients, return JSON
-      return {
-        success: true,
-        message: result.message || 'Google authentication successful',
-        user: result.user,
-        tokens: result.tokens,
-        session: result.session,
-      };
+      if (result.tokens?.refreshToken) {
+        res.cookie('refresh_token', result.tokens.refreshToken, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? 'none' : 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+      }
+
+      return res.redirect(
+        `${frontendUrl}/auth/success?message=Login successful`,
+      );
     } catch (error) {
       console.error('Google auth callback error:', error);
-
-      const isWeb = clientType.toLowerCase() === 'web';
-      if (isWeb) {
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        return res.redirect(
-          `${frontendUrl}/auth/error?message=Authentication failed`,
-        );
-      }
-
-      throw error;
+      return res.redirect(
+        `${frontendUrl}/auth/error?message=Authentication failed`,
+      );
     }
   }
 }
