@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { PostMediaRepository } from '../../domain/repositories/post-media.repository';
-import { PostMediaEntity, PostMediaType } from '../../domain/post-media.entity';
+import {
+  PostMediaEntity,
+  PostMediaType,
+  PostMediaStatus,
+} from '../../domain/post-media.entity';
 import { PostMediaFactory } from '../factories/post-media.factory';
 
 @Injectable()
@@ -15,6 +19,11 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
       type: postMedia.type,
       postId: postMedia.postId,
       order: postMedia.order,
+      status: postMedia.status,
+      processedUrl: postMedia.processedUrl,
+      thumbnailUrl: postMedia.thumbnailUrl,
+      s3Key: postMedia.s3Key,
+      errorMessage: postMedia.errorMessage,
     };
 
     const result = await this.prisma.postMedia.upsert({
@@ -24,6 +33,11 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
         url: data.url,
         type: data.type,
         order: data.order,
+        status: data.status,
+        processedUrl: data.processedUrl,
+        thumbnailUrl: data.thumbnailUrl,
+        s3Key: data.s3Key,
+        errorMessage: data.errorMessage,
       },
     });
 
@@ -33,8 +47,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
       type: result.type as PostMediaType,
       postId: result.postId,
       order: result.order || 1,
+      status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+      processedUrl: result.processedUrl,
+      thumbnailUrl: result.thumbnailUrl,
+      s3Key: result.s3Key,
+      errorMessage: result.errorMessage,
       createdAt: result.createdAt,
-      updatedAt: result.createdAt, // Prisma doesn't have updatedAt in schema
+      updatedAt: result.updatedAt,
     });
   }
 
@@ -45,6 +64,11 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
       type: media.type,
       postId: media.postId,
       order: media.order,
+      status: media.status,
+      processedUrl: media.processedUrl,
+      thumbnailUrl: media.thumbnailUrl,
+      s3Key: media.s3Key,
+      errorMessage: media.errorMessage,
     }));
 
     // Use transaction to create multiple records
@@ -63,8 +87,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
         type: result.type as PostMediaType,
         postId: result.postId,
         order: result.order || 1,
+        status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+        processedUrl: result.processedUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        s3Key: result.s3Key,
+        errorMessage: result.errorMessage,
         createdAt: result.createdAt,
-        updatedAt: result.createdAt,
+        updatedAt: result.updatedAt,
       }),
     );
   }
@@ -84,8 +113,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
       type: result.type as PostMediaType,
       postId: result.postId,
       order: result.order || 1,
+      status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+      processedUrl: result.processedUrl,
+      thumbnailUrl: result.thumbnailUrl,
+      s3Key: result.s3Key,
+      errorMessage: result.errorMessage,
       createdAt: result.createdAt,
-      updatedAt: result.createdAt,
+      updatedAt: result.updatedAt,
     });
   }
 
@@ -102,8 +136,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
         type: result.type as PostMediaType,
         postId: result.postId,
         order: result.order || 1,
+        status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+        processedUrl: result.processedUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        s3Key: result.s3Key,
+        errorMessage: result.errorMessage,
         createdAt: result.createdAt,
-        updatedAt: result.createdAt,
+        updatedAt: result.updatedAt,
       }),
     );
   }
@@ -136,8 +175,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
         type: result.type as PostMediaType,
         postId: result.postId,
         order: result.order || 1,
+        status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+        processedUrl: result.processedUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        s3Key: result.s3Key,
+        errorMessage: result.errorMessage,
         createdAt: result.createdAt,
-        updatedAt: result.createdAt,
+        updatedAt: result.updatedAt,
       }),
     );
 
@@ -208,8 +252,13 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
         type: result.type as PostMediaType,
         postId: result.postId,
         order: result.order || 1,
+        status: (result.status as PostMediaStatus) || PostMediaStatus.PENDING,
+        processedUrl: result.processedUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        s3Key: result.s3Key,
+        errorMessage: result.errorMessage,
         createdAt: result.createdAt,
-        updatedAt: result.createdAt,
+        updatedAt: result.updatedAt,
       }),
     );
   }

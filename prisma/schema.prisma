@@ -233,13 +233,19 @@ model PostHashtag {
 }
 
 model PostMedia {
-  id        String   @id @default(uuid()) @map("PostMediaId")
-  url       String   @map("Url")
-  type      String   @map("Type")
-  order     Int?     @map("Order")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-  postId    String   @map("PostId")
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id           String   @id @default(uuid()) @map("PostMediaId")
+  url          String   @map("Url")
+  type         String   @map("Type")
+  order        Int?     @map("Order")
+  status       String   @default("pending") @map("Status")
+  processedUrl String?  @map("ProcessedUrl")
+  thumbnailUrl String?  @map("ThumbnailUrl")
+  s3Key        String?  @map("S3Key")
+  errorMessage String?  @map("ErrorMessage")
+  createdAt    DateTime @default(now()) @map("CreatedAt")
+  updatedAt    DateTime @updatedAt @map("UpdatedAt")
+  postId       String   @map("PostId")
+  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("PostMedias")
 }

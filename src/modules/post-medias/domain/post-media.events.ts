@@ -94,3 +94,71 @@ export class PostMediaUploadedEvent extends DomainEvent {
     };
   }
 }
+
+// ─── Media Processing Events ──────────────────────────────────────────
+
+export class MediaProcessingStartedEvent extends DomainEvent {
+  constructor(
+    public readonly mediaId: string,
+    public readonly postId: string,
+  ) {
+    super();
+  }
+
+  get eventType(): string {
+    return 'MediaProcessingStarted';
+  }
+
+  protected getEventData(): Record<string, any> {
+    return {
+      mediaId: this.mediaId,
+      postId: this.postId,
+    };
+  }
+}
+
+export class MediaProcessedEvent extends DomainEvent {
+  constructor(
+    public readonly mediaId: string,
+    public readonly postId: string,
+    public readonly processedUrl: string,
+    public readonly thumbnailUrl: string | null,
+  ) {
+    super();
+  }
+
+  get eventType(): string {
+    return 'MediaProcessed';
+  }
+
+  protected getEventData(): Record<string, any> {
+    return {
+      mediaId: this.mediaId,
+      postId: this.postId,
+      processedUrl: this.processedUrl,
+      thumbnailUrl: this.thumbnailUrl,
+    };
+  }
+}
+
+export class MediaProcessingFailedEvent extends DomainEvent {
+  constructor(
+    public readonly mediaId: string,
+    public readonly postId: string,
+    public readonly errorMessage: string,
+  ) {
+    super();
+  }
+
+  get eventType(): string {
+    return 'MediaProcessingFailed';
+  }
+
+  protected getEventData(): Record<string, any> {
+    return {
+      mediaId: this.mediaId,
+      postId: this.postId,
+      errorMessage: this.errorMessage,
+    };
+  }
+}
