@@ -73,3 +73,13 @@ export class PostMediaLimitExceededException extends DomainException {
     );
   }
 }
+
+export class InvalidMediaStatusTransitionException extends DomainException {
+  constructor(currentStatus: string, targetStatus: string) {
+    super(
+      `Invalid media status transition: '${currentStatus}' → '${targetStatus}'`,
+      'INVALID_MEDIA_STATUS_TRANSITION',
+      400,
+    );
+  }
+}

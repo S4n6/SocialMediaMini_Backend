@@ -1,6 +1,7 @@
 import {
   PostMediaEntity,
   PostMediaType,
+  PostMediaStatus,
   PostMediaProps,
 } from '../../domain/post-media.entity';
 import {
@@ -17,6 +18,11 @@ export interface CreatePostMediaParams {
 
 export interface PostMediaFromPersistenceParams extends PostMediaProps {
   id: string;
+  status: PostMediaStatus;
+  processedUrl: string | null;
+  thumbnailUrl: string | null;
+  s3Key: string | null;
+  errorMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -82,6 +88,11 @@ export class PostMediaFactory {
       type: this.normalizeMediaType(data.type),
       postId: data.postId,
       order: data.order,
+      status: data.status,
+      processedUrl: data.processedUrl,
+      thumbnailUrl: data.thumbnailUrl,
+      s3Key: data.s3Key,
+      errorMessage: data.errorMessage,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     });
