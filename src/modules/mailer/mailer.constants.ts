@@ -1,16 +1,13 @@
 /**
- * Mailer Module - Dependency Injection Tokens & Constants
+ * Mailer Module - Email Type Constants
  *
  * Email type constants are kept in sync with the Go worker's
  * `internal/tasks/email/types.go` — any change here MUST be
  * mirrored there (and vice-versa).
+ *
+ * DI tokens and task types are now in the shared messaging module:
+ * `src/infrastructure/message-queue/message-queue.constants.ts`
  */
-
-// ── DI Tokens ───────────────────────────────────────────────
-export const MESSAGE_PUBLISHER_TOKEN = 'MESSAGE_PUBLISHER';
-
-// ── RabbitMQ Routing ────────────────────────────────────────
-export const TASK_TYPE_SEND_EMAIL = 'send_email';
 
 // ── Email Type Constants (must match Go worker) ─────────────
 export const EMAIL_TYPES = {

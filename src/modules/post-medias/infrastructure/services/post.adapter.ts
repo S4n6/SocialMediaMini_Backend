@@ -23,4 +23,13 @@ export class PostServiceAdapter implements PostService {
 
     return post?.authorId === userId;
   }
+
+  async getOwnerUserId(postId: string): Promise<string | null> {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+
+    return post?.authorId ?? null;
+  }
 }
