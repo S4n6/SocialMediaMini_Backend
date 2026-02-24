@@ -1,9 +1,11 @@
 // src/modules/mailer/mailer.service.ts
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { IMessagePublisher } from './ports/i-message-publisher.port';
+import { IMessagePublisher } from '../../infrastructure/message-queue/ports/i-message-publisher.port';
 import {
   MESSAGE_PUBLISHER_TOKEN,
   TASK_TYPE_SEND_EMAIL,
+} from '../../infrastructure/message-queue/message-queue.constants';
+import {
   EMAIL_TYPES,
   DEFAULT_SUBJECTS,
   type EmailType,

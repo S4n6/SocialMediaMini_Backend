@@ -1,10 +1,7 @@
 import { MailerService } from './mailer.service';
-import { IMessagePublisher } from './ports/i-message-publisher.port';
-import {
-  EMAIL_TYPES,
-  DEFAULT_SUBJECTS,
-  TASK_TYPE_SEND_EMAIL,
-} from './mailer.constants';
+import { IMessagePublisher } from '../../infrastructure/message-queue/ports/i-message-publisher.port';
+import { TASK_TYPE_SEND_EMAIL } from '../../infrastructure/message-queue/message-queue.constants';
+import { EMAIL_TYPES, DEFAULT_SUBJECTS } from './mailer.constants';
 
 /**
  * Helper: create a mock IMessagePublisher for testing.

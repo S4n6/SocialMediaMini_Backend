@@ -52,6 +52,7 @@ export class CreatePostUseCase {
             type:
               m.type === 'image' ? PostMediaType.IMAGE : PostMediaType.VIDEO,
             order: m.order,
+            s3Key: m.s3Key,
           })),
           postId: savedPost.id,
           userId: authorId,

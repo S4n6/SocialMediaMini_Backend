@@ -36,6 +36,14 @@ export class PostMediaUrlDto {
   @IsEnum(PostMediaType)
   type: PostMediaType;
 
+  @ApiProperty({
+    description: 'S3 object key for the uploaded file',
+    example: 'uploads/1234567890-photo.jpg',
+  })
+  @IsNotEmpty()
+  @IsString()
+  s3Key: string;
+
   @ApiPropertyOptional({
     description:
       'Order of the media in the post (will be auto-assigned if not provided)',

@@ -70,5 +70,7 @@ export interface EmailVerificationResult {
     avatar?: string;
     role: string;
     isEmailVerified: boolean;
+    createdAt: Date;
+    updatedAt: Date;
   }>;
 }

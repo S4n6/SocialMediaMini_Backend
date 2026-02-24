@@ -81,6 +81,7 @@ export class PostsController {
         url: m.url,
         type: m.type,
         order: m.order,
+        s3Key: m.s3Key,
       })),
       authorId,
     };
@@ -125,6 +126,7 @@ export class PostsController {
         url: m.url,
         type: m.type,
         order: m.order,
+        s3Key: m.s3Key,
       })),
       hashtags: updatePostRequest.hashtags,
       authorId: userId,

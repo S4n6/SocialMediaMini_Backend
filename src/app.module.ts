@@ -9,7 +9,9 @@ import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { S3Module } from './modules/s3/s3.module';
+import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { WebSocketModule } from './infrastructure/websocket';
+import { MessageQueueModule } from './infrastructure/message-queue';
 
 import {
   CorsMiddleware,
@@ -39,6 +41,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     // Database & Infrastructure
     PrismaModule,
     WebSocketModule,
+    MessageQueueModule,
 
     // Shared Services
     MailerModule,
@@ -49,6 +52,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     // ✅ Core Modules (Clean Architecture)
     AuthModule,
     UsersModule,
+    PostMediasModule,
 
     // 🧪 Test Module
     TestModule,

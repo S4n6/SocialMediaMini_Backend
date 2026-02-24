@@ -1,5 +1,6 @@
 // Use Cases Barrel Exports
 export * from './cleanup-media';
+export * from './complete-media-processing';
 export * from './create-post-medias-from-urls';
 export * from './delete-post-media';
 export * from './generate-cloudinary-signature';

@@ -8,6 +8,7 @@ export class CreatePostMediaDto {
   url: string;
   type: 'image' | 'video';
   order: number;
+  s3Key: string;
 }
 
 export class CreatePostDto {

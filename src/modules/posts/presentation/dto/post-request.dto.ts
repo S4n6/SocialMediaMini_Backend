@@ -31,6 +31,10 @@ export class CreatePostMediaRequestDto {
   @IsNumber()
   @Min(0)
   order: number;
+
+  @ApiProperty({ description: 'S3 object key for worker processing' })
+  @IsString()
+  s3Key: string;
 }
 
 export class CreatePostRequestDto {

@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../../database/prisma.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 // Presentation Layer
-import { PostMediasController } from './presentation/controllers';
+import {
+  PostMediasController,
+  MediaCallbackController,
+  MediaSseController,
+} from './presentation/controllers';
 
 // Use Cases
 import {
@@ -17,6 +22,7 @@ import {
   GenerateCloudinarySignatureUseCase,
   CreatePostMediasFromUrlsUseCase,
   CleanupMediaUseCase,
+  CompleteMediaProcessingUseCase,
 } from './application/use-cases';
 
 // Application Services
@@ -25,12 +31,19 @@ import {
   PostMediaMapperImpl,
 } from './application';
 
+// Subscribers
+import { MediaProcessingSubscriber } from './application/subscribers';
+
 // Infrastructure Layer
 import {
   PostMediaPrismaRepository,
   CloudinaryAdapter,
   PostServiceAdapter,
+  MediaSseService,
 } from './infrastructure';
+
+// Guards
+import { WorkerSecretGuard } from '../../shared/guards/worker-secret.guard';
 
 // Tokens
 import {
@@ -40,8 +53,12 @@ import {
 } from './tokens';
 
 @Module({
-  imports: [PrismaModule, CloudinaryModule],
-  controllers: [PostMediasController],
+  imports: [PrismaModule, CloudinaryModule, ConfigModule],
+  controllers: [
+    PostMediasController,
+    MediaCallbackController,
+    MediaSseController,
+  ],
   providers: [
     // Use Cases
     UploadPostMediasUseCase,
@@ -54,7 +71,16 @@ import {
     GenerateCloudinarySignatureUseCase,
     CreatePostMediasFromUrlsUseCase,
     CleanupMediaUseCase,
-    CreatePostMediasFromUrlsUseCase,
+    CompleteMediaProcessingUseCase,
+
+    // Guards
+    WorkerSecretGuard,
+
+    // Subscribers
+    MediaProcessingSubscriber,
+
+    // SSE Infrastructure
+    MediaSseService,
 
     // Application Services
     PostMediaApplicationServiceImpl,

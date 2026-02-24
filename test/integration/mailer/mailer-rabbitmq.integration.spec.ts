@@ -23,11 +23,13 @@ import { MailerService } from '../../../src/modules/mailer/mailer.service';
 import { MailerModule } from '../../../src/modules/mailer/mailer.module';
 import {
   EMAIL_TYPES,
-  TASK_TYPE_SEND_EMAIL,
   DEFAULT_SUBJECTS,
-  MESSAGE_PUBLISHER_TOKEN,
 } from '../../../src/modules/mailer/mailer.constants';
-import { RabbitMQPublisher } from '../../../src/modules/mailer/infrastructure/rabbitmq-publisher';
+import {
+  TASK_TYPE_SEND_EMAIL,
+  MESSAGE_PUBLISHER_TOKEN,
+} from '../../../src/infrastructure/message-queue/message-queue.constants';
+import { RabbitMQPublisher } from '../../../src/infrastructure/message-queue/adapters/rabbitmq-publisher';
 
 describe('MailerService Integration (RabbitMQ)', () => {
   let module: TestingModule;
