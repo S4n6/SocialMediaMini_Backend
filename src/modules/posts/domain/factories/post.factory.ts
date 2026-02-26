@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PostEntity, PostPrivacy, ReactionType } from '../entities/post.entity';
 import { PostDomainService } from '../services/post-domain.service';
 
@@ -17,8 +17,8 @@ export interface CreatePostProps {
 /**
  * Factory for creating Post entities
  * Encapsulates the complex logic of post creation
+ * Pure TypeScript - no framework dependencies
  */
-@Injectable()
 export class PostFactory {
   constructor(private readonly postDomainService: PostDomainService) {}
 
@@ -159,7 +159,7 @@ export class PostFactory {
   }
 
   private generateId(): string {
-    return Math.random().toString(36).substring(2, 15);
+    return randomUUID();
   }
 
   private detectMediaType(url: string): 'image' | 'video' {

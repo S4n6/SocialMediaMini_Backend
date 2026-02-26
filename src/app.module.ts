@@ -10,6 +10,7 @@ import { RedisCacheModule } from './modules/cache/cache.module';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { S3Module } from './modules/s3/s3.module';
 import { PostMediasModule } from './modules/post-medias/postMedias.module';
+import { PostsModule } from './modules/posts/posts.module';
 import { WebSocketModule } from './infrastructure/websocket';
 import { MessageQueueModule } from './infrastructure/message-queue';
 
@@ -53,6 +54,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     AuthModule,
     UsersModule,
     PostMediasModule,
+    PostsModule,
 
     // 🧪 Test Module
     TestModule,

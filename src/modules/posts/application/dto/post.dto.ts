@@ -1,28 +1,14 @@
-import {
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  MaxLength,
-  Min,
-  ValidateNested,
-} from 'class-validator';
 import { PostPrivacy, ReactionType } from '../../domain/entities/post.entity';
-import { Type } from 'class-transformer';
 
 // ===== USE CASE INPUT DTOs =====
-// These DTOs are used for use case inputs/outputs and business logic
-// No validation decorators - validation handled at presentation layer
+// Pure data contracts — no validation decorators.
+// Validation is handled at the presentation layer.
 
 export class CreatePostMediaDto {
   url: string;
   type: 'image' | 'video';
   order: number;
-  s3Key: string;
+  s3Key?: string;
 }
 
 export class CreatePostDto {
@@ -30,86 +16,30 @@ export class CreatePostDto {
   privacy: PostPrivacy;
   media?: CreatePostMediaDto[];
   hashtags?: string[];
-  authorId: string; // Added for use case context
+  authorId: string;
 }
 
-// ===== UPDATE POST DTOs =====
-
 export class UpdatePostDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000, { message: 'Post content cannot exceed 2000 characters' })
   content?: string;
-
-  @IsOptional()
-  @IsEnum(PostPrivacy)
   privacy?: PostPrivacy;
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreatePostMediaDto)
   media?: CreatePostMediaDto[];
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
   hashtags?: string[];
 }
 
-// ===== QUERY DTOs =====
-
 export class GetPostsQueryDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(50)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsUUID()
+  page?: number;
+  limit?: number;
   authorId?: string;
-
-  @IsOptional()
-  @IsEnum(PostPrivacy)
   privacy?: PostPrivacy;
-
-  @IsOptional()
-  @IsString()
   hashtag?: string;
-
-  @IsOptional()
-  @IsString()
   search?: string;
-
-  @IsOptional()
-  @IsEnum(['newest', 'oldest', 'most_liked', 'most_commented'])
-  sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_commented' = 'newest';
+  sortBy?: 'newest' | 'oldest' | 'most_liked' | 'most_commented';
 }
 
-export class GetUserPostsDto {
-  @IsUUID()
-  userId: string;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(50)
-  limit?: number = 10;
+export class GetTimelineFeedDto {
+  page?: number;
+  limit?: number;
+  algorithm?: 'chronological' | 'smart' | 'diversified';
 }
 
 // ===== RESPONSE DTOs =====
@@ -139,7 +69,6 @@ export class PostCommentResponseDto {
   parentId?: string;
   repliesCount: number;
   likesCount: number;
-  isLikedByCurrentUser?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -149,7 +78,6 @@ export class PostAuthorResponseDto {
   fullName: string;
   username: string;
   avatar?: string;
-  isFollowedByCurrentUser?: boolean;
 }
 
 export class PostResponseDto {
@@ -161,8 +89,6 @@ export class PostResponseDto {
   hashtags: string[];
   likesCount: number;
   commentsCount: number;
-  isLikedByCurrentUser?: boolean;
-  currentUserReaction?: ReactionType;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -180,77 +106,4 @@ export class PostListResponseDto {
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
-}
-
-// ===== STATISTICS DTOs =====
-
-export class PostStatsResponseDto {
-  totalPosts: number;
-  totalLikes: number;
-  totalComments: number;
-  postsThisMonth: number;
-  topHashtags: Array<{
-    hashtag: string;
-    count: number;
-  }>;
-  engagementRate: number;
-}
-
-// ===== FEED DTOs =====
-
-export class GetTimelineFeedDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(20)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsEnum(['chronological', 'smart', 'diversified'])
-  algorithm?: 'chronological' | 'smart' | 'diversified' = 'chronological';
-}
-
-export class GetExploreFeedDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(20)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsString()
-  category?: string; // For explore categories
-}
-
-export class GetTrendingFeedDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(20)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsEnum(['today', 'week', 'month'])
-  period?: 'today' | 'week' | 'month' = 'today';
 }

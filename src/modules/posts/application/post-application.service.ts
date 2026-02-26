@@ -2,11 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { CreatePostUseCase } from './use-cases/create-post.use-case';
 import { UpdatePostUseCase } from './use-cases/update-post.use-case';
 import { DeletePostUseCase } from './use-cases/delete-post.use-case';
-import {
-  GetPostByIdUseCase,
-  GetPostsUseCase,
-  GetTimelineFeedUseCase,
-} from './use-cases/get-post.use-case';
+import { GetPostByIdUseCase } from './use-cases/get-post-by-id.use-case';
+import { GetPostsUseCase } from './use-cases/get-posts.use-case';
+import { GetTimelineFeedUseCase } from './use-cases/get-timeline-feed.use-case';
 import { RedisCacheService } from '../../cache/cache.service';
 import { generateCacheKey, getCacheTTL } from '../../cache/cache.interfaces';
 import { PostEnrichmentService } from './services/post-enrichment.service';
@@ -169,14 +167,14 @@ export class PostApplicationService {
       // For simplicity, we'll use a pattern-based approach or clear specific common combinations
       const commonPages = [1, 2, 3]; // Most common pages
       const commonLimits = [10, 20]; // Common limits
-      const feedTypes = ['timeline', 'following', 'trending'];
+      const algorithms = ['chronological', 'smart', 'diversified'];
 
       for (const page of commonPages) {
         for (const limit of commonLimits) {
-          for (const feedType of feedTypes) {
+          for (const algo of algorithms) {
             const cacheKey = generateCacheKey(
               'TIMELINE_FEED',
-              `${userId}:page:${page}:limit:${limit}:type:${feedType}`,
+              `${userId}:page:${page}:limit:${limit}:algo:${algo}`,
             );
             await this.cacheService.del(cacheKey);
           }

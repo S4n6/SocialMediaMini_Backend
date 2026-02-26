@@ -1,17 +1,19 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostDomainService } from '../../domain/services/post-domain.service';
 import { IPostRepository } from '../../domain/repositories/post.repository';
+import { PostDetailResponseDto } from '../dto/post.dto';
 import {
   PostNotFoundException,
   UnauthorizedPostActionException,
 } from '../../domain/exceptions/post.exceptions';
 import { POST_REPOSITORY_TOKEN } from '../../constants';
+import { mapPostToDetailResponseDto } from '../mappers/post-response.mapper';
 
 /**
- * Use case for deleting a post
+ * Use case for getting a single post by ID
  */
 @Injectable()
-export class DeletePostUseCase {
+export class GetPostByIdUseCase {
   constructor(
     private readonly postDomainService: PostDomainService,
     @Inject(POST_REPOSITORY_TOKEN)
@@ -20,21 +22,18 @@ export class DeletePostUseCase {
 
   async execute(
     postId: string,
-    userId: string,
-    userRole?: string,
-  ): Promise<void> {
-    // Find existing post
+    viewerId?: string,
+    isFollowing?: boolean,
+  ): Promise<PostDetailResponseDto> {
     const post = await this.postRepository.findById(postId);
     if (!post) {
       throw new PostNotFoundException(postId);
     }
 
-    // Validate user permissions
-    if (!this.postDomainService.canDeletePost(post, userId, userRole)) {
-      throw new UnauthorizedPostActionException('delete this post');
+    if (!this.postDomainService.canViewPost(post, viewerId, isFollowing)) {
+      throw new UnauthorizedPostActionException('view this post');
     }
 
-    // Delete the post
-    await this.postRepository.delete(postId);
+    return mapPostToDetailResponseDto(post);
   }
 }

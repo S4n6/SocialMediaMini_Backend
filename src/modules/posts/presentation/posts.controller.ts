@@ -21,13 +21,17 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { PostApplicationService } from '../application/post-application.service';
+
 // Application DTOs
 import {
   CreatePostDto,
   UpdatePostDto,
   GetPostsQueryDto,
-  GetUserFeedDto,
-} from '../application/dto/post-use-case.dto';
+  GetTimelineFeedDto,
+  PostResponseDto,
+  PostDetailResponseDto,
+  PostListResponseDto,
+} from '../application/dto/post.dto';
 
 // Domain enums
 import { PostPrivacy } from '../domain/entities/post.entity';
@@ -36,15 +40,7 @@ import { PostPrivacy } from '../domain/entities/post.entity';
 import {
   CreatePostRequestDto,
   UpdatePostRequestDto,
-  GetPostsQueryRequestDto,
 } from './dto/post-request.dto';
-
-import {
-  GetTimelineFeedDto,
-  PostDetailResponseDto,
-  PostListResponseDto,
-  PostResponseDto,
-} from '../application';
 
 // Import guards and decorators from shared folder
 import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
@@ -90,12 +86,12 @@ export class PostsController {
   }
 
   private mapPrivacyToApplicationEnum(privacy?: string): PostPrivacy {
-    switch (privacy) {
-      case 'private':
+    switch (privacy?.toUpperCase()) {
+      case 'PRIVATE':
         return PostPrivacy.PRIVATE;
-      case 'followers':
+      case 'FOLLOWERS':
         return PostPrivacy.FOLLOWERS;
-      case 'public':
+      case 'PUBLIC':
       default:
         return PostPrivacy.PUBLIC;
     }
@@ -117,7 +113,6 @@ export class PostsController {
   ): Promise<PostResponseDto> {
     // Map presentation DTO to application DTO
     const updatePostDto: UpdatePostDto = {
-      id,
       content: updatePostRequest.content,
       privacy: updatePostRequest.privacy
         ? this.mapPrivacyToApplicationEnum(updatePostRequest.privacy)
@@ -129,7 +124,6 @@ export class PostsController {
         s3Key: m.s3Key,
       })),
       hashtags: updatePostRequest.hashtags,
-      authorId: userId,
     };
 
     return this.postApplicationService.updatePost(id, userId, updatePostDto);
@@ -150,6 +144,27 @@ export class PostsController {
   }
 
   // ===== POST RETRIEVAL =====
+
+  @Get('feed/timeline')
+  @ApiOperation({ summary: 'Get user timeline feed' })
+  @ApiResponse({
+    status: 200,
+    description: 'Timeline feed retrieved successfully',
+    type: PostListResponseDto,
+  })
+  @ApiQuery({
+    name: 'algorithm',
+    required: false,
+    enum: ['chronological', 'smart', 'diversified'],
+    description: 'Timeline algorithm to use',
+  })
+  @ApiBearerAuth()
+  async getTimelineFeed(
+    @Query() query: GetTimelineFeedDto,
+    @CurrentUser('id') userId: string,
+  ): Promise<PostListResponseDto> {
+    return this.postApplicationService.getTimelineFeed(userId, query);
+  }
 
   @Get(':id')
   @SkipGuards()
@@ -211,26 +226,5 @@ export class PostsController {
     @CurrentUser('id') viewerId?: string,
   ): Promise<PostListResponseDto> {
     return this.postApplicationService.getPosts(query, viewerId);
-  }
-
-  @Get('feed/timeline')
-  @ApiOperation({ summary: 'Get user timeline feed' })
-  @ApiResponse({
-    status: 200,
-    description: 'Timeline feed retrieved successfully',
-    type: PostListResponseDto,
-  })
-  @ApiQuery({
-    name: 'algorithm',
-    required: false,
-    enum: ['chronological', 'smart', 'diversified'],
-    description: 'Timeline algorithm to use',
-  })
-  @ApiBearerAuth()
-  async getTimelineFeed(
-    @Query() query: GetTimelineFeedDto,
-    @CurrentUser('id') userId: string,
-  ): Promise<PostListResponseDto> {
-    return this.postApplicationService.getTimelineFeed(userId, query);
   }
 }
