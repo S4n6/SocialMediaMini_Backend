@@ -1,6 +1,6 @@
 /**
- * Domain interface for user-related operations
- * This defines what the Posts domain needs from User domain
+ * Port interface for user-related operations needed by Posts domain
+ * Defines what the Posts application layer needs from the User domain
  */
 export interface IUserAdapter {
   /**

@@ -1,16 +1,11 @@
-import {
-  Injectable,
-  Inject,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PostEntity } from '../../domain/entities/post.entity';
 import { PostDomainService } from '../../domain/services/post-domain.service';
 import { IPostRepository } from '../../domain/repositories/post.repository';
+import { PostNotFoundException } from '../../domain/exceptions/post.exceptions';
 import { UpdatePostDto, PostResponseDto } from '../dto/post.dto';
 import { POST_REPOSITORY_TOKEN } from '../../constants';
-// Use literal token string to avoid circular import with PostsModule
+import { mapPostToResponseDto } from '../mappers/post-response.mapper';
 
 /**
  * Use case for updating an existing post
@@ -31,7 +26,7 @@ export class UpdatePostUseCase {
     // Find existing post
     const post = await this.postRepository.findById(postId);
     if (!post) {
-      throw new NotFoundException(`Post with ID ${postId} not found`);
+      throw new PostNotFoundException(postId);
     }
 
     // Validate user permissions
@@ -67,32 +62,6 @@ export class UpdatePostUseCase {
     // Save updated post
     const updatedPost = await this.postRepository.save(post);
 
-    // Convert to response DTO
-    return this.mapToResponseDto(updatedPost);
-  }
-
-  private mapToResponseDto(post: PostEntity): PostResponseDto {
-    return {
-      id: post.id,
-      content: post.content,
-      privacy: post.privacy,
-      author: {
-        id: post.authorId,
-        fullName: '', // Will be populated by application service
-        username: '',
-        avatar: undefined,
-      },
-      media: post.media.map((m) => ({
-        id: m.id,
-        url: m.url,
-        type: m.type,
-        order: m.order,
-      })),
-      hashtags: post.hashtags,
-      likesCount: post.reactions.length,
-      commentsCount: post.comments.length,
-      createdAt: post.createdAt,
-      updatedAt: post.updatedAt,
-    };
+    return mapPostToResponseDto(updatedPost);
   }
 }

@@ -19,5 +19,3 @@ export interface ITimelineRepository {
     limit: number,
   ): Promise<{ posts: PostEntity[]; total: number }>;
 }
-
-export const TIMELINE_REPOSITORY_TOKEN = Symbol('ITimelineRepository');

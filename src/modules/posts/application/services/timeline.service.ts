@@ -1,9 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostEntity } from '../../domain/entities/post.entity';
-import {
-  ITimelineRepository,
-  TIMELINE_REPOSITORY_TOKEN,
-} from '../../domain/repositories/timeline.repository';
+import { ITimelineRepository } from '../../domain/repositories/timeline.repository';
+import { TIMELINE_REPOSITORY_TOKEN } from '../../constants';
 
 export type TimelineAlgorithm = 'chronological' | 'smart' | 'diversified';
 

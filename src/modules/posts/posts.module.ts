@@ -10,19 +10,18 @@ import { PostApplicationService } from './application/post-application.service';
 import { CreatePostUseCase } from './application/use-cases/create-post.use-case';
 import { UpdatePostUseCase } from './application/use-cases/update-post.use-case';
 import { DeletePostUseCase } from './application/use-cases/delete-post.use-case';
-import {
-  GetPostByIdUseCase,
-  GetPostsUseCase,
-  GetTimelineFeedUseCase,
-} from './application/use-cases/get-post.use-case';
+import { GetPostByIdUseCase } from './application/use-cases/get-post-by-id.use-case';
+import { GetPostsUseCase } from './application/use-cases/get-posts.use-case';
+import { GetTimelineFeedUseCase } from './application/use-cases/get-timeline-feed.use-case';
 
 // Domain Layer
 import { PostFactory } from './domain/factories/post.factory';
 import { PostDomainService } from './domain/services/post-domain.service';
 
 // Infrastructure Layer
-import { PostPrismaRepository } from './infrastructure/post.prisma.repository';
+import { PostPrismaRepository } from './infrastructure/persistence/repositories/post.prisma.repository';
 import { AdvancedTimelineRepository } from './infrastructure/advanced-timeline.repository';
+import { PostMapper } from './infrastructure/persistence/mappers/post.mapper';
 
 // Services
 import { TimelineService } from './application/services/timeline.service';
@@ -34,21 +33,15 @@ import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapt
 // Event Handlers
 import { PostEventHandler } from './application/events/post-event.handler';
 
-// WebSocket Services - TODO: Refactor - WebSocket cũ
-// import {
-//   PostWebSocketService,
-//   PostWebSocketRegistrationService,
-// } from './application/services';
-
 // Presentation Layer
 import { PostsController } from './presentation/posts.controller';
 
-// Repository interface tokens
-import { POST_REPOSITORY_TOKEN } from './constants';
-import { TIMELINE_REPOSITORY_TOKEN } from './domain/repositories/timeline.repository';
-
-// Token for User Adapter
-export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
+// DI Tokens
+import {
+  POST_REPOSITORY_TOKEN,
+  TIMELINE_REPOSITORY_TOKEN,
+  USER_ADAPTER_TOKEN,
+} from './constants';
 
 @Module({
   imports: [PrismaModule, PostMediasModule, RedisCacheModule],
@@ -67,20 +60,27 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     GetPostsUseCase,
     GetTimelineFeedUseCase,
 
-    // Domain Layer
-    PostFactory,
-    PostDomainService,
+    // Domain Layer (pure TypeScript - registered as factory providers)
+    {
+      provide: PostDomainService,
+      useFactory: () => new PostDomainService(),
+    },
+    {
+      provide: PostFactory,
+      useFactory: (domainService: PostDomainService) =>
+        new PostFactory(domainService),
+      inject: [PostDomainService],
+    },
 
     // Services
     TimelineService,
     PostEnrichmentService,
 
+    // Infrastructure - Mapper
+    PostMapper,
+
     // Event Handlers
     PostEventHandler,
-
-    // WebSocket Services - TODO: Refactor - WebSocket cũ
-    // PostWebSocketService,
-    // PostWebSocketRegistrationService,
 
     // Infrastructure Adapters
     {
@@ -107,7 +107,6 @@ export const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
     TimelineService,
     PostFactory,
     PostDomainService,
-    // PostWebSocketService, // TODO: Refactor - WebSocket cũ
   ],
 })
 export class PostsModule {}

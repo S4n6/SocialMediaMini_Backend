@@ -18,14 +18,6 @@ import {
   EmptyPostContentException,
 } from '../exceptions/post.exceptions';
 
-// Simple DomainException class for now
-class DomainException extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DomainException';
-  }
-}
-
 export enum PostPrivacy {
   PUBLIC = 'PUBLIC',
   FOLLOWERS = 'FOLLOWERS',
@@ -36,6 +28,7 @@ export enum ReactionType {
   LIKE = 'LIKE',
   LOVE = 'LOVE',
   LAUGH = 'LAUGH',
+  WOW = 'WOW',
   ANGRY = 'ANGRY',
   SAD = 'SAD',
 }
@@ -323,8 +316,14 @@ export class PostEntity extends Entity<string> {
   private extractHashtags(content?: string): string[] {
     if (!content) return [];
 
-    const hashtags = content.match(/#\w+/g) || [];
-    return hashtags.map((tag) => tag.toLowerCase());
+    const hashtagRegex = /#[\w\u0590-\u05ff]+/g;
+    const matches = content.match(hashtagRegex);
+
+    if (!matches) return [];
+
+    return matches
+      .map((tag) => tag.toLowerCase().substring(1)) // Remove # and lowercase
+      .filter((tag, index, self) => self.indexOf(tag) === index); // Deduplicate
   }
 
   private generateId(): string {
@@ -336,25 +335,5 @@ export class PostEntity extends Entity<string> {
     props: Omit<PostProps, 'id' | 'createdAt' | 'updatedAt'>,
   ): PostEntity {
     return new PostEntity(props);
-  }
-
-  static fromPersistence(props: PostProps): PostEntity {
-    return new PostEntity(props);
-  }
-
-  // Convert to persistence format
-  toPersistence() {
-    return {
-      id: this.id,
-      content: this._content,
-      privacy: this._privacy,
-      authorId: this._authorId,
-      media: this._media,
-      reactions: this._reactions,
-      comments: this._comments,
-      hashtags: this._hashtags,
-      createdAt: this._createdAt,
-      updatedAt: this._updatedAt,
-    };
   }
 }

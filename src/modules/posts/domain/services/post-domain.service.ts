@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import { PostEntity, PostPrivacy, ReactionType } from '../entities/post.entity';
 import {
   PostAlreadyLikedException,
@@ -12,8 +11,8 @@ import {
 /**
  * Domain service for Post business logic
  * Encapsulates complex domain rules that don't belong to a single entity
+ * Pure TypeScript - no framework dependencies
  */
-@Injectable()
 export class PostDomainService {
   private readonly MAX_CONTENT_LENGTH = 2000;
   private readonly MAX_MEDIA_COUNT = 10;

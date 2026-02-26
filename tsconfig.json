@@ -24,7 +24,6 @@
     "prisma",
     "prisma.config.ts",
     "src/modules/messaging/**/*",
-    "src/modules/posts/**/*",
     "src/modules/notification/**/*"
   ]
 }

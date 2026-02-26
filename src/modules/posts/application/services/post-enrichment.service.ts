@@ -1,9 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { IUserAdapter } from '../../domain/repositories/user.adapter';
+import { IUserAdapter } from '../ports/i-user.adapter';
 import { PostResponseDto, PostDetailResponseDto } from '../dto/post.dto';
-
-// Import token from posts module
-const USER_ADAPTER_TOKEN = Symbol('IUserAdapter');
+import { USER_ADAPTER_TOKEN } from '../../constants';
 
 /**
  * Service responsible for enriching posts with user information

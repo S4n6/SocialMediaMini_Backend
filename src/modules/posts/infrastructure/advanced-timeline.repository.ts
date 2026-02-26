@@ -1,12 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import {
-  PostEntity,
-  PostPrivacy,
-  ReactionType,
-} from '../domain/entities/post.entity';
-import { PostFactory } from '../domain/factories/post.factory';
+import { PostEntity, PostPrivacy } from '../domain/entities/post.entity';
 import { ITimelineRepository } from '../domain/repositories/timeline.repository';
+import { PostMapper } from './persistence/mappers/post.mapper';
 
 /**
  * Advanced Timeline Algorithm
@@ -16,7 +12,7 @@ import { ITimelineRepository } from '../domain/repositories/timeline.repository'
 export class AdvancedTimelineRepository implements ITimelineRepository {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly postFactory: PostFactory,
+    private readonly postMapper: PostMapper,
   ) {}
 
   /**
@@ -86,7 +82,7 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
     });
 
     return {
-      posts: posts.map((post) => this.mapPrismaToEntity(post)),
+      posts: posts.map((post) => this.postMapper.toDomainEntity(post)),
       total: totalCount,
     };
   }
@@ -234,9 +230,9 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
       },
     });
 
-    // Map raw results to entities (simplified for demo)
+    // Map raw results to entities
     const posts = (rankedPosts as any[]).map((rawPost: any) =>
-      this.mapRawToEntity(rawPost),
+      this.postMapper.fromRawSql(rawPost),
     );
 
     return { posts, total: totalCount };
@@ -292,114 +288,9 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
 
     return {
       posts: (posts as any[]).map((rawPost: any) =>
-        this.mapRawToEntity(rawPost),
+        this.postMapper.fromRawSql(rawPost),
       ),
       total: totalCount,
     };
-  }
-
-  /**
-   * Map Prisma object to PostEntity
-   */
-  private mapPrismaToEntity(data: any): PostEntity {
-    const asRecord = (v: unknown): Record<string, unknown> =>
-      v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
-
-    const safeString = (v: unknown): string => {
-      if (v === null || v === undefined) return '';
-      if (typeof v === 'string') return v;
-      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-      try {
-        const json = JSON.stringify(v);
-        return json === undefined ? Object.prototype.toString.call(v) : json;
-      } catch {
-        return Object.prototype.toString.call(v);
-      }
-    };
-
-    const safeDate = (v: unknown): Date => {
-      if (v instanceof Date) return v;
-      const s = safeString(v);
-      const d = new Date(s);
-      return isNaN(d.getTime()) ? new Date() : d;
-    };
-
-    const row = asRecord(data);
-
-    const hashtags = Array.isArray(row.hashtags)
-      ? row.hashtags
-          .map((h) => asRecord(h).hashtag)
-          .map((hh) => safeString(asRecord(hh).name))
-      : [];
-
-    const media = Array.isArray(row.postMedia)
-      ? row.postMedia.map((m) => {
-          const rr = asRecord(m);
-          return {
-            id: safeString(rr.id),
-            url: safeString(rr.url),
-            type: safeString(rr.type) as 'image' | 'video',
-            order: Number(rr.order) || 0,
-          };
-        })
-      : [];
-
-    const reactions = Array.isArray(row.reactions)
-      ? row.reactions.map((r) => {
-          const rr = asRecord(r);
-          return {
-            id: safeString(rr.id),
-            userId: safeString(rr.reactorId),
-            type: safeString(rr.type) as ReactionType,
-            createdAt: safeDate(rr.createdAt),
-          };
-        })
-      : [];
-
-    const comments = Array.isArray(row.comments)
-      ? row.comments.map((c) => {
-          const rc = asRecord(c);
-          return {
-            id: safeString(rc.id),
-            content: safeString(rc.content),
-            authorId: safeString(rc.authorId),
-            parentId: safeString(rc.parentId),
-            createdAt: safeDate(rc.createdAt),
-            updatedAt: safeDate(rc.updatedAt),
-          };
-        })
-      : [];
-
-    return this.postFactory.reconstitute({
-      id: safeString(row.id),
-      content: safeString(row.content),
-      authorId: safeString(row.authorId),
-      privacy: safeString(row.privacy) as PostPrivacy,
-      hashtags,
-      media,
-      reactions,
-      comments,
-      createdAt: safeDate(row.createdAt),
-      updatedAt: safeDate(row.updatedAt),
-    });
-  }
-
-  /**
-   * Map raw SQL result to PostEntity
-   */
-  private mapRawToEntity(rawPost: any): PostEntity {
-    // Handle raw SQL column names (snake_case)
-    return this.postFactory.reconstitute({
-      id: rawPost.id,
-      content: rawPost.content,
-      authorId: rawPost.author_id,
-      privacy: rawPost.privacy as PostPrivacy,
-      hashtags: [],
-      media: [],
-      reactions: [],
-      comments: [],
-      createdAt: rawPost.created_at,
-      updatedAt: rawPost.updated_at,
-    });
   }
 }

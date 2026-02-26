@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IUserAdapter } from '../../domain/repositories/user.adapter';
+import { IUserAdapter } from '../../application/ports/i-user.adapter';
 
 /**
  * User Service Adapter for Posts Domain
@@ -8,8 +8,7 @@ import { IUserAdapter } from '../../domain/repositories/user.adapter';
  */
 @Injectable()
 export class UserServiceAdapter implements IUserAdapter {
-  constructor() // TODO: Inject UserService when available
-  // private readonly userService: UserService,
+  constructor() // private readonly userService: UserService, // TODO: Inject UserService when available
   {}
 
   async getUserById(userId: string): Promise<{
