@@ -45,40 +45,57 @@ model User {
   stories                 Story[]
   storyViews              StoryView[]          @relation("UserStoryViews")
   conversations           UserConversation[]
+  savedPosts              SavedPost[]
+  blocking                Block[]              @relation("UserBlocking")
+  blockedBy               Block[]              @relation("UserBlockedBy")
+  taggedInPosts           PostUserTag[]
+  closeFriends            CloseFriend[]        @relation("UserCloseFriends")
+  closeFriendOf           CloseFriend[]        @relation("CloseFriendOf")
 
   @@map("Users")
 }
 
 model Post {
-  id        String        @id @default(uuid()) @map("PostId")
-  content   String?       @map("Content")
-  privacy   String        @default("public") @map("Privacy")
-  createdAt DateTime      @default(now()) @map("CreatedAt")
-  updatedAt DateTime      @updatedAt @map("UpdatedAt")
-  authorId  String        @map("AuthorId")
-  comments  Comment[]
-  hashtags  PostHashtag[]
-  postMedia PostMedia[]
-  author    User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  reactions Reaction[]
-  reports   Report[]
+  id             String        @id @default(uuid()) @map("PostId")
+  content        String?       @map("Content")
+  privacy        PostPrivacy   @default(PUBLIC) @map("Privacy")
+  createdAt      DateTime      @default(now()) @map("CreatedAt")
+  updatedAt      DateTime      @updatedAt @map("UpdatedAt")
+  authorId       String        @map("AuthorId")
+  locationName   String?       @map("LocationName")
+  latitude       Float?        @map("Latitude")
+  longitude      Float?        @map("Longitude")
+  originalPostId String?       @map("OriginalPostId")
+  comments       Comment[]
+  hashtags       PostHashtag[]
+  postMedia      PostMedia[]
+  author         User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions      Reaction[]
+  reports        Report[]
+  savedBy        SavedPost[]
+  taggedUsers    PostUserTag[]
+  originalPost   Post?         @relation("SharedPosts", fields: [originalPostId], references: [id], onDelete: SetNull)
+  sharedPosts    Post[]        @relation("SharedPosts")
 
+  @@index([authorId])
   @@map("Posts")
 }
 
 model Reaction {
-  id        String   @id @default(uuid()) @map("ReactionId")
-  type      String   @map("Type")
-  createdAt DateTime @default(now()) @map("CreatedAt")
-  reactorId String   @map("ReactorId")
-  postId    String?  @map("PostId")
-  commentId String?  @map("CommentId")
-  comment   Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  reactor   User     @relation(fields: [reactorId], references: [id], onDelete: Cascade)
+  id        String       @id @default(uuid()) @map("ReactionId")
+  type      ReactionType @map("Type")
+  createdAt DateTime     @default(now()) @map("CreatedAt")
+  reactorId String       @map("ReactorId")
+  postId    String?      @map("PostId")
+  commentId String?      @map("CommentId")
+  comment   Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  post      Post?        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reactor   User         @relation(fields: [reactorId], references: [id], onDelete: Cascade)
 
   @@unique([reactorId, postId])
   @@unique([reactorId, commentId])
+  @@index([postId])
+  @@index([commentId])
   @@map("Reactions")
 }
 
@@ -91,11 +108,14 @@ model Comment {
   postId    String     @map("PostId")
   parentId  String?    @map("ParentId")
   author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies   Comment[]  @relation("CommentReplies")
   post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
   reactions Reaction[]
 
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentId])
   @@map("Comments")
 }
 
@@ -108,6 +128,8 @@ model Follow {
   following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
   @@map("Follows")
 }
 
@@ -124,46 +146,49 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(uuid()) @map("MessageId")
-  content        String       @map("Content")
-  messageType    String       @default("text") @map("MessageType")
-  isRead         Boolean      @default(false) @map("IsRead")
-  createdAt      DateTime     @default(now()) @map("CreatedAt")
-  senderId       String       @map("SenderId")
-  conversationId String       @map("ConversationId")
+  id             String      @id @default(uuid()) @map("MessageId")
+  content        String      @map("Content")
+  messageType    MessageType @default(TEXT) @map("MessageType")
+  isRead         Boolean     @default(false) @map("IsRead")
+  createdAt      DateTime    @default(now()) @map("CreatedAt")
+  senderId       String      @map("SenderId")
+  conversationId String      @map("ConversationId")
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  sender         User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
+  @@index([conversationId])
   @@map("Messages")
 }
 
 model UserConversation {
-  id             String       @id @default(uuid()) @map("UserConversationId")
-  role           String       @default("member") @map("Role")
-  joinedAt       DateTime     @default(now()) @map("JoinedAt")
-  lastReadAt     DateTime?    @map("LastReadAt")
-  userId         String       @map("UserId")
-  conversationId String       @map("ConversationId")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String           @id @default(uuid()) @map("UserConversationId")
+  role           ConversationRole @default(MEMBER) @map("Role")
+  joinedAt       DateTime         @default(now()) @map("JoinedAt")
+  lastReadAt     DateTime?        @map("LastReadAt")
+  userId         String           @map("UserId")
+  conversationId String           @map("ConversationId")
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, conversationId])
   @@map("UserConversations")
 }
 
 model Story {
-  id        String      @id @default(uuid()) @map("StoryId")
-  content   String?     @map("Content")
-  mediaUrl  String?     @map("MediaUrl")
-  mediaType String?     @map("MediaType")
-  expiresAt DateTime    @map("ExpiresAt")
-  createdAt DateTime    @default(now()) @map("CreatedAt")
-  authorId  String      @map("AuthorId")
-  isActive  Boolean     @default(true) @map("IsActive")
-  updatedAt DateTime    @updatedAt @map("UpdatedAt")
-  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id        String     @id @default(uuid()) @map("StoryId")
+  content   String?    @map("Content")
+  mediaUrl  String?    @map("MediaUrl")
+  mediaType MediaType? @map("MediaType")
+  expiresAt DateTime   @map("ExpiresAt")
+  createdAt DateTime   @default(now()) @map("CreatedAt")
+  authorId  String     @map("AuthorId")
+  isActive  Boolean    @default(true) @map("IsActive")
+  updatedAt DateTime   @updatedAt @map("UpdatedAt")
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
   views     StoryView[]
 
+  @@index([authorId])
+  @@index([expiresAt])
   @@map("Stories")
 }
 
@@ -180,34 +205,37 @@ model StoryView {
 }
 
 model Report {
-  id           String    @id @default(uuid()) @map("ReportId")
-  reason       String    @map("Reason")
-  description  String?   @map("Description")
-  status       String    @default("pending") @map("Status")
-  createdAt    DateTime  @default(now()) @map("CreatedAt")
-  resolvedAt   DateTime? @map("ResolvedAt")
-  reporterId   String    @map("ReporterId")
-  targetUserId String?   @map("TargetUserId")
-  targetPostId String?   @map("TargetPostId")
-  reporter     User      @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetPost   Post?     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-  targetUser   User?     @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  id           String       @id @default(uuid()) @map("ReportId")
+  reason       String       @map("Reason")
+  description  String?      @map("Description")
+  status       ReportStatus @default(PENDING) @map("Status")
+  createdAt    DateTime     @default(now()) @map("CreatedAt")
+  resolvedAt   DateTime?    @map("ResolvedAt")
+  reporterId   String       @map("ReporterId")
+  targetUserId String?      @map("TargetUserId")
+  targetPostId String?      @map("TargetPostId")
+  reporter     User         @relation("ReportSubmitter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetPost   Post?        @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  targetUser   User?        @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
 
+  @@index([reporterId])
   @@map("Reports")
 }
 
 model Notification {
-  id         String   @id @default(uuid()) @map("NotificationId")
-  type       String   @map("Type")
-  title      String   @map("Title")
-  content    String   @map("Content")
-  isRead     Boolean  @default(false) @map("IsRead")
-  createdAt  DateTime @default(now()) @map("CreatedAt")
-  userId     String   @map("UserId")
-  entityId   String?  @map("EntityId")
-  entityType String?  @map("EntityType")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String              @id @default(uuid()) @map("NotificationId")
+  type       String              @map("Type")
+  title      String              @map("Title")
+  content    String              @map("Content")
+  isRead     Boolean             @default(false) @map("IsRead")
+  createdAt  DateTime            @default(now()) @map("CreatedAt")
+  userId     String              @map("UserId")
+  entityId   String?             @map("EntityId")
+  entityType NotificationEntity? @map("EntityType")
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([userId, isRead])
   @@map("Notifications")
 }
 
@@ -233,38 +261,39 @@ model PostHashtag {
 }
 
 model PostMedia {
-  id           String   @id @default(uuid()) @map("PostMediaId")
-  url          String   @map("Url")
-  type         String   @map("Type")
-  order        Int?     @map("Order")
-  status       String   @default("pending") @map("Status")
-  processedUrl String?  @map("ProcessedUrl")
-  thumbnailUrl String?  @map("ThumbnailUrl")
-  s3Key        String?  @map("S3Key")
-  errorMessage String?  @map("ErrorMessage")
-  createdAt    DateTime @default(now()) @map("CreatedAt")
-  updatedAt    DateTime @updatedAt @map("UpdatedAt")
-  postId       String   @map("PostId")
-  post         Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  id           String           @id @default(uuid()) @map("PostMediaId")
+  url          String           @map("Url")
+  type         MediaType        @map("Type")
+  order        Int?             @map("Order")
+  status       MediaStatus      @default(PENDING) @map("Status")
+  processedUrl String?          @map("ProcessedUrl")
+  thumbnailUrl String?          @map("ThumbnailUrl")
+  s3Key        String?          @map("S3Key")
+  errorMessage String?          @map("ErrorMessage")
+  createdAt    DateTime         @default(now()) @map("CreatedAt")
+  updatedAt    DateTime         @updatedAt @map("UpdatedAt")
+  postId       String           @map("PostId")
+  post         Post             @relation(fields: [postId], references: [id], onDelete: Cascade)
 
+  @@index([postId])
   @@map("PostMedias")
 }
 
 model Session {
-  id         String    @id @default(uuid()) @map("SessionId")
-  sessionId  String    @unique @map("SessionIdentifier")
-  expiresAt  DateTime  @map("ExpiresAt")
-  createdAt  DateTime  @default(now()) @map("CreatedAt")
-  lastUsedAt DateTime  @default(now()) @map("LastUsedAt")
-  isRevoked  Boolean   @default(false) @map("IsRevoked")
-  revokedAt  DateTime? @map("RevokedAt")
-  userAgent  String?   @map("UserAgent")
-  ipAddress  String?   @map("IpAddress")
-  userId     String    @map("UserId")
-  clientType String    @default("web") @map("ClientType")
-  deviceName String?   @map("DeviceName")
-  deviceType String?   @map("DeviceType")
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String     @id @default(uuid()) @map("SessionId")
+  sessionId  String     @unique @map("SessionIdentifier")
+  expiresAt  DateTime   @map("ExpiresAt")
+  createdAt  DateTime   @default(now()) @map("CreatedAt")
+  lastUsedAt DateTime   @default(now()) @map("LastUsedAt")
+  isRevoked  Boolean    @default(false) @map("IsRevoked")
+  revokedAt  DateTime?  @map("RevokedAt")
+  userAgent  String?    @map("UserAgent")
+  ipAddress  String?    @map("IpAddress")
+  userId     String     @map("UserId")
+  clientType ClientType @default(WEB) @map("ClientType")
+  deviceName String?    @map("DeviceName")
+  deviceType String?    @map("DeviceType")
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@index([userId, sessionId])
@@ -286,13 +315,67 @@ model SearchHistoryEntry {
   id              String        @id @default(uuid()) @map("SearchHistoryEntryId")
   searchedUserId  String        @map("SearchedUserId")
   searchedAt      DateTime      @default(now()) @map("SearchedAt")
-  createdAt       DateTime      @default(now()) @map("CreatedAt")
   searchHistoryId String        @map("SearchHistoryId")
   searchHistory   SearchHistory @relation(fields: [searchHistoryId], references: [id], onDelete: Cascade)
   searchedUser    User          @relation("UserSearchedHistory", fields: [searchedUserId], references: [id], onDelete: Cascade)
 
   @@unique([searchHistoryId, searchedUserId])
   @@map("SearchHistoryEntries")
+}
+
+model SavedPost {
+  id        String   @id @default(uuid()) @map("SavedPostId")
+  userId    String   @map("UserId")
+  postId    String   @map("PostId")
+  savedAt   DateTime @default(now()) @map("SavedAt")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@map("SavedPosts")
+}
+
+model Block {
+  id        String   @id @default(uuid()) @map("BlockId")
+  blockerId String   @map("BlockerId")
+  blockedId String   @map("BlockedId")
+  blockedAt DateTime @default(now()) @map("BlockedAt")
+  blocker   User     @relation("UserBlocking", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+  @@map("Blocks")
+}
+
+model PostUserTag {
+  id        String   @id @default(uuid()) @map("PostUserTagId")
+  postId    String   @map("PostId")
+  userId    String   @map("UserId")
+  xPosition Float?   @map("XPosition")
+  yPosition Float?   @map("YPosition")
+  createdAt DateTime @default(now()) @map("CreatedAt")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@map("PostUserTags")
+}
+
+model CloseFriend {
+  id        String   @id @default(uuid()) @map("CloseFriendId")
+  userId    String   @map("UserId")
+  friendId  String   @map("FriendId")
+  addedAt   DateTime @default(now()) @map("AddedAt")
+  user      User     @relation("UserCloseFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("CloseFriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@map("CloseFriends")
 }
 
 enum UserRole {
@@ -307,4 +390,66 @@ enum UserStatus {
   INACTIVE
   SUSPENDED
   BANNED
+}
+
+enum PostPrivacy {
+  PUBLIC
+  FRIENDS_ONLY
+  PRIVATE
+  CLOSE_FRIENDS
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  HAHA
+  WOW
+  SAD
+  ANGRY
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  FILE
+}
+
+enum ConversationRole {
+  MEMBER
+  ADMIN
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MediaStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum ClientType {
+  WEB
+  MOBILE
+  DESKTOP
+}
+
+enum NotificationEntity {
+  POST
+  COMMENT
+  USER
+  STORY
+  FOLLOW
+  MESSAGE
 }
