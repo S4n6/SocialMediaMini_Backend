@@ -1,31 +1,15 @@
-import { Injectable } from '@nestjs/common';
-import { FollowEntity } from '../entities/follow.entity';
+import { FollowEntity, FollowEntityProps } from '../entities/follow.entity';
 
-@Injectable()
+/**
+ * Follow Factory - Pure Domain
+ * Responsible for creating Follow entities
+ */
 export class FollowFactory {
-  createFollow(followerId: string, followingId: string): FollowEntity {
-    if (!followerId) {
-      throw new Error('Follower ID is required');
-    }
-
-    if (!followingId) {
-      throw new Error('Following ID is required');
-    }
-
-    if (followerId === followingId) {
-      throw new Error('Cannot follow yourself');
-    }
-
+  static createFollow(followerId: string, followingId: string): FollowEntity {
     return FollowEntity.createNew(followerId, followingId);
   }
 
-  createFromPrimitive(props: {
-    id: string;
-    followerId: string;
-    followingId: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }): FollowEntity {
+  static createFromPersistence(props: FollowEntityProps): FollowEntity {
     return FollowEntity.create(props);
   }
 }

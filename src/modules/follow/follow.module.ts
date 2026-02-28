@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 
-// Constants
-import { FOLLOW_MODULE_TOKENS } from './constants';
+// Constants - Flat DI Tokens
+import {
+  FOLLOW_REPOSITORY_TOKEN,
+  EXTERNAL_USER_SERVICE_TOKEN,
+  NOTIFICATION_SERVICE_TOKEN,
+} from './constants';
 
 // Presentation Layer
 import { FollowsController } from './presentation/follows.controller';
@@ -17,11 +21,13 @@ import { GetFollowingUseCase } from './application/use-cases/get-following.use-c
 import { GetFollowStatusUseCase } from './application/use-cases/get-follow-status.use-case';
 import { GetFollowsUseCase } from './application/use-cases/get-follows.use-case';
 
-// Domain Layer
-import { FollowFactory } from './domain/factories/follow.factory';
+// Application Layer - Event Subscribers
+import { FollowNotificationSubscriber } from './application/subscribers/follow-notification.subscriber';
 
-// Infrastructure Layer
-import { PrismaFollowRepository } from './infrastructure/prisma-follow.repository';
+// Infrastructure Layer - Repository
+import { PrismaFollowRepository } from './infrastructure/persistence/repositories/prisma-follow.repository';
+
+// Infrastructure Layer - Adapters
 import { UserAdapter } from './infrastructure/adapters/user-adapter';
 import { NotificationAdapter } from './infrastructure/adapters/notification-adapter';
 
@@ -29,20 +35,21 @@ import { NotificationAdapter } from './infrastructure/adapters/notification-adap
  * Follow Module - Clean Architecture Implementation
  *
  * Dependencies flow: Presentation → Application → Domain ← Infrastructure
- * - Domain layer has no dependencies
+ * - Domain layer has no framework dependencies (pure TypeScript)
  * - Application layer depends only on domain interfaces
- * - Infrastructure implements domain interfaces
+ * - Infrastructure implements domain interfaces + application ports
  * - Presentation uses application services
+ * - Side effects handled via event subscribers (@OnEvent)
  */
 @Module({
   imports: [PrismaModule],
   controllers: [FollowsController],
   providers: [
-    // Application Layer Services
+    // Application Layer - Services
     FollowApplicationService,
     FollowEnrichmentService,
 
-    // Application Layer Use Cases
+    // Application Layer - Use Cases
     FollowUserUseCase,
     UnfollowUserUseCase,
     GetFollowersUseCase,
@@ -50,25 +57,25 @@ import { NotificationAdapter } from './infrastructure/adapters/notification-adap
     GetFollowStatusUseCase,
     GetFollowsUseCase,
 
-    // Domain Layer Services & Factories
-    FollowFactory,
+    // Application Layer - Event Subscribers
+    FollowNotificationSubscriber,
 
-    // Infrastructure Layer - Repository Implementation
+    // Infrastructure Layer - Repository
     {
-      provide: FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY,
+      provide: FOLLOW_REPOSITORY_TOKEN,
       useClass: PrismaFollowRepository,
     },
 
     // Infrastructure Layer - External Service Adapters
     {
-      provide: FOLLOW_MODULE_TOKENS.EXTERNAL_USER_SERVICE,
+      provide: EXTERNAL_USER_SERVICE_TOKEN,
       useClass: UserAdapter,
     },
     {
-      provide: FOLLOW_MODULE_TOKENS.NOTIFICATION_SERVICE,
+      provide: NOTIFICATION_SERVICE_TOKEN,
       useClass: NotificationAdapter,
     },
   ],
-  exports: [FollowApplicationService, FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY],
+  exports: [FollowApplicationService, FOLLOW_REPOSITORY_TOKEN],
 })
 export class FollowsModule {}

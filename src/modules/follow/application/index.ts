@@ -5,7 +5,6 @@ export * from './dto/follow.dto';
 export * from './dto/follow-response.dto';
 export * from './interfaces/external-services.interface';
 export * from './interfaces/follow-query.interface';
-export * from './interfaces/tokens';
 export * from './mappers/follow.mapper';
 
 // Use Cases
@@ -15,3 +14,6 @@ export * from './use-cases/get-followers.use-case';
 export * from './use-cases/get-following.use-case';
 export * from './use-cases/get-follow-status.use-case';
 export * from './use-cases/get-follows.use-case';
+
+// Event Subscribers
+export * from './subscribers/follow-notification.subscriber';

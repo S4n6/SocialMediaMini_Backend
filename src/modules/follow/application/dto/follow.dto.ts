@@ -1,17 +1,15 @@
-import { IsUUID, IsNotEmpty, IsOptional } from 'class-validator';
+/**
+ * Application Layer DTOs - Plain interfaces
+ * Validation is handled in the Presentation layer
+ */
 
-export class FollowUserDto {
-  @IsUUID('4', { message: 'User ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'User ID is required' })
+export interface FollowUserDto {
   userId: string;
 }
 
-export class GetFollowsQuery {
-  @IsOptional()
-  @IsUUID()
+export interface GetFollowsQuery {
   followerId?: string;
-
-  @IsOptional()
-  @IsUUID()
   followingId?: string;
+  limit?: number;
+  offset?: number;
 }

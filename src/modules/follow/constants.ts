@@ -1,18 +1,22 @@
-// Module constants & tokens
+/**
+ * Dependency Injection Tokens for Follow Module
+ */
+
+// Repository Interface Tokens
+export const FOLLOW_REPOSITORY_TOKEN = 'FOLLOW_REPOSITORY';
+
+// External Service Tokens (Application Ports)
+export const EXTERNAL_USER_SERVICE_TOKEN = 'EXTERNAL_USER_SERVICE';
+export const NOTIFICATION_SERVICE_TOKEN = 'NOTIFICATION_SERVICE';
+
+/**
+ * @deprecated Use flat token constants instead.
+ * Kept for backward compatibility during migration.
+ */
 export const FOLLOW_MODULE_TOKENS = {
-  // Repository
-  FOLLOW_REPOSITORY: 'FOLLOW_REPOSITORY',
-
-  // External Services
-  EXTERNAL_USER_SERVICE: 'EXTERNAL_USER_SERVICE',
-  NOTIFICATION_SERVICE: 'NOTIFICATION_SERVICE',
-
-  // Domain Services
-  FOLLOW_DOMAIN_SERVICE: 'FOLLOW_DOMAIN_SERVICE',
-
-  // Application Services
-  FOLLOW_APPLICATION_SERVICE: 'FOLLOW_APPLICATION_SERVICE',
-  FOLLOW_ENRICHMENT_SERVICE: 'FOLLOW_ENRICHMENT_SERVICE',
+  FOLLOW_REPOSITORY: FOLLOW_REPOSITORY_TOKEN,
+  EXTERNAL_USER_SERVICE: EXTERNAL_USER_SERVICE_TOKEN,
+  NOTIFICATION_SERVICE: NOTIFICATION_SERVICE_TOKEN,
 } as const;
 
 export const FOLLOW_MODULE_CONSTANTS = {

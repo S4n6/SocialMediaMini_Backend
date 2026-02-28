@@ -4,7 +4,6 @@ import {
   FollowersResponseDto,
   FollowingResponseDto,
   FollowStatusResponseDto,
-  UserSummaryDto,
 } from '../dto/follow-response.dto';
 import {
   FollowWithUsers,
@@ -13,6 +12,10 @@ import {
   FollowStatusResult,
 } from '../interfaces/follow-query.interface';
 
+/**
+ * Application Layer Mapper
+ * Maps between domain entities and application DTOs
+ */
 export class FollowMapper {
   static toResponseDto(entity: FollowEntity): FollowResponseDto {
     return {
@@ -20,7 +23,6 @@ export class FollowMapper {
       followerId: entity.followerId,
       followingId: entity.followingId,
       createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
     };
   }
 
@@ -30,7 +32,6 @@ export class FollowMapper {
       followerId: data.followerId,
       followingId: data.followingId,
       createdAt: data.createdAt,
-      updatedAt: data.createdAt, // Fallback since we don't track separate updatedAt
       follower: data.follower,
       following: data.following,
     };

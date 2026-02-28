@@ -8,7 +8,10 @@ import {
   FollowStatusResult,
   FollowWithUsers,
 } from '../interfaces/follow-query.interface';
-import { FOLLOW_MODULE_TOKENS } from '../../constants';
+import {
+  FOLLOW_REPOSITORY_TOKEN,
+  EXTERNAL_USER_SERVICE_TOKEN,
+} from '../../constants';
 
 /**
  * Application Service for data enrichment and complex queries
@@ -17,9 +20,9 @@ import { FOLLOW_MODULE_TOKENS } from '../../constants';
 @Injectable()
 export class FollowEnrichmentService {
   constructor(
-    @Inject(FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY)
+    @Inject(FOLLOW_REPOSITORY_TOKEN)
     private readonly followRepository: FollowRepository,
-    @Inject(FOLLOW_MODULE_TOKENS.EXTERNAL_USER_SERVICE)
+    @Inject(EXTERNAL_USER_SERVICE_TOKEN)
     private readonly userService: ExternalUserService,
   ) {}
 

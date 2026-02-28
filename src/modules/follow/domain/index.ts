@@ -2,6 +2,6 @@
 export * from './entities/follow.entity';
 export * from './repositories/follow.repository';
 export * from './services/follow-domain.service';
-export * from './follow.events';
+export * from './events/follow.events';
 export * from './follow.exceptions';
 export * from './factories/follow.factory';
