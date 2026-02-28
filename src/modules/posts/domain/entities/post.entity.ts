@@ -24,6 +24,12 @@ export enum PostPrivacy {
   PRIVATE = 'PRIVATE',
 }
 
+export enum PostStatus {
+  PROCESSING = 'PROCESSING',
+  PUBLISHED = 'PUBLISHED',
+  FAILED = 'FAILED',
+}
+
 export enum ReactionType {
   LIKE = 'LIKE',
   LOVE = 'LOVE',
@@ -60,6 +66,7 @@ export interface PostProps {
   id?: string;
   content?: string;
   privacy: PostPrivacy;
+  status?: PostStatus;
   authorId: string;
   media?: PostMedia[];
   reactions?: PostReaction[];
@@ -72,6 +79,7 @@ export interface PostProps {
 export class PostEntity extends Entity<string> {
   private _content?: string;
   private _privacy: PostPrivacy;
+  private _status: PostStatus;
   private _authorId: string;
   private _media: PostMedia[] = [];
   private _reactions: PostReaction[] = [];
@@ -84,6 +92,7 @@ export class PostEntity extends Entity<string> {
     super(props.id || randomUUID());
     this._content = props.content;
     this._privacy = props.privacy;
+    this._status = props.status || PostStatus.PUBLISHED;
     this._authorId = props.authorId;
     this._media = props.media || [];
     this._reactions = props.reactions || [];
@@ -113,6 +122,10 @@ export class PostEntity extends Entity<string> {
 
   get privacy(): PostPrivacy {
     return this._privacy;
+  }
+
+  get status(): PostStatus {
+    return this._status;
   }
 
   get authorId(): string {
@@ -178,6 +191,16 @@ export class PostEntity extends Entity<string> {
       this._privacy = newPrivacy;
       this.validate();
     }
+  }
+
+  markAsPublished(): void {
+    this._status = PostStatus.PUBLISHED;
+    this._updatedAt = new Date();
+  }
+
+  markAsFailed(): void {
+    this._status = PostStatus.FAILED;
+    this._updatedAt = new Date();
   }
 
   addMedia(media: PostMedia): void {

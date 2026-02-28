@@ -10,6 +10,7 @@ export function mapPostToResponseDto(post: PostEntity): PostResponseDto {
     id: post.id,
     content: post.content,
     privacy: post.privacy,
+    status: post.status,
     author: {
       id: post.authorId,
       fullName: '', // Populated by PostEnrichmentService

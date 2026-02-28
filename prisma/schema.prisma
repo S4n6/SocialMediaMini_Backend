@@ -59,6 +59,7 @@ model Post {
   id             String        @id @default(uuid()) @map("PostId")
   content        String?       @map("Content")
   privacy        PostPrivacy   @default(PUBLIC) @map("Privacy")
+  status         PostStatus    @default(PUBLISHED) @map("Status")
   createdAt      DateTime      @default(now()) @map("CreatedAt")
   updatedAt      DateTime      @updatedAt @map("UpdatedAt")
   authorId       String        @map("AuthorId")
@@ -418,6 +419,12 @@ enum PostPrivacy {
   FOLLOWERS
   PRIVATE
   CLOSE_FRIENDS
+}
+
+enum PostStatus {
+  PROCESSING
+  PUBLISHED
+  FAILED
 }
 
 enum ReactionType {
