@@ -1,8 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { SearchHistory } from '../../../domain/search-history.entity';
-import { SearchHistoryRepository } from '../../../domain/search-history.repository';
+import { ISearchHistoryRepository } from '../../../domain/repositories/i-search-history.repository';
 import { InvalidUserIdException } from '../../../domain/search-history.exceptions';
-import { SEARCH_HISTORY_REPOSITORY } from '../../../tokens';
+import { SEARCH_HISTORY_REPOSITORY_TOKEN } from '../../../search-history.constants';
 
 export interface AddSearchEntryUseCaseInput {
   userId: string;
@@ -15,20 +15,14 @@ export interface AddSearchEntryUseCaseInput {
   };
 }
 
-export interface AddSearchEntryUseCaseOutput {
-  searchHistory: SearchHistory;
-}
-
 @Injectable()
 export class AddSearchEntryUseCase {
   constructor(
-    @Inject(SEARCH_HISTORY_REPOSITORY)
-    private readonly searchHistoryRepository: SearchHistoryRepository,
+    @Inject(SEARCH_HISTORY_REPOSITORY_TOKEN)
+    private readonly searchHistoryRepository: ISearchHistoryRepository,
   ) {}
 
-  async execute(
-    input: AddSearchEntryUseCaseInput,
-  ): Promise<AddSearchEntryUseCaseOutput> {
+  async execute(input: AddSearchEntryUseCaseInput): Promise<void> {
     const { userId, searchedUserId, searchedUserProfile } = input;
 
     if (!userId || userId.trim() === '') {
@@ -46,13 +40,9 @@ export class AddSearchEntryUseCase {
       searchHistory = SearchHistory.create(userId);
     }
 
-    // Add entry to search history
+    // Add entry to search history (entity handles deduplication & limits)
     searchHistory.addEntry(searchedUserId, searchedUserProfile);
 
-    // Save the updated search history
-    const updatedSearchHistory =
-      await this.searchHistoryRepository.save(searchHistory);
-
-    return { searchHistory: updatedSearchHistory };
+    await this.searchHistoryRepository.save(searchHistory);
   }
 }

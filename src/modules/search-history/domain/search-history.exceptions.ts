@@ -1,41 +1,36 @@
-export class DomainException extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'DomainException';
-  }
-}
+import {
+  ValidationException,
+  EntityNotFoundException,
+  BusinessRuleException,
+  ForbiddenException,
+} from '../../../shared/exceptions/domain.exception';
 
-export class InvalidUserIdException extends DomainException {
+export class InvalidUserIdException extends ValidationException {
   constructor(message: string = 'Invalid user ID') {
-    super(message);
-    this.name = 'InvalidUserIdException';
+    super(message, { userId: [message] }, 'INVALID_USER_ID');
   }
 }
 
-export class SearchHistoryNotFoundException extends DomainException {
-  constructor(message: string = 'Search history not found') {
-    super(message);
-    this.name = 'SearchHistoryNotFoundException';
+export class SearchHistoryNotFoundException extends EntityNotFoundException {
+  constructor(userId: string = 'unknown') {
+    super('SearchHistory', userId);
   }
 }
 
-export class DuplicateSearchEntryException extends DomainException {
+export class DuplicateSearchEntryException extends BusinessRuleException {
   constructor(message: string = 'Duplicate search entry') {
-    super(message);
-    this.name = 'DuplicateSearchEntryException';
+    super(message, 'DUPLICATE_SEARCH_ENTRY');
   }
 }
 
-export class SearchHistoryLimitExceededException extends DomainException {
+export class SearchHistoryLimitExceededException extends BusinessRuleException {
   constructor(message: string = 'Search history limit exceeded') {
-    super(message);
-    this.name = 'SearchHistoryLimitExceededException';
+    super(message, 'SEARCH_HISTORY_LIMIT_EXCEEDED');
   }
 }
 
-export class UnauthorizedSearchHistoryActionException extends DomainException {
+export class UnauthorizedSearchHistoryActionException extends ForbiddenException {
   constructor(message: string = 'Unauthorized search history action') {
-    super(message);
-    this.name = 'UnauthorizedSearchHistoryActionException';
+    super(message, 'UNAUTHORIZED_SEARCH_HISTORY_ACTION');
   }
 }

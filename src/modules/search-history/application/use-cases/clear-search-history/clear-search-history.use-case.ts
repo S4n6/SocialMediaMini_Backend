@@ -1,51 +1,38 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { SearchHistory } from '../../../domain/search-history.entity';
-import { SearchHistoryRepository } from '../../../domain/search-history.repository';
+import { ISearchHistoryRepository } from '../../../domain/repositories/i-search-history.repository';
 import {
   InvalidUserIdException,
   SearchHistoryNotFoundException,
 } from '../../../domain/search-history.exceptions';
-import { SEARCH_HISTORY_REPOSITORY } from '../../../tokens';
+import { SEARCH_HISTORY_REPOSITORY_TOKEN } from '../../../search-history.constants';
 
 export interface ClearSearchHistoryUseCaseInput {
   userId: string;
 }
 
-export interface ClearSearchHistoryUseCaseOutput {
-  searchHistory: SearchHistory;
-}
-
 @Injectable()
 export class ClearSearchHistoryUseCase {
   constructor(
-    @Inject(SEARCH_HISTORY_REPOSITORY)
-    private readonly searchHistoryRepository: SearchHistoryRepository,
+    @Inject(SEARCH_HISTORY_REPOSITORY_TOKEN)
+    private readonly searchHistoryRepository: ISearchHistoryRepository,
   ) {}
 
-  async execute(
-    input: ClearSearchHistoryUseCaseInput,
-  ): Promise<ClearSearchHistoryUseCaseOutput> {
+  async execute(input: ClearSearchHistoryUseCaseInput): Promise<void> {
     const { userId } = input;
 
     if (!userId || userId.trim() === '') {
       throw new InvalidUserIdException('User ID is required');
     }
 
-    // Get existing search history
     const searchHistory =
       await this.searchHistoryRepository.findByUserId(userId);
 
     if (!searchHistory) {
-      throw new SearchHistoryNotFoundException('Search history not found');
+      throw new SearchHistoryNotFoundException(userId);
     }
 
-    // Clear all entries from search history
     searchHistory.clearAllEntries();
 
-    // Save the updated search history
-    const updatedSearchHistory =
-      await this.searchHistoryRepository.save(searchHistory);
-
-    return { searchHistory: updatedSearchHistory };
+    await this.searchHistoryRepository.save(searchHistory);
   }
 }

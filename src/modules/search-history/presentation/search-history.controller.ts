@@ -18,10 +18,14 @@ import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
 import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
 import { SearchHistoryApplicationService } from '../application/search-history-application.service';
 import {
-  AddSearchEntryDto,
+  AddSearchEntryRequestDto,
   SearchHistoryResponseDto,
-} from '../application/dto/search-history.dto';
-import { ApiResponse as ApiResponseInterface } from '../../../shared/utils/interfaces/api-response.interface';
+  SearchHistoryEntryResponseDto,
+} from './dto/search-history.dto';
+import {
+  ApiResponse as ApiResponseType,
+  createSuccessResponse,
+} from '../../../shared/utils/interfaces/api-response.interface';
 
 @ApiTags('Search History')
 @ApiBearerAuth()
@@ -41,8 +45,35 @@ export class SearchHistoryController {
   })
   async getSearchHistory(
     @CurrentUser('id') currentUserId: string,
-  ): Promise<ApiResponseInterface<SearchHistoryResponseDto>> {
-    return this.searchHistoryService.getSearchHistory(currentUserId);
+  ): Promise<ApiResponseType<SearchHistoryResponseDto>> {
+    const searchHistory =
+      await this.searchHistoryService.getSearchHistory(currentUserId);
+
+    if (!searchHistory || searchHistory.isEmpty) {
+      return createSuccessResponse(
+        { history: [], total: 0 },
+        'Search history retrieved successfully',
+      );
+    }
+
+    const history: SearchHistoryEntryResponseDto[] = searchHistory.entries.map(
+      (entry) => ({
+        id: entry.id,
+        searchedUserId: entry.searchedUserId,
+        searchedAt: entry.searchedAt.toISOString(),
+        user: {
+          id: entry.searchedUserProfile?.id || entry.searchedUserId,
+          userName: entry.searchedUserProfile?.userName || '',
+          fullName: entry.searchedUserProfile?.fullName || '',
+          avatar: entry.searchedUserProfile?.avatar || null,
+        },
+      }),
+    );
+
+    return createSuccessResponse(
+      { history, total: history.length },
+      'Search history retrieved successfully',
+    );
   }
 
   @Post()
@@ -53,9 +84,16 @@ export class SearchHistoryController {
   })
   async addToSearchHistory(
     @CurrentUser('id') currentUserId: string,
-    @Body() dto: AddSearchEntryDto,
-  ): Promise<ApiResponseInterface<null>> {
-    return this.searchHistoryService.addToSearchHistory(currentUserId, dto);
+    @Body() dto: AddSearchEntryRequestDto,
+  ): Promise<ApiResponseType<null>> {
+    await this.searchHistoryService.addToSearchHistory(currentUserId, {
+      searchedUserId: dto.searchedUserId,
+    });
+
+    return createSuccessResponse(
+      null,
+      'User added to search history successfully',
+    );
   }
 
   @Delete(':searchedUserId')
@@ -71,10 +109,15 @@ export class SearchHistoryController {
   async removeFromSearchHistory(
     @CurrentUser('id') currentUserId: string,
     @Param('searchedUserId') searchedUserId: string,
-  ): Promise<ApiResponseInterface<null>> {
-    return this.searchHistoryService.removeFromSearchHistory(
+  ): Promise<ApiResponseType<null>> {
+    await this.searchHistoryService.removeFromSearchHistory(
       currentUserId,
       searchedUserId,
+    );
+
+    return createSuccessResponse(
+      null,
+      'User removed from search history successfully',
     );
   }
 
@@ -86,7 +129,9 @@ export class SearchHistoryController {
   })
   async clearSearchHistory(
     @CurrentUser('id') currentUserId: string,
-  ): Promise<ApiResponseInterface<null>> {
-    return this.searchHistoryService.clearSearchHistory(currentUserId);
+  ): Promise<ApiResponseType<null>> {
+    await this.searchHistoryService.clearSearchHistory(currentUserId);
+
+    return createSuccessResponse(null, 'Search history cleared successfully');
   }
 }

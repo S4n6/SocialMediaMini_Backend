@@ -2,11 +2,8 @@ import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 import { UsersModule } from '../users/users.module';
 
-// Domain layer
-import { SearchHistoryDomainService } from './domain';
-
-// Tokens
-import { SEARCH_HISTORY_REPOSITORY } from './tokens';
+// Constants
+import { SEARCH_HISTORY_REPOSITORY_TOKEN } from './search-history.constants';
 
 // Application layer
 import {
@@ -18,7 +15,8 @@ import {
 } from './application';
 
 // Infrastructure layer
-import { PrismaSearchHistoryRepository } from './infrastructure';
+import { PrismaSearchHistoryRepository } from './infrastructure/persistence/repositories/prisma-search-history.repository';
+import { SearchHistoryMapper } from './infrastructure/persistence/mappers/search-history.mapper';
 
 // Presentation layer
 import { SearchHistoryController } from './presentation';
@@ -27,19 +25,17 @@ import { SearchHistoryController } from './presentation';
   imports: [PrismaModule, forwardRef(() => UsersModule)],
   controllers: [SearchHistoryController],
   providers: [
-    // Domain layer
-    SearchHistoryDomainService,
-
     // Application layer
+    SearchHistoryApplicationService,
     GetSearchHistoryUseCase,
     AddSearchEntryUseCase,
     RemoveSearchEntryUseCase,
     ClearSearchHistoryUseCase,
-    SearchHistoryApplicationService,
 
     // Infrastructure layer
+    SearchHistoryMapper,
     {
-      provide: SEARCH_HISTORY_REPOSITORY,
+      provide: SEARCH_HISTORY_REPOSITORY_TOKEN,
       useClass: PrismaSearchHistoryRepository,
     },
   ],
