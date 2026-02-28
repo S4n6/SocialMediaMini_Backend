@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ReactionEntity } from '../../../domain/entities/reaction.entity';
 import { ReactionTypeValue } from '../../../domain/value-objects/reaction-type.value-object';
 import { TargetTypeValue } from '../../../domain/value-objects/target-type.value-object';
+import { ReactionType as PrismaReactionType } from '../../../../../generated/prisma/enums';
 
 interface PrismaReactionRow {
   id: string;
@@ -37,13 +38,13 @@ export class ReactionPrismaMapper {
   }
 
   toPrisma(entity: ReactionEntity): {
-    type: string;
+    type: PrismaReactionType;
     reactorId: string;
     postId: string | null;
     commentId: string | null;
   } {
     return {
-      type: entity.type,
+      type: entity.type as PrismaReactionType,
       reactorId: entity.reactorId,
       postId: entity.postId,
       commentId: entity.commentId,

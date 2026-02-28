@@ -3,6 +3,7 @@ import { PrismaService } from '../../../database/prisma.service';
 import { PostEntity, PostPrivacy } from '../domain/entities/post.entity';
 import { ITimelineRepository } from '../domain/repositories/timeline.repository';
 import { PostMapper } from './persistence/mappers/post.mapper';
+import { PostPrivacy as PrismaPostPrivacy } from '../../../generated/prisma/enums';
 
 /**
  * Advanced Timeline Algorithm
@@ -31,7 +32,11 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
           {
             authorId: userId,
             privacy: {
-              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
+              in: [
+                PrismaPostPrivacy.PUBLIC,
+                PrismaPostPrivacy.FOLLOWERS,
+                PrismaPostPrivacy.PRIVATE,
+              ],
             },
           },
           {
@@ -44,7 +49,7 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
             },
             authorId: { not: userId },
             privacy: {
-              in: ['PUBLIC', 'FOLLOWERS'],
+              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
             },
           },
         ],
@@ -67,7 +72,11 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
           {
             authorId: userId,
             privacy: {
-              in: ['PUBLIC', 'FOLLOWERS', 'PRIVATE'],
+              in: [
+                PrismaPostPrivacy.PUBLIC,
+                PrismaPostPrivacy.FOLLOWERS,
+                PrismaPostPrivacy.PRIVATE,
+              ],
             },
           },
           {
@@ -75,7 +84,9 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
               followers: { some: { followerId: userId } },
             },
             authorId: { not: userId },
-            privacy: { in: ['PUBLIC', 'FOLLOWERS'] },
+            privacy: {
+              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
+            },
           },
         ],
       },
@@ -224,7 +235,9 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
               followers: { some: { followerId: userId } },
             },
             authorId: { not: userId },
-            privacy: { in: ['PUBLIC', 'FOLLOWERS'] },
+            privacy: {
+              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
+            },
           },
         ],
       },
@@ -280,7 +293,9 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
           {
             author: { followers: { some: { followerId: userId } } },
             authorId: { not: userId },
-            privacy: { in: ['PUBLIC', 'FOLLOWERS'] },
+            privacy: {
+              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
+            },
           },
         ],
       },

@@ -9,6 +9,7 @@ import {
   MessageType,
   MessageStatus,
 } from '../../domain';
+import { MessageType as PrismaMessageType } from '../../../../generated/prisma/enums';
 
 @Injectable()
 export class MessageRepositoryImpl implements IMessageRepository {
@@ -26,7 +27,7 @@ export class MessageRepositoryImpl implements IMessageRepository {
       data: {
         id: data.id,
         content: data.content,
-        messageType: data.type,
+        messageType: data.type.toUpperCase() as PrismaMessageType,
         senderId: data.senderId,
         conversationId: data.conversationId,
         createdAt: new Date(data.sentAt),
@@ -122,7 +123,7 @@ export class MessageRepositoryImpl implements IMessageRepository {
       where: { id: data.id },
       data: {
         content: data.content,
-        messageType: data.type,
+        messageType: data.type.toUpperCase() as PrismaMessageType,
         isRead: data.status === MessageStatus.READ,
       },
     });

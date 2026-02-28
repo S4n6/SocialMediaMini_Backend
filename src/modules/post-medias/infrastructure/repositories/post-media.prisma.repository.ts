@@ -7,6 +7,20 @@ import {
   PostMediaStatus,
 } from '../../domain/post-media.entity';
 import { PostMediaFactory } from '../factories/post-media.factory';
+import {
+  MediaType as PrismaMediaType,
+  MediaStatus as PrismaMediaStatus,
+} from '../../../../generated/prisma/enums';
+
+/** Map domain PostMediaType (lowercase) to Prisma MediaType (uppercase) */
+function toPrismaMediaType(type: PostMediaType): PrismaMediaType {
+  return type.toUpperCase() as PrismaMediaType;
+}
+
+/** Map domain PostMediaStatus (lowercase) to Prisma MediaStatus (uppercase) */
+function toPrismaMediaStatus(status: PostMediaStatus): PrismaMediaStatus {
+  return status.toUpperCase() as PrismaMediaStatus;
+}
 
 @Injectable()
 export class PostMediaPrismaRepository implements PostMediaRepository {
@@ -16,10 +30,10 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
     const data = {
       id: postMedia.id,
       url: postMedia.url,
-      type: postMedia.type,
+      type: toPrismaMediaType(postMedia.type),
       postId: postMedia.postId,
       order: postMedia.order,
-      status: postMedia.status,
+      status: toPrismaMediaStatus(postMedia.status),
       processedUrl: postMedia.processedUrl,
       thumbnailUrl: postMedia.thumbnailUrl,
       s3Key: postMedia.s3Key,
@@ -61,10 +75,10 @@ export class PostMediaPrismaRepository implements PostMediaRepository {
     const data = postMedias.map((media) => ({
       id: media.id,
       url: media.url,
-      type: media.type,
+      type: toPrismaMediaType(media.type),
       postId: media.postId,
       order: media.order,
-      status: media.status,
+      status: toPrismaMediaStatus(media.status),
       processedUrl: media.processedUrl,
       thumbnailUrl: media.thumbnailUrl,
       s3Key: media.s3Key,
