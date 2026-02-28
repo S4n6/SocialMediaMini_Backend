@@ -1,11 +1,17 @@
 import { randomUUID } from 'crypto';
-import { PostEntity, PostPrivacy, ReactionType } from '../entities/post.entity';
+import {
+  PostEntity,
+  PostPrivacy,
+  PostStatus,
+  ReactionType,
+} from '../entities/post.entity';
 import { PostDomainService } from '../services/post-domain.service';
 
 export interface CreatePostProps {
   content?: string;
   authorId: string;
   privacy?: PostPrivacy;
+  status?: PostStatus;
   media?: Array<{
     url: string;
     type: 'image' | 'video';
@@ -45,6 +51,7 @@ export class PostFactory {
       content: props.content,
       authorId: props.authorId,
       privacy: props.privacy || PostPrivacy.PUBLIC,
+      status: props.status,
       hashtags,
       media:
         props.media?.map((m) => ({
@@ -66,6 +73,7 @@ export class PostFactory {
     content?: string;
     authorId: string;
     privacy: PostPrivacy;
+    status?: PostStatus;
     hashtags: string[];
     media: Array<{
       id: string;
@@ -95,6 +103,7 @@ export class PostFactory {
       content: data.content,
       authorId: data.authorId,
       privacy: data.privacy,
+      status: data.status,
       hashtags: data.hashtags,
       media: data.media,
       reactions: data.reactions,

@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import {
   PostEntity,
   PostPrivacy,
+  PostStatus,
   ReactionType,
 } from '../../../domain/entities/post.entity';
 import { PostFactory } from '../../../domain/factories/post.factory';
 import {
   PostPrivacy as PrismaPostPrivacy,
+  PostStatus as PrismaPostStatus,
   MediaType as PrismaMediaType,
 } from '../../../../../generated/prisma/enums';
 
@@ -73,6 +75,8 @@ export class PostMapper {
       content: this.safeString(row.content) || undefined,
       authorId: this.safeString(row.authorId),
       privacy: this.safeString(row.privacy) as PostPrivacy,
+      status:
+        (this.safeString(row.status) as PostStatus) || PostStatus.PUBLISHED,
       hashtags,
       media,
       reactions,
@@ -92,6 +96,7 @@ export class PostMapper {
       content: rawPost.content || undefined,
       authorId: rawPost.author_id,
       privacy: rawPost.privacy as PostPrivacy,
+      status: (rawPost.status as PostStatus) || PostStatus.PUBLISHED,
       hashtags: [],
       media: [],
       reactions: [],
@@ -109,6 +114,7 @@ export class PostMapper {
       id: post.id,
       content: post.content,
       privacy: post.privacy as string as PrismaPostPrivacy,
+      status: post.status as string as PrismaPostStatus,
       authorId: post.authorId,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,

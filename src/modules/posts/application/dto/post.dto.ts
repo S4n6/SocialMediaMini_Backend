@@ -1,4 +1,8 @@
-import { PostPrivacy, ReactionType } from '../../domain/entities/post.entity';
+import {
+  PostPrivacy,
+  PostStatus,
+  ReactionType,
+} from '../../domain/entities/post.entity';
 
 // ===== USE CASE INPUT DTOs =====
 // Pure data contracts — no validation decorators.
@@ -84,6 +88,7 @@ export class PostResponseDto {
   id: string;
   content?: string;
   privacy: PostPrivacy;
+  status: PostStatus;
   author: PostAuthorResponseDto;
   media: PostMediaResponseDto[];
   hashtags: string[];

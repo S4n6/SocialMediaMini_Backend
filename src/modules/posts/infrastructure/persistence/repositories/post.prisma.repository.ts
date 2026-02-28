@@ -41,6 +41,7 @@ export class PostPrismaRepository implements IPostRepository {
       update: {
         content: data.content,
         privacy: data.privacy,
+        status: data.status,
         updatedAt: data.updatedAt,
       },
     });
