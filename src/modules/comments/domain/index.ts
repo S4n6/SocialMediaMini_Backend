@@ -1,15 +1,12 @@
 /**
  * Domain Layer Barrel Exports
- *
- * This file provides a single entry point for all domain layer components,
- * making imports cleaner and maintaining proper encapsulation.
  */
 
 // ========== ENTITIES ==========
 export * from './entities/comment.entity';
 
-// ========== REPOSITORIES (Interfaces) ==========
-export * from './repositories/comment.repository';
+// ========== REPOSITORY INTERFACE ==========
+export * from './repositories/i-comment.repository';
 
 // ========== DOMAIN SERVICES ==========
 export * from './services/comment-domain.service';
@@ -23,14 +20,16 @@ export * from './exceptions/comment.exceptions';
 // ========== FACTORIES ==========
 export * from './factories/comment.factory';
 
-// ========== DOMAIN INTERFACES (PORTS) ==========
+// ========== DOMAIN PORTS ==========
 export * from './interfaces/domain-ports.interface';
 
 // ========== TYPE RE-EXPORTS ==========
-// Re-export commonly used types from entities
-export type { CommentProps, ReactionType } from './entities/comment.entity';
-
-// Re-export domain port interfaces
+export type { CommentProps } from './entities/comment.entity';
+export type { ReactionType } from './entities/comment.entity';
+export type {
+  PaginatedResult,
+  ICommentRepository,
+} from './repositories/i-comment.repository';
 export type {
   IUserDomainPort,
   IPostDomainPort,

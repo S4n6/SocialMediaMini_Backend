@@ -10,7 +10,6 @@ import {
 import {
   InvalidCommentException,
   CommentContentException,
-  CommentDepthLimitException,
 } from '../exceptions/comment.exceptions';
 
 export enum ReactionType {
@@ -29,6 +28,7 @@ export interface CommentProps {
   parentId?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  isDeleted?: boolean;
 }
 
 export class CommentEntity extends Entity<string> {
@@ -38,9 +38,13 @@ export class CommentEntity extends Entity<string> {
   private _parentId?: string;
   private _createdAt: Date;
   private _updatedAt: Date;
-  private _isDeleted: boolean = false;
+  private _isDeleted: boolean;
 
-  constructor(props: CommentProps) {
+  /**
+   * Private constructor — use `create()`, `createReply()`, or `reconstitute()`.
+   * Does NOT emit domain events.
+   */
+  private constructor(props: CommentProps) {
     super(props.id || randomUUID());
     this._content = props.content;
     this._authorId = props.authorId;
@@ -48,19 +52,9 @@ export class CommentEntity extends Entity<string> {
     this._parentId = props.parentId;
     this._createdAt = props.createdAt || new Date();
     this._updatedAt = props.updatedAt || new Date();
+    this._isDeleted = props.isDeleted || false;
 
     this.validate();
-    this.addDomainEvent(
-      new CommentCreatedEvent({
-        id: this.id,
-        content: this._content,
-        authorId: this._authorId,
-        postId: this._postId,
-        parentId: this._parentId,
-        createdAt: this._createdAt,
-        updatedAt: this._updatedAt,
-      }),
-    );
   }
 
   // Getters
@@ -175,80 +169,59 @@ export class CommentEntity extends Entity<string> {
     );
   }
 
-  // Static factory methods
+  // ========== FACTORY METHODS ==========
+
+  /**
+   * Create a brand-new comment. Emits `CommentCreatedEvent`.
+   */
   public static create(
-    props: Omit<CommentProps, 'id' | 'createdAt' | 'updatedAt'>,
+    props: Omit<CommentProps, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>,
   ): CommentEntity {
-    return new CommentEntity(props);
+    const entity = new CommentEntity(props);
+
+    entity.addDomainEvent(
+      new CommentCreatedEvent({
+        id: entity.id,
+        content: entity._content,
+        authorId: entity._authorId,
+        postId: entity._postId,
+        parentId: entity._parentId,
+        createdAt: entity._createdAt,
+        updatedAt: entity._updatedAt,
+      }),
+    );
+
+    return entity;
   }
 
+  /**
+   * Create a reply comment. Emits `CommentCreatedEvent`.
+   * Depth validation is handled by the domain service.
+   */
   public static createReply(
-    props: Omit<CommentProps, 'id' | 'createdAt' | 'updatedAt'>,
-    maxDepth: number = 3,
+    props: Omit<CommentProps, 'id' | 'createdAt' | 'updatedAt' | 'isDeleted'>,
   ): CommentEntity {
     if (!props.parentId) {
       throw new InvalidCommentException('Reply must have a parent comment');
     }
 
-    // Note: Depth validation should be done by domain service with repository access
-    return new CommentEntity(props);
+    return CommentEntity.create(props);
   }
 
-  public static update(
-    existingComment: CommentEntity,
-    updateProps: { content?: string },
+  /**
+   * Reconstitute an entity from persistence data.
+   * Does NOT emit domain events — used only by infrastructure mappers.
+   */
+  public static reconstitute(
+    props: Required<
+      Pick<
+        CommentProps,
+        'id' | 'content' | 'authorId' | 'postId' | 'createdAt' | 'updatedAt'
+      >
+    > &
+      Pick<CommentProps, 'parentId' | 'isDeleted'>,
   ): CommentEntity {
-    const updatedEntity = new CommentEntity({
-      id: existingComment.id,
-      content: updateProps.content ?? existingComment.content,
-      authorId: existingComment.authorId,
-      postId: existingComment.postId,
-      parentId: existingComment.parentId,
-      createdAt: existingComment.createdAt,
-      updatedAt: new Date(),
-    });
-
-    updatedEntity.addDomainEvent(
-      new CommentUpdatedEvent(
-        {
-          id: updatedEntity.id,
-          content: updatedEntity.content,
-          authorId: updatedEntity.authorId,
-          postId: updatedEntity.postId,
-          parentId: updatedEntity.parentId,
-          createdAt: updatedEntity.createdAt,
-          updatedAt: updatedEntity.updatedAt,
-        },
-        { content: updateProps.content },
-      ),
-    );
-
-    return updatedEntity;
-  }
-
-  public static fromPersistence(props: CommentProps): CommentEntity {
-    const entity = Object.create(CommentEntity.prototype);
-    Entity.call(entity, props.id);
-    entity._content = props.content;
-    entity._authorId = props.authorId;
-    entity._postId = props.postId;
-    entity._parentId = props.parentId;
-    entity._createdAt = props.createdAt;
-    entity._updatedAt = props.updatedAt;
-    entity._isDeleted = false;
-    return entity;
-  }
-
-  public toPlainObject(): CommentProps {
-    return {
-      id: this.id,
-      content: this._content,
-      authorId: this._authorId,
-      postId: this._postId,
-      parentId: this._parentId,
-      createdAt: this._createdAt,
-      updatedAt: this._updatedAt,
-    };
+    return new CommentEntity(props);
   }
 
   private validate(): void {
@@ -268,20 +241,10 @@ export class CommentEntity extends Entity<string> {
       throw new CommentContentException('Comment content cannot be empty');
     }
 
-    if (content.trim().length < 1) {
-      throw new CommentContentException('Comment content is too short');
-    }
-
     if (content.trim().length > 1000) {
       throw new CommentContentException(
         'Comment content is too long (max 1000 characters)',
       );
-    }
-
-    // Additional content validation rules can be added here
-    const trimmedContent = content.trim();
-    if (trimmedContent !== content) {
-      // This is just a validation, the actual trimming is done in business methods
     }
   }
 }

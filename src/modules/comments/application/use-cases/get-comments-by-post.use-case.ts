@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
+import { ICommentRepository } from '../../domain/repositories/i-comment.repository';
 import { CommentEntity } from '../../domain/entities/comment.entity';
+import { COMMENT_TOKENS } from '../../constants';
 
 export interface GetCommentsByPostQuery {
   postId: string;
@@ -20,8 +21,8 @@ export interface GetCommentsByPostResult {
 @Injectable()
 export class GetCommentsByPostUseCase {
   constructor(
-    @Inject('COMMENT_REPOSITORY')
-    private readonly commentRepository: CommentRepository,
+    @Inject(COMMENT_TOKENS.COMMENT_REPOSITORY)
+    private readonly commentRepository: ICommentRepository,
   ) {}
 
   async execute(

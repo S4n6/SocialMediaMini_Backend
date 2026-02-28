@@ -5,7 +5,6 @@ import {
 } from '../entities/comment.entity';
 import {
   InvalidCommentException,
-  CommentDepthLimitException,
   CommentContentException,
 } from '../exceptions/comment.exceptions';
 
@@ -53,28 +52,24 @@ export class CommentFactory {
    */
   static createReply(
     params: CreateCommentParams & { parentId: string },
-    maxDepth: number = 3,
   ): CommentEntity {
     if (!params.parentId?.trim()) {
       throw new InvalidCommentException('Parent ID is required for reply');
     }
 
-    return CommentEntity.createReply(
-      {
-        content: params.content.trim(),
-        authorId: params.authorId.trim(),
-        postId: params.postId.trim(),
-        parentId: params.parentId.trim(),
-      },
-      maxDepth,
-    );
+    return CommentEntity.createReply({
+      content: params.content.trim(),
+      authorId: params.authorId.trim(),
+      postId: params.postId.trim(),
+      parentId: params.parentId.trim(),
+    });
   }
 
   /**
-   * Reconstruct entity from database data
+   * Reconstruct entity from database data (no domain events emitted).
    */
   static fromPersistence(data: CommentFromPersistenceParams): CommentEntity {
-    return CommentEntity.fromPersistence({
+    return CommentEntity.reconstitute({
       id: data.id,
       content: data.content,
       authorId: data.authorId,
@@ -123,10 +118,6 @@ export class CommentFactory {
       throw new CommentContentException('Comment content cannot be empty');
     }
 
-    if (trimmed.length < 1) {
-      throw new CommentContentException('Comment content is too short');
-    }
-
     if (trimmed.length > 1000) {
       throw new CommentContentException(
         'Comment content is too long (max 1000 characters)',
@@ -147,25 +138,6 @@ export class CommentFactory {
   }
 
   /**
-   * Update an existing comment
-   */
-  static updateComment(
-    existingComment: CommentEntity,
-    updateParams: { content?: string },
-  ): CommentEntity {
-    const content = updateParams.content ?? existingComment.content;
-
-    // Validate the new content if provided
-    if (updateParams.content !== undefined) {
-      this.validateContent(content);
-    }
-
-    return CommentEntity.update(existingComment, {
-      content: this.sanitizeContent(content),
-    });
-  }
-
-  /**
    * Sanitize comment content
    */
   static sanitizeContent(content: string): string {
@@ -173,9 +145,6 @@ export class CommentFactory {
       return '';
     }
 
-    return content
-      .trim()
-      .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
-      .substring(0, 1000); // Ensure max length
+    return content.trim().replace(/\s+/g, ' ').substring(0, 1000);
   }
 }

@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CommentDomainService } from '../../domain/services/comment-domain.service';
 import { ReactionType } from '../../domain/entities/comment.entity';
+import { COMMENT_TOKENS } from '../../constants';
 
 export interface AddReactionCommand {
   commentId: string;
@@ -18,7 +19,10 @@ export interface AddReactionCommand {
  */
 @Injectable()
 export class AddReactionUseCase {
-  constructor(private readonly commentDomainService: CommentDomainService) {}
+  constructor(
+    @Inject(COMMENT_TOKENS.COMMENT_DOMAIN_SERVICE)
+    private readonly commentDomainService: CommentDomainService,
+  ) {}
 
   async execute(command: AddReactionCommand): Promise<void> {
     // Input validation

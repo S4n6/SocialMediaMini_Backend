@@ -9,7 +9,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { CommentEntity } from '../../domain/entities/comment.entity';
 import { IUserDomainPort } from '../../domain/interfaces/domain-ports.interface';
-import { CommentRepository } from '../../domain/repositories/comment.repository';
+import { ICommentRepository } from '../../domain/repositories/i-comment.repository';
 import { COMMENT_TOKENS, INFRASTRUCTURE_TOKENS } from '../../constants';
 
 export interface EnrichedCommentData {
@@ -39,7 +39,7 @@ export interface CommentEnrichmentOptions {
 export class CommentEnrichmentService {
   constructor(
     @Inject(COMMENT_TOKENS.COMMENT_REPOSITORY)
-    private readonly commentRepository: CommentRepository,
+    private readonly commentRepository: ICommentRepository,
     @Inject(INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER)
     private readonly userDomainPort: IUserDomainPort,
   ) {}

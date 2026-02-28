@@ -15,12 +15,12 @@ import { JwtAuthGuard } from '../../../shared/guards/jwt.guard';
 import { CurrentUser } from '../../../shared/decorators/currentUser.decorator';
 import { CommentApplicationService } from '../application/interfaces/comment-application.interface';
 import {
-  CreateCommentDto,
-  UpdateCommentDto,
-  AddCommentReactionDto,
-  GetCommentsDto,
-  GetRepliesDto,
-} from '../application/dto/comment.dto';
+  CreateCommentRequestDto,
+  UpdateCommentRequestDto,
+  AddCommentReactionRequestDto,
+  GetCommentsQueryDto,
+  GetRepliesQueryDto,
+} from './dto/comment-request.dto';
 import { ApiResponse } from '../../../shared/utils/interfaces/api-response.interface';
 import { APPLICATION_TOKENS } from '../constants';
 
@@ -47,10 +47,17 @@ export class CommentsController {
 
   @Post()
   async createComment(
-    @Body() createDto: CreateCommentDto,
+    @Body() createDto: CreateCommentRequestDto,
     @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<any>> {
-    const comment = await this.commentService.createComment(createDto, userId);
+    const comment = await this.commentService.createComment(
+      {
+        content: createDto.content,
+        postId: createDto.postId,
+        parentId: createDto.parentId,
+      },
+      userId,
+    );
 
     return this.createResponse(
       comment,
@@ -62,12 +69,12 @@ export class CommentsController {
   @Get('post/:postId')
   async getCommentsByPost(
     @Param('postId') postId: string,
-    @Query() query: GetCommentsDto,
+    @Query() query: GetCommentsQueryDto,
     @CurrentUser('id') userId?: string,
   ): Promise<ApiResponse<any>> {
     const comments = await this.commentService.getCommentsByPost(
       postId,
-      query,
+      { page: query.page, limit: query.limit, sortBy: query.sortBy },
       userId,
     );
 
@@ -87,12 +94,12 @@ export class CommentsController {
   @Get(':commentId/with-replies')
   async getCommentWithReplies(
     @Param('commentId') commentId: string,
-    @Query() query: GetRepliesDto,
+    @Query() query: GetRepliesQueryDto,
     @CurrentUser('id') userId?: string,
   ): Promise<ApiResponse<any>> {
     const comment = await this.commentService.getCommentWithReplies(
       commentId,
-      query,
+      { page: query.page, limit: query.limit },
       userId,
     );
 
@@ -107,12 +114,12 @@ export class CommentsController {
   @Get(':commentId/replies')
   async getReplies(
     @Param('commentId') commentId: string,
-    @Query() query: GetRepliesDto,
+    @Query() query: GetRepliesQueryDto,
     @CurrentUser('id') userId?: string,
   ): Promise<ApiResponse<any>> {
     const replies = await this.commentService.getRepliesForComment(
       commentId,
-      query,
+      { page: query.page, limit: query.limit },
       userId,
     );
 
@@ -122,12 +129,12 @@ export class CommentsController {
   @Put(':commentId')
   async updateComment(
     @Param('commentId') commentId: string,
-    @Body() updateDto: UpdateCommentDto,
+    @Body() updateDto: UpdateCommentRequestDto,
     @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<any>> {
     const comment = await this.commentService.updateComment(
       commentId,
-      updateDto,
+      { content: updateDto.content },
       userId,
     );
 
@@ -147,12 +154,12 @@ export class CommentsController {
   @Post(':commentId/reactions')
   async addReaction(
     @Param('commentId') commentId: string,
-    @Body() reactionDto: AddCommentReactionDto,
+    @Body() reactionDto: AddCommentReactionRequestDto,
     @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<any>> {
     const result = await this.commentService.addReaction(
       commentId,
-      reactionDto,
+      { reactionType: reactionDto.reactionType },
       userId,
     );
 
@@ -177,12 +184,12 @@ export class CommentsController {
   @Post(':commentId/reactions/toggle')
   async toggleReaction(
     @Param('commentId') commentId: string,
-    @Body() reactionDto: AddCommentReactionDto,
+    @Body() reactionDto: AddCommentReactionRequestDto,
     @CurrentUser('id') userId: string,
   ): Promise<ApiResponse<any>> {
     const result = await this.commentService.toggleReaction(
       commentId,
-      reactionDto,
+      { reactionType: reactionDto.reactionType },
       userId,
     );
 
@@ -192,12 +199,12 @@ export class CommentsController {
   @Get('author/:authorId')
   async getCommentsByAuthor(
     @Param('authorId') authorId: string,
-    @Query() query: GetCommentsDto,
+    @Query() query: GetCommentsQueryDto,
     @CurrentUser('id') userId?: string,
   ): Promise<ApiResponse<any>> {
     const comments = await this.commentService.getCommentsByAuthor(
       authorId,
-      query,
+      { page: query.page, limit: query.limit, sortBy: query.sortBy },
       userId,
     );
 
