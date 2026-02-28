@@ -1,6 +1,5 @@
-import { Injectable, Inject } from '@nestjs/common';
 import { CommentEntity, ReactionType } from '../entities/comment.entity';
-import { CommentRepository } from '../repositories/comment.repository';
+import { ICommentRepository } from '../repositories/i-comment.repository';
 import {
   CommentNotFoundException,
   InvalidParentCommentException,
@@ -12,18 +11,19 @@ import {
 import {
   IUserDomainPort,
   IPostDomainPort,
-  INotificationDomainPort,
 } from '../interfaces/domain-ports.interface';
-import { COMMENT_TOKENS, INFRASTRUCTURE_TOKENS } from '../../constants';
 
-@Injectable()
+/**
+ * Domain Service — orchestrates business rules that span multiple aggregates
+ * or require repository access.
+ *
+ * Pure TypeScript: NO framework imports. NestJS wiring is done via
+ * `useFactory` in the module definition.
+ */
 export class CommentDomainService {
   constructor(
-    @Inject(COMMENT_TOKENS.COMMENT_REPOSITORY)
-    private readonly commentRepository: CommentRepository,
-    @Inject(INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER)
+    private readonly commentRepository: ICommentRepository,
     private readonly userDomainPort: IUserDomainPort,
-    @Inject(INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER)
     private readonly postDomainPort: IPostDomainPort,
   ) {}
 
@@ -68,14 +68,13 @@ export class CommentDomainService {
 
     // Create comment entity
     const comment = parentId
-      ? CommentEntity.createReply(
-          { content, authorId, postId, parentId },
-          maxDepth,
-        )
+      ? CommentEntity.createReply({ content, authorId, postId, parentId })
       : CommentEntity.create({ content, authorId, postId });
 
     // Save to repository
-    return await this.commentRepository.save(comment);
+    await this.commentRepository.save(comment);
+
+    return comment;
   }
 
   async updateComment(
@@ -92,7 +91,9 @@ export class CommentDomainService {
     comment.updateContent(newContent, userId);
 
     // Save updated comment
-    return await this.commentRepository.save(comment);
+    await this.commentRepository.save(comment);
+
+    return comment;
   }
 
   async deleteComment(commentId: string, userId: string): Promise<void> {

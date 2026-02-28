@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CommentDomainService } from '../../domain/services/comment-domain.service';
 import { CommentEntity } from '../../domain/entities/comment.entity';
+import { COMMENT_TOKENS } from '../../constants';
 
 export interface UpdateCommentCommand {
   commentId: string;
@@ -18,7 +19,10 @@ export interface UpdateCommentCommand {
  */
 @Injectable()
 export class UpdateCommentUseCase {
-  constructor(private readonly commentDomainService: CommentDomainService) {}
+  constructor(
+    @Inject(COMMENT_TOKENS.COMMENT_DOMAIN_SERVICE)
+    private readonly commentDomainService: CommentDomainService,
+  ) {}
 
   async execute(command: UpdateCommentCommand): Promise<CommentEntity> {
     // Input validation

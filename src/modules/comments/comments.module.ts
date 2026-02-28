@@ -9,17 +9,17 @@ import {
   INFRASTRUCTURE_TOKENS,
 } from './constants';
 
-// Domain Services
+// Domain
 import { CommentDomainService } from './domain/services/comment-domain.service';
-
-// Application Layer
-import { CommentApplicationService } from './application/interfaces/comment-application.interface';
+import { ICommentRepository } from './domain/repositories/i-comment.repository';
 import {
-  CommentApplicationServiceImpl,
-  CommentMapperImpl,
-} from './application/services/comment-application.service';
+  IUserDomainPort,
+  IPostDomainPort,
+} from './domain/interfaces/domain-ports.interface';
 
-// Use Cases
+// Application
+import { CommentApplicationServiceImpl } from './application/services/comment-application.service';
+import { CommentEnrichmentService } from './application/services/comment-enrichment.service';
 import { CreateCommentUseCase } from './application/use-cases/create-comment.use-case';
 import { GetCommentsByPostUseCase } from './application/use-cases/get-comments-by-post.use-case';
 import { GetCommentByIdUseCase } from './application/use-cases/get-comment-by-id.use-case';
@@ -31,11 +31,11 @@ import { GetRepliesUseCase } from './application/use-cases/get-replies.use-case'
 
 // Infrastructure
 import { PrismaCommentRepository } from './infrastructure/comment.prisma.repository';
+import { CommentPersistenceMapper } from './infrastructure/persistence/mappers/comment.mapper';
+import { CommentDtoMapper } from './infrastructure/mappers/comment-dto.mapper';
 import { UserServiceAdapter } from './infrastructure/adapters/user-service.adapter';
 import { PostServiceAdapter } from './infrastructure/adapters/post-service.adapter';
-
-// Application Services
-import { CommentEnrichmentService } from './application/services/comment-enrichment.service';
+import { CommentCacheService } from './infrastructure/cache/comment-cache.service';
 
 // Presentation
 import { CommentsController } from './presentation/comments.controller';
@@ -44,17 +44,45 @@ import { CommentsController } from './presentation/comments.controller';
   imports: [PrismaModule, UsersModule],
   controllers: [CommentsController],
   providers: [
-    // Domain Services
-    CommentDomainService,
-
-    // Application Services
+    // ── Infrastructure ──────────────────────────────────────────────
+    CommentPersistenceMapper,
+    CommentCacheService,
     {
-      provide: APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE,
-      useClass: CommentApplicationServiceImpl,
+      provide: COMMENT_TOKENS.COMMENT_REPOSITORY,
+      useClass: PrismaCommentRepository,
+    },
+    {
+      provide: INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER,
+      useClass: UserServiceAdapter,
+    },
+    {
+      provide: INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER,
+      useClass: PostServiceAdapter,
     },
     {
       provide: APPLICATION_TOKENS.COMMENT_MAPPER,
-      useClass: CommentMapperImpl,
+      useClass: CommentDtoMapper,
+    },
+
+    // ── Domain (pure TS — wired via useFactory) ─────────────────────
+    {
+      provide: COMMENT_TOKENS.COMMENT_DOMAIN_SERVICE,
+      useFactory: (
+        repo: ICommentRepository,
+        userPort: IUserDomainPort,
+        postPort: IPostDomainPort,
+      ) => new CommentDomainService(repo, userPort, postPort),
+      inject: [
+        COMMENT_TOKENS.COMMENT_REPOSITORY,
+        INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER,
+        INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER,
+      ],
+    },
+
+    // ── Application ─────────────────────────────────────────────────
+    {
+      provide: APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE,
+      useClass: CommentApplicationServiceImpl,
     },
     CommentEnrichmentService,
 
@@ -67,22 +95,6 @@ import { CommentsController } from './presentation/comments.controller';
     AddReactionUseCase,
     RemoveReactionUseCase,
     GetRepliesUseCase,
-
-    // Repository
-    {
-      provide: COMMENT_TOKENS.COMMENT_REPOSITORY,
-      useClass: PrismaCommentRepository,
-    },
-
-    // External Service Adapters (implementing domain ports)
-    {
-      provide: INFRASTRUCTURE_TOKENS.USER_SERVICE_ADAPTER,
-      useClass: UserServiceAdapter,
-    },
-    {
-      provide: INFRASTRUCTURE_TOKENS.POST_SERVICE_ADAPTER,
-      useClass: PostServiceAdapter,
-    },
   ],
   exports: [APPLICATION_TOKENS.COMMENT_APPLICATION_SERVICE],
 })

@@ -1,72 +1,35 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
-import { CommentRepository } from '../domain/repositories/comment.repository';
+import { ICommentRepository } from '../domain/repositories/i-comment.repository';
 import { CommentEntity } from '../domain/entities/comment.entity';
-import { CommentFactory } from '../domain/factories/comment.factory';
+import { CommentPersistenceMapper } from './persistence/mappers/comment.mapper';
 import { BaseRepository } from './base.repository';
 
 @Injectable()
 export class PrismaCommentRepository
   extends BaseRepository
-  implements CommentRepository
+  implements ICommentRepository
 {
-  constructor(prisma: PrismaService) {
+  constructor(
+    prisma: PrismaService,
+    private readonly mapper: CommentPersistenceMapper,
+  ) {
     super(prisma);
   }
 
-  private mapToEntity(prismaComment: any): CommentEntity {
-    return CommentFactory.fromPersistence({
-      id: prismaComment.id,
-      content: prismaComment.content,
-      authorId: prismaComment.authorId,
-      postId: prismaComment.postId,
-      parentId: prismaComment.parentId || undefined,
-      createdAt: prismaComment.createdAt,
-      updatedAt: prismaComment.updatedAt,
-    });
-  }
-
-  async save(comment: CommentEntity): Promise<CommentEntity> {
-    return this.executeQuery(
+  async save(comment: CommentEntity): Promise<void> {
+    await this.executeQuery(
       'save-comment',
       async () => {
-        const data = {
-          id: comment.id,
-          content: comment.content,
-          authorId: comment.authorId,
-          postId: comment.postId,
-          parentId: comment.parentId,
-          createdAt: comment.createdAt,
-          updatedAt: comment.updatedAt,
-        };
+        const data = this.mapper.toPrisma(comment);
 
-        const savedComment = await this.prisma.comment.upsert({
-          where: { id: comment.id },
+        await this.prisma.comment.upsert({
+          where: { id: data.id },
           update: data,
           create: data,
         });
-
-        return this.mapToEntity(savedComment);
       },
       { commentId: comment.id, postId: comment.postId },
-    );
-  }
-
-  async update(comment: CommentEntity): Promise<CommentEntity> {
-    return this.executeQuery(
-      'update-comment',
-      async () => {
-        const updatedComment = await this.prisma.comment.update({
-          where: { id: comment.id },
-          data: {
-            content: comment.content,
-            updatedAt: comment.updatedAt,
-          },
-        });
-
-        return this.mapToEntity(updatedComment);
-      },
-      { commentId: comment.id },
     );
   }
 
@@ -78,7 +41,7 @@ export class PrismaCommentRepository
           where: { id },
         });
 
-        return comment ? this.mapToEntity(comment) : null;
+        return comment ? this.mapper.toDomain(comment) : null;
       },
       { commentId: id },
     );
@@ -118,7 +81,7 @@ export class PrismaCommentRepository
           }),
         ]);
 
-        const entities = comments.map((comment) => this.mapToEntity(comment));
+        const entities = comments.map((c) => this.mapper.toDomain(c));
         return this.buildPaginationResult(entities, total, page, limit);
       },
       { postId, page, limit },
@@ -150,7 +113,7 @@ export class PrismaCommentRepository
       }),
     ]);
 
-    const entities = replies.map((comment) => this.mapToEntity(comment));
+    const entities = replies.map((comment) => this.mapper.toDomain(comment));
 
     return {
       items: entities,
@@ -186,7 +149,7 @@ export class PrismaCommentRepository
       }),
     ]);
 
-    const entities = comments.map((comment) => this.mapToEntity(comment));
+    const entities = comments.map((comment) => this.mapper.toDomain(comment));
 
     return {
       items: entities,
@@ -280,7 +243,7 @@ export class PrismaCommentRepository
       }),
     ]);
 
-    const entities = comments.map((comment) => this.mapToEntity(comment));
+    const entities = comments.map((comment) => this.mapper.toDomain(comment));
 
     return {
       items: entities,
@@ -309,7 +272,7 @@ export class PrismaCommentRepository
       ORDER BY depth, "createdAt" ASC
     `;
 
-    return comments.map((comment) => this.mapToEntity(comment));
+    return comments.map((comment) => this.mapper.toDomain(comment));
   }
 
   async softDelete(id: string): Promise<void> {
