@@ -1,2 +1,2 @@
-// Repositories
-export * from './prisma-search-history.repository';
+// Persistence layer (repositories + mappers)
+export * from './persistence';

@@ -1,8 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { SearchHistory } from '../../../domain/search-history.entity';
-import { SearchHistoryRepository } from '../../../domain/search-history.repository';
+import { ISearchHistoryRepository } from '../../../domain/repositories/i-search-history.repository';
 import { InvalidUserIdException } from '../../../domain/search-history.exceptions';
-import { SEARCH_HISTORY_REPOSITORY } from '../../../tokens';
+import { SEARCH_HISTORY_REPOSITORY_TOKEN } from '../../../search-history.constants';
 
 export interface GetSearchHistoryUseCaseInput {
   userId: string;
@@ -15,8 +15,8 @@ export interface GetSearchHistoryUseCaseOutput {
 @Injectable()
 export class GetSearchHistoryUseCase {
   constructor(
-    @Inject(SEARCH_HISTORY_REPOSITORY)
-    private readonly searchHistoryRepository: SearchHistoryRepository,
+    @Inject(SEARCH_HISTORY_REPOSITORY_TOKEN)
+    private readonly searchHistoryRepository: ISearchHistoryRepository,
   ) {}
 
   async execute(
