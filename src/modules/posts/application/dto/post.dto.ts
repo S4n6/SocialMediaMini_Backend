@@ -37,7 +37,7 @@ export class GetPostsQueryDto {
 }
 
 export class GetTimelineFeedDto {
-  page?: number;
+  cursor?: string | null;
   limit?: number;
   algorithm?: 'chronological' | 'smart' | 'diversified';
 }
@@ -106,4 +106,14 @@ export class PostListResponseDto {
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
+}
+
+/**
+ * Cursor-paginated response DTO for infinite scroll feeds.
+ * `nextCursor` is null when the client has reached the end.
+ */
+export class CursorPaginatedPostsResponseDto {
+  data: PostResponseDto[];
+  nextCursor: string | null;
+  hasNextPage: boolean;
 }

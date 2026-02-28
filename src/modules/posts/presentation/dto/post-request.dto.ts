@@ -202,3 +202,35 @@ export class CreateCommentRequestDto {
   @IsUUID()
   parentId?: string;
 }
+
+export class GetTimelineFeedRequestDto {
+  @ApiPropertyOptional({
+    description:
+      'Opaque cursor token — omit for the first page, pass the value from the previous response for subsequent pages.',
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @ApiPropertyOptional({
+    description: 'Number of items per page',
+    minimum: 1,
+    maximum: 50,
+    default: 10,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  @Max(50)
+  limit?: number = 10;
+
+  @ApiPropertyOptional({
+    description: 'Timeline algorithm to use',
+    enum: ['chronological', 'smart', 'diversified'],
+    default: 'chronological',
+  })
+  @IsOptional()
+  @IsEnum(['chronological', 'smart', 'diversified'])
+  algorithm?: 'chronological' | 'smart' | 'diversified' = 'chronological';
+}

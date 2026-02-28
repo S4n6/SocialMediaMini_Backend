@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PostListResponseDto } from '../dto/post.dto';
+import { CursorPaginatedPostsResponseDto } from '../dto/post.dto';
 import {
   TimelineService,
   TimelineAlgorithm,
@@ -7,7 +7,7 @@ import {
 import { mapPostToResponseDto } from '../mappers/post-response.mapper';
 
 /**
- * Use case for getting user's timeline feed
+ * Use case for getting user's timeline feed with cursor-based pagination
  */
 @Injectable()
 export class GetTimelineFeedUseCase {
@@ -15,28 +15,23 @@ export class GetTimelineFeedUseCase {
 
   async execute(
     userId: string,
-    page: number = 1,
     limit: number = 10,
+    cursor?: string | null,
     algorithm: TimelineAlgorithm = 'chronological',
-  ): Promise<PostListResponseDto> {
-    const { posts, total } = await this.timelineService.getTimelineFeed(
+  ): Promise<CursorPaginatedPostsResponseDto> {
+    const { posts, nextCursor } = await this.timelineService.getTimelineFeed(
       userId,
-      page,
       limit,
+      cursor,
       algorithm,
     );
 
     const postDtos = posts.map(mapPostToResponseDto);
-    const totalPages = Math.ceil(total / limit);
 
     return {
-      posts: postDtos,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1,
+      data: postDtos,
+      nextCursor,
+      hasNextPage: nextCursor !== null,
     };
   }
 }

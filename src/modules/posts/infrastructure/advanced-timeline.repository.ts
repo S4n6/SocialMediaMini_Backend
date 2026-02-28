@@ -1,13 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { PostEntity, PostPrivacy } from '../domain/entities/post.entity';
-import { ITimelineRepository } from '../domain/repositories/timeline.repository';
+import {
+  ITimelineRepository,
+  CursorPaginatedPosts,
+} from '../domain/repositories/timeline.repository';
 import { PostMapper } from './persistence/mappers/post.mapper';
 import { PostPrivacy as PrismaPostPrivacy } from '../../../generated/prisma/enums';
 
 /**
  * Advanced Timeline Algorithm
  * Implements intelligent feed ranking similar to Facebook/Instagram
+ * Uses cursor-based pagination for stable infinite scroll.
  */
 @Injectable()
 export class AdvancedTimelineRepository implements ITimelineRepository {
@@ -16,296 +20,242 @@ export class AdvancedTimelineRepository implements ITimelineRepository {
     private readonly postMapper: PostMapper,
   ) {}
 
-  /**
-   * Basic chronological timeline (required by interface)
-   */
-  async getTimelineFeed(
-    userId: string,
-    page: number,
-    limit: number,
-  ): Promise<{ posts: PostEntity[]; total: number }> {
-    const offset = (page - 1) * limit;
+  /** Shared include clause for rich post objects */
+  private readonly defaultInclude = {
+    author: true,
+    reactions: { include: { reactor: true } },
+    comments: {
+      include: { author: true },
+      orderBy: { createdAt: 'asc' as const },
+    },
+    postMedia: { orderBy: { order: 'asc' as const } },
+    hashtags: { include: { hashtag: true } },
+  };
 
-    const posts = await this.prisma.post.findMany({
-      where: {
-        OR: [
-          {
-            authorId: userId,
-            privacy: {
-              in: [
-                PrismaPostPrivacy.PUBLIC,
-                PrismaPostPrivacy.FOLLOWERS,
-                PrismaPostPrivacy.PRIVATE,
-              ],
-            },
-          },
-          {
-            author: {
-              followers: {
-                some: {
-                  followerId: userId,
-                },
-              },
-            },
-            authorId: { not: userId },
-            privacy: {
-              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
-            },
-          },
-        ],
-      },
-      include: {
-        author: true,
-        reactions: { include: { reactor: true } },
-        comments: { include: { author: true } },
-        postMedia: { orderBy: { order: 'asc' } },
-        hashtags: { include: { hashtag: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: offset,
-      take: limit,
-    });
-
-    const totalCount = await this.prisma.post.count({
-      where: {
-        OR: [
-          {
-            authorId: userId,
-            privacy: {
-              in: [
-                PrismaPostPrivacy.PUBLIC,
-                PrismaPostPrivacy.FOLLOWERS,
-                PrismaPostPrivacy.PRIVATE,
-              ],
-            },
-          },
-          {
-            author: {
-              followers: { some: { followerId: userId } },
-            },
-            authorId: { not: userId },
-            privacy: {
-              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
-            },
-          },
-        ],
-      },
-    });
-
+  /** Shared WHERE clause for timeline visibility */
+  private getTimelineWhere(userId: string) {
     return {
-      posts: posts.map((post) => this.postMapper.toDomainEntity(post)),
-      total: totalCount,
+      OR: [
+        {
+          authorId: userId,
+          privacy: {
+            in: [
+              PrismaPostPrivacy.PUBLIC,
+              PrismaPostPrivacy.FOLLOWERS,
+              PrismaPostPrivacy.PRIVATE,
+            ],
+          },
+        },
+        {
+          author: {
+            followers: {
+              some: { followerId: userId },
+            },
+          },
+          authorId: { not: userId },
+          privacy: {
+            in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
+          },
+        },
+      ],
     };
   }
 
   /**
-   * Smart Timeline Feed với ranking algorithm
-   * Factors: recency, engagement, relationship strength, content type
+   * Basic chronological timeline using Prisma cursor pagination.
+   * We fetch `limit + 1` rows to detect whether a next page exists
+   * without running a separate COUNT(*) query.
    */
-  async getSmartTimelineFeed(
+  async getTimelineFeed(
     userId: string,
-    page: number,
     limit: number,
-  ): Promise<{ posts: PostEntity[]; total: number }> {
-    const offset = (page - 1) * limit;
+    cursor?: string | null,
+  ): Promise<CursorPaginatedPosts> {
+    const take = limit + 1; // over-fetch by 1 to detect next page
 
-    // Calculate engagement boost window (last 24 hours)
-    const recentThreshold = new Date();
-    recentThreshold.setHours(recentThreshold.getHours() - 24);
-
-    // Use raw SQL for complex ranking algorithm
-    const rankedPosts = await this.prisma.$queryRaw`
-      WITH timeline_posts AS (
-        SELECT 
-          p.*,
-          u.full_name as author_name,
-          u.avatar as author_avatar,
-          
-          -- Engagement Score (likes + comments + shares)
-          COALESCE(reactions_count.count, 0) * 1.0 +
-          COALESCE(comments_count.count, 0) * 2.0 +
-          COALESCE(shares_count.count, 0) * 3.0 as engagement_score,
-          
-          -- Recency Score (higher for recent posts)
-          CASE 
-            WHEN p.created_at > ${recentThreshold} THEN 10.0
-            WHEN p.created_at > NOW() - INTERVAL '3 days' THEN 5.0
-            WHEN p.created_at > NOW() - INTERVAL '1 week' THEN 2.0
-            ELSE 1.0
-          END as recency_score,
-          
-          -- Relationship Score  
-          CASE 
-            WHEN p.author_id = ${userId} THEN 8.0  -- Own posts get moderate boost
-            WHEN follow_rel.created_at > NOW() - INTERVAL '1 month' THEN 6.0 -- New follows
-            WHEN interaction_score.score > 5 THEN 5.0 -- High interaction friends
-            ELSE 3.0
-          END as relationship_score,
-          
-          -- Content Type Score
-          CASE 
-            WHEN media_count.count > 0 THEN 4.0 -- Posts with media get boost
-            WHEN LENGTH(p.content) > 200 THEN 3.0 -- Longer posts
-            ELSE 2.0
-          END as content_score
-          
-        FROM "Post" p
-        INNER JOIN "User" u ON p.author_id = u.id
-        
-        -- Follow relationship
-        LEFT JOIN "Follow" follow_rel ON (
-          follow_rel.follower_id = ${userId} 
-          AND follow_rel.following_id = p.author_id
-        )
-        
-        -- Engagement counts
-        LEFT JOIN (
-          SELECT post_id, COUNT(*) as count 
-          FROM "Reaction" 
-          GROUP BY post_id
-        ) reactions_count ON reactions_count.post_id = p.id
-        
-        LEFT JOIN (
-          SELECT post_id, COUNT(*) as count 
-          FROM "Comment" 
-          GROUP BY post_id
-        ) comments_count ON comments_count.post_id = p.id
-        
-        LEFT JOIN (
-          SELECT post_id, COUNT(*) as count 
-          FROM "Share" 
-          GROUP BY post_id  
-        ) shares_count ON shares_count.post_id = p.id
-        
-        -- Media count
-        LEFT JOIN (
-          SELECT post_id, COUNT(*) as count 
-          FROM "PostMedia" 
-          GROUP BY post_id
-        ) media_count ON media_count.post_id = p.id
-        
-        -- User interaction history (for relationship scoring)
-        LEFT JOIN (
-          SELECT 
-            target_user_id,
-            COUNT(*) * 1.0 as score
-          FROM (
-            SELECT p2.author_id as target_user_id FROM "Reaction" r2 
-            INNER JOIN "Post" p2 ON r2.post_id = p2.id 
-            WHERE r2.reactor_id = ${userId}
-            UNION ALL
-            SELECT p3.author_id FROM "Comment" c2 
-            INNER JOIN "Post" p3 ON c2.post_id = p3.id 
-            WHERE c2.author_id = ${userId}
-          ) interactions
-          GROUP BY target_user_id
-        ) interaction_score ON interaction_score.target_user_id = p.author_id
-        
-        WHERE (
-          -- User's own posts
-          p.author_id = ${userId} 
-          OR 
-          -- Followed users' posts
-          (follow_rel.id IS NOT NULL AND p.privacy IN ('PUBLIC', 'FOLLOWERS'))
-        )
-        AND p.privacy IN ('PUBLIC', 'FOLLOWERS', 'PRIVATE')
-      )
-      
-      SELECT *,
-        -- Final Ranking Score
-        (
-          engagement_score * 0.3 +
-          recency_score * 0.4 +  
-          relationship_score * 0.2 +
-          content_score * 0.1
-        ) as final_score
-        
-      FROM timeline_posts
-      ORDER BY final_score DESC, created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-
-    // Get total count
-    const totalCount = await this.prisma.post.count({
-      where: {
-        OR: [
-          { authorId: userId },
-          {
-            author: {
-              followers: { some: { followerId: userId } },
-            },
-            authorId: { not: userId },
-            privacy: {
-              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
-            },
-          },
-        ],
-      },
+    const posts = await this.prisma.post.findMany({
+      where: this.getTimelineWhere(userId),
+      include: this.defaultInclude,
+      orderBy: { createdAt: 'desc' },
+      take,
+      ...(cursor
+        ? {
+            skip: 1, // skip the cursor row itself
+            cursor: { id: cursor },
+          }
+        : {}),
     });
 
-    // Map raw results to entities
-    const posts = (rankedPosts as any[]).map((rawPost: any) =>
-      this.postMapper.fromRawSql(rawPost),
-    );
+    const hasNextPage = posts.length > limit;
+    const sliced = hasNextPage ? posts.slice(0, limit) : posts;
+    const nextCursor =
+      hasNextPage && sliced.length > 0 ? sliced[sliced.length - 1].id : null;
 
-    return { posts, total: totalCount };
+    return {
+      posts: sliced.map((post) => this.postMapper.toDomainEntity(post)),
+      nextCursor,
+    };
   }
 
   /**
-   * Diversified Timeline - Ensures variety in authors
+   * Smart Timeline Feed with ranking algorithm.
+   * For ranked feeds, we use a two-phase approach:
+   *   1. Fetch a larger candidate window from DB
+   *   2. Rank in application memory
+   *   3. Return a cursor-stable page
+   *
+   * The cursor here is the PostId of the last returned post.
+   * We exclude all previously seen post IDs via createdAt < cursor's createdAt
+   * to keep the pagination stable even after re-ranking.
+   */
+  async getSmartTimelineFeed(
+    userId: string,
+    limit: number,
+    cursor?: string | null,
+  ): Promise<CursorPaginatedPosts> {
+    // Determine the createdAt cutoff from the cursor post
+    let cursorCreatedAt: Date | null = null;
+    if (cursor) {
+      const cursorPost = await this.prisma.post.findUnique({
+        where: { id: cursor },
+        select: { createdAt: true },
+      });
+      cursorCreatedAt = cursorPost?.createdAt ?? null;
+    }
+
+    // Fetch a larger window for ranking (3x the requested page size)
+    const candidateWindow = limit * 3;
+    const take = candidateWindow + 1;
+
+    const whereClause: any = {
+      ...this.getTimelineWhere(userId),
+    };
+
+    // Apply cursor filter: only posts older than the cursor
+    if (cursorCreatedAt) {
+      whereClause.createdAt = { lt: cursorCreatedAt };
+    }
+
+    const candidates = await this.prisma.post.findMany({
+      where: whereClause,
+      include: {
+        ...this.defaultInclude,
+        _count: { select: { reactions: true, comments: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+
+    // In-memory ranking
+    const now = Date.now();
+    const scored = candidates.map((post) => {
+      const ageHours =
+        (now - new Date(post.createdAt).getTime()) / (1000 * 60 * 60);
+      const reactionCount = (post as any)._count?.reactions ?? 0;
+      const commentCount = (post as any)._count?.comments ?? 0;
+
+      // Engagement score
+      const engagementScore = reactionCount * 1.0 + commentCount * 2.0;
+
+      // Recency score (decays over time)
+      const recencyScore =
+        ageHours < 24 ? 10 : ageHours < 72 ? 5 : ageHours < 168 ? 2 : 1;
+
+      // Own post boost
+      const ownershipScore = post.authorId === userId ? 3 : 0;
+
+      // Content richness
+      const contentScore =
+        (post as any)._count?.postMedia > 0
+          ? 2
+          : (post.content?.length ?? 0) > 200
+            ? 1.5
+            : 1;
+
+      const finalScore =
+        engagementScore * 0.3 +
+        recencyScore * 0.4 +
+        ownershipScore * 0.1 +
+        contentScore * 0.2;
+
+      return { post, finalScore };
+    });
+
+    // Sort by score descending, then by createdAt for tie-breaking
+    scored.sort(
+      (a, b) =>
+        b.finalScore - a.finalScore ||
+        new Date(b.post.createdAt).getTime() -
+          new Date(a.post.createdAt).getTime(),
+    );
+
+    const page = scored.slice(0, limit);
+    const hasNextPage = candidates.length > candidateWindow;
+    const nextCursor =
+      hasNextPage && page.length > 0 ? page[page.length - 1].post.id : null;
+
+    return {
+      posts: page.map((s) => this.postMapper.toDomainEntity(s.post)),
+      nextCursor,
+    };
+  }
+
+  /**
+   * Diversified Timeline — limits consecutive posts from the same author.
+   * Uses cursor-based pagination with createdAt cutoff.
    */
   async getDiversifiedTimelineFeed(
     userId: string,
-    page: number,
     limit: number,
-  ): Promise<{ posts: PostEntity[]; total: number }> {
-    const offset = (page - 1) * limit;
+    cursor?: string | null,
+  ): Promise<CursorPaginatedPosts> {
+    let cursorCreatedAt: Date | null = null;
+    if (cursor) {
+      const cursorPost = await this.prisma.post.findUnique({
+        where: { id: cursor },
+        select: { createdAt: true },
+      });
+      cursorCreatedAt = cursorPost?.createdAt ?? null;
+    }
 
-    // Strategy: Limit consecutive posts from same author
-    const posts = await this.prisma.$queryRaw`
-      WITH ranked_posts AS (
-        SELECT *,
-          ROW_NUMBER() OVER (
-            PARTITION BY author_id 
-            ORDER BY created_at DESC
-          ) as author_rank
-        FROM "Post" p
-        WHERE (
-          p.author_id = ${userId} OR
-          p.author_id IN (
-            SELECT following_id FROM "Follow" 
-            WHERE follower_id = ${userId}
-          )
-        )
-        AND p.privacy IN ('PUBLIC', 'FOLLOWERS', 'PRIVATE')
-      )
-      
-      SELECT * FROM ranked_posts
-      WHERE author_rank <= 2  -- Max 2 consecutive posts per author per page
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    // Fetch extra to allow filtering duplicates from same author
+    const fetchSize = limit * 3;
+    const take = fetchSize + 1;
 
-    const totalCount = await this.prisma.post.count({
-      where: {
-        OR: [
-          { authorId: userId },
-          {
-            author: { followers: { some: { followerId: userId } } },
-            authorId: { not: userId },
-            privacy: {
-              in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
-            },
-          },
-        ],
-      },
+    const whereClause: any = {
+      ...this.getTimelineWhere(userId),
+    };
+    if (cursorCreatedAt) {
+      whereClause.createdAt = { lt: cursorCreatedAt };
+    }
+
+    const candidates = await this.prisma.post.findMany({
+      where: whereClause,
+      include: this.defaultInclude,
+      orderBy: { createdAt: 'desc' },
+      take,
     });
 
+    // Diversify: max 2 consecutive posts per author
+    const authorCount = new Map<string, number>();
+    const diversified: typeof candidates = [];
+    for (const post of candidates) {
+      const count = authorCount.get(post.authorId) ?? 0;
+      if (count < 2) {
+        diversified.push(post);
+        authorCount.set(post.authorId, count + 1);
+      }
+      if (diversified.length >= limit + 1) break;
+    }
+
+    const hasNextPage = diversified.length > limit;
+    const sliced = hasNextPage ? diversified.slice(0, limit) : diversified;
+    const nextCursor =
+      hasNextPage && sliced.length > 0 ? sliced[sliced.length - 1].id : null;
+
     return {
-      posts: (posts as any[]).map((rawPost: any) =>
-        this.postMapper.fromRawSql(rawPost),
-      ),
-      total: totalCount,
+      posts: sliced.map((post) => this.postMapper.toDomainEntity(post)),
+      nextCursor,
     };
   }
 }

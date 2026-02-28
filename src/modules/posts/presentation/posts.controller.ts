@@ -31,6 +31,7 @@ import {
   PostResponseDto,
   PostDetailResponseDto,
   PostListResponseDto,
+  CursorPaginatedPostsResponseDto,
 } from '../application/dto/post.dto';
 
 // Domain enums
@@ -40,6 +41,7 @@ import { PostPrivacy } from '../domain/entities/post.entity';
 import {
   CreatePostRequestDto,
   UpdatePostRequestDto,
+  GetTimelineFeedRequestDto,
 } from './dto/post-request.dto';
 
 // Import guards and decorators from shared folder
@@ -146,11 +148,23 @@ export class PostsController {
   // ===== POST RETRIEVAL =====
 
   @Get('feed/timeline')
-  @ApiOperation({ summary: 'Get user timeline feed' })
+  @ApiOperation({ summary: 'Get user timeline feed (cursor-paginated)' })
   @ApiResponse({
     status: 200,
     description: 'Timeline feed retrieved successfully',
-    type: PostListResponseDto,
+    type: CursorPaginatedPostsResponseDto,
+  })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Post ID cursor — omit for the first page',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10, max 50)',
   })
   @ApiQuery({
     name: 'algorithm',
@@ -160,10 +174,15 @@ export class PostsController {
   })
   @ApiBearerAuth()
   async getTimelineFeed(
-    @Query() query: GetTimelineFeedDto,
+    @Query() query: GetTimelineFeedRequestDto,
     @CurrentUser('id') userId: string,
-  ): Promise<PostListResponseDto> {
-    return this.postApplicationService.getTimelineFeed(userId, query);
+  ): Promise<CursorPaginatedPostsResponseDto> {
+    const dto: GetTimelineFeedDto = {
+      cursor: query.cursor ?? null,
+      limit: query.limit ?? 10,
+      algorithm: query.algorithm ?? 'chronological',
+    };
+    return this.postApplicationService.getTimelineFeed(userId, dto);
   }
 
   @Get(':id')

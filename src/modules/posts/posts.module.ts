@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { Redis } from 'ioredis';
 import { PrismaModule } from '../../database/prisma.module';
 import { PostMediasModule } from '../post-medias/postMedias.module';
 import { RedisCacheModule } from '../cache/cache.module';
@@ -20,7 +21,8 @@ import { PostDomainService } from './domain/services/post-domain.service';
 
 // Infrastructure Layer
 import { PostPrismaRepository } from './infrastructure/persistence/repositories/post.prisma.repository';
-import { AdvancedTimelineRepository } from './infrastructure/advanced-timeline.repository';
+import { RedisFanoutTimelineRepository } from './infrastructure/redis-fanout-timeline.repository';
+import { RedisFeedCacheAdapter } from './infrastructure/adapters/redis-feed-cache.adapter';
 import { PostMapper } from './infrastructure/persistence/mappers/post.mapper';
 
 // Services
@@ -41,6 +43,8 @@ import {
   POST_REPOSITORY_TOKEN,
   TIMELINE_REPOSITORY_TOKEN,
   USER_ADAPTER_TOKEN,
+  FEED_REDIS_CLIENT_TOKEN,
+  FEED_CACHE_PORT_TOKEN,
 } from './constants';
 
 @Module({
@@ -88,6 +92,31 @@ import {
       useClass: UserServiceAdapter,
     },
 
+    // ── Redis Feed (Fan-out on Write) ───────────────────────
+    // Raw ioredis client dedicated to feed list operations.
+    // Separate from the cache-manager Redis used by RedisCacheModule.
+    {
+      provide: FEED_REDIS_CLIENT_TOKEN,
+      useFactory: () => {
+        const redisUrl = process.env.REDIS_URL;
+        if (!redisUrl) {
+          throw new Error(
+            'REDIS_URL is required for the fan-out feed. Set it in your .env file.',
+          );
+        }
+        return new Redis(redisUrl, {
+          lazyConnect: false, // connect immediately
+          retryStrategy: (times) => Math.min(times * 200, 5_000),
+          maxRetriesPerRequest: 3,
+          enableReadyCheck: true,
+        });
+      },
+    },
+    {
+      provide: FEED_CACHE_PORT_TOKEN,
+      useClass: RedisFeedCacheAdapter,
+    },
+
     // Infrastructure Layer - Repositories
     {
       provide: POST_REPOSITORY_TOKEN,
@@ -95,8 +124,8 @@ import {
     },
     {
       provide: TIMELINE_REPOSITORY_TOKEN,
-      useClass: AdvancedTimelineRepository, // Use advanced algorithms
-      // Alternative: useClass: PostPrismaRepository, // Use basic chronological
+      useClass: RedisFanoutTimelineRepository,
+      // Fallback (Prisma-only, no Redis): useClass: AdvancedTimelineRepository
     },
     // Reaction/comment repositories are provided by their respective modules.
   ],
