@@ -9,7 +9,7 @@ import {
 
 /**
  * Pure Domain Service
- * Contains only business logic without external dependencies
+ * Contains only business logic validation without external dependencies
  * Repository operations should be handled in Application Layer
  */
 export class FollowDomainService {
@@ -20,12 +20,6 @@ export class FollowDomainService {
     followerId: string,
     followingId: string,
   ): FollowEntity {
-    // Validate not following self
-    if (followerId === followingId) {
-      throw new SelfFollowException();
-    }
-
-    // Create new follow relationship
     return FollowEntity.createNew(followerId, followingId);
   }
 
@@ -52,9 +46,11 @@ export class FollowDomainService {
    */
   static validateNotAlreadyFollowing(
     existingFollow: FollowEntity | null,
+    followerId?: string,
+    followingId?: string,
   ): void {
     if (existingFollow) {
-      throw new AlreadyFollowingException();
+      throw new AlreadyFollowingException(followerId, followingId);
     }
   }
 
@@ -75,7 +71,7 @@ export class FollowDomainService {
     followId?: string,
   ): FollowEntity {
     if (!follow) {
-      throw new FollowNotFoundException(followId || 'unknown');
+      throw new FollowNotFoundException(followId);
     }
     return follow;
   }

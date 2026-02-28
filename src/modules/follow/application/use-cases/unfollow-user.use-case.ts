@@ -1,30 +1,39 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FollowRepository } from '../../domain/repositories/follow.repository';
 import { FollowDomainService } from '../../domain/services/follow-domain.service';
-import { FOLLOW_MODULE_TOKENS } from '../../constants';
+import { UserUnfollowedEvent } from '../../domain/events/follow.events';
+import { FOLLOW_REPOSITORY_TOKEN } from '../../constants';
 
 @Injectable()
 export class UnfollowUserUseCase {
   constructor(
-    @Inject(FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY)
+    @Inject(FOLLOW_REPOSITORY_TOKEN)
     private readonly followRepository: FollowRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(followingId: string, followerId: string): Promise<void> {
-    // Validate unfollow operation
+    // 1. Domain validation
     FollowDomainService.validateUnfollow(followerId, followingId);
 
-    // Find existing follow relationship
+    // 2. Find existing follow relationship
     const existingFollow =
       await this.followRepository.findByFollowerAndFollowing(
         followerId,
         followingId,
       );
 
-    // Validate currently following
+    // 3. Validate currently following
     FollowDomainService.validateCurrentlyFollowing(existingFollow);
 
-    // Delete the follow relationship
+    // 4. Delete the follow relationship
     await this.followRepository.delete(existingFollow!.id);
+
+    // 5. Emit domain event
+    this.eventEmitter.emit(
+      'follow.user.unfollowed',
+      new UserUnfollowedEvent(followerId, followingId),
+    );
   }
 }

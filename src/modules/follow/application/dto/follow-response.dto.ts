@@ -1,3 +1,7 @@
+/**
+ * Application Layer Response DTOs - Plain interfaces
+ */
+
 export interface UserSummaryDto {
   id: string;
   username: string;
@@ -11,7 +15,6 @@ export interface FollowResponseDto {
   followerId: string;
   followingId: string;
   createdAt: Date;
-  updatedAt: Date;
   follower?: UserSummaryDto;
   following?: UserSummaryDto;
 }

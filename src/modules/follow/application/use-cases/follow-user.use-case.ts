@@ -1,22 +1,22 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FollowRepository } from '../../domain/repositories/follow.repository';
 import { FollowDomainService } from '../../domain/services/follow-domain.service';
+import { UserFollowedEvent } from '../../domain/events/follow.events';
 import { FollowUserDto } from '../dto/follow.dto';
 import { FollowUserResponseDto } from '../dto/follow-response.dto';
 import { FollowMapper } from '../mappers/follow.mapper';
 import { FollowEnrichmentService } from '../services/follow-enrichment.service';
-import { NotificationService } from '../interfaces/external-services.interface';
-import { FOLLOW_MODULE_TOKENS } from '../../constants';
+import { FOLLOW_REPOSITORY_TOKEN } from '../../constants';
 import { UserNotFoundException } from '../../domain/follow.exceptions';
 
 @Injectable()
 export class FollowUserUseCase {
   constructor(
-    @Inject(FOLLOW_MODULE_TOKENS.FOLLOW_REPOSITORY)
+    @Inject(FOLLOW_REPOSITORY_TOKEN)
     private readonly followRepository: FollowRepository,
     private readonly followEnrichmentService: FollowEnrichmentService,
-    @Inject(FOLLOW_MODULE_TOKENS.NOTIFICATION_SERVICE)
-    private readonly notificationService: NotificationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(
@@ -25,44 +25,51 @@ export class FollowUserUseCase {
   ): Promise<FollowUserResponseDto> {
     const { userId: followingId } = dto;
 
-    // Validate target user exists using enrichment service
+    // 1. Validate target user exists
+    let followingUser;
     try {
-      await this.followEnrichmentService.validateUserExists(followingId);
-    } catch (error) {
+      followingUser =
+        await this.followEnrichmentService.validateUserExists(followingId);
+    } catch {
       throw new UserNotFoundException(followingId);
     }
 
-    // Check if already following using domain service
+    // 2. Check if already following (domain validation)
     const existingFollow =
       await this.followRepository.findByFollowerAndFollowing(
         followerId,
         followingId,
       );
-    FollowDomainService.validateNotAlreadyFollowing(existingFollow);
+    FollowDomainService.validateNotAlreadyFollowing(
+      existingFollow,
+      followerId,
+      followingId,
+    );
 
-    // Create follow entity using domain service
+    // 3. Create follow entity via domain service
     const followEntity = FollowDomainService.createFollowEntity(
       followerId,
       followingId,
     );
 
-    // Save to repository
+    // 4. Persist
     const savedFollow = await this.followRepository.save(followEntity);
 
-    // Get follower info for notification
+    // 5. Get follower info for event
     const followerUser =
       await this.followEnrichmentService.validateUserExists(followerId);
 
-    // Send notification (don't fail if notification fails)
-    try {
-      await this.notificationService.createFollowNotification({
+    // 6. Emit domain event (side effects handled by subscribers)
+    this.eventEmitter.emit(
+      'follow.user.followed',
+      new UserFollowedEvent(
+        savedFollow.id,
         followerId,
         followingId,
-        followerUserName: followerUser.username,
-      });
-    } catch (error) {
-      console.error('Failed to create follow notification:', error);
-    }
+        followerUser.username,
+        followingUser.username,
+      ),
+    );
 
     return {
       message: 'User followed successfully',

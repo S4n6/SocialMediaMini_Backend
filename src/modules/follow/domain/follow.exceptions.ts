@@ -1,45 +1,45 @@
 import {
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
+  EntityNotFoundException,
+  BusinessRuleException,
+  EntityAlreadyExistsException,
   ForbiddenException,
-} from '@nestjs/common';
+} from '../../../shared/exceptions/domain.exception';
 
-export class FollowNotFoundException extends NotFoundException {
+export class FollowNotFoundException extends EntityNotFoundException {
   constructor(followId?: string) {
-    const message = followId
-      ? `Follow relationship with ID '${followId}' not found`
-      : 'Follow relationship not found';
-    super(message);
+    super('Follow', followId ?? 'unknown');
   }
 }
 
-export class UserNotFoundException extends NotFoundException {
+export class UserNotFoundException extends EntityNotFoundException {
   constructor(userId: string) {
-    super(`User with ID '${userId}' not found`);
+    super('User', userId);
   }
 }
 
-export class SelfFollowException extends BadRequestException {
+export class SelfFollowException extends BusinessRuleException {
   constructor() {
-    super('You cannot follow yourself');
+    super('You cannot follow yourself', 'SELF_FOLLOW');
   }
 }
 
-export class AlreadyFollowingException extends ConflictException {
-  constructor() {
-    super('You are already following this user');
+export class AlreadyFollowingException extends EntityAlreadyExistsException {
+  constructor(followerId: string = 'unknown', followingId: string = 'unknown') {
+    super('Follow', `${followerId}->${followingId}`);
   }
 }
 
-export class NotFollowingException extends NotFoundException {
+export class NotFollowingException extends EntityNotFoundException {
   constructor() {
-    super('You are not following this user');
+    super('Follow', 'relationship');
   }
 }
 
 export class UnauthorizedFollowActionException extends ForbiddenException {
   constructor() {
-    super('You can only modify your own follow relationships');
+    super(
+      'You can only modify your own follow relationships',
+      'FOLLOW_FORBIDDEN',
+    );
   }
 }

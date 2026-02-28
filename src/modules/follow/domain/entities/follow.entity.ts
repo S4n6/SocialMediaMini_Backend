@@ -1,47 +1,82 @@
+import { SelfFollowException } from '../follow.exceptions';
+import {
+  UserFollowedEvent,
+  UserUnfollowedEvent,
+} from '../events/follow.events';
+
 export interface FollowEntityProps {
   id: string;
   followerId: string;
   followingId: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
+/**
+ * Follow Domain Entity
+ * Represents a follow relationship between two users
+ */
 export class FollowEntity {
-  private constructor(private readonly props: FollowEntityProps) {
-    this.validateFollow();
+  private readonly props: FollowEntityProps;
+  private _domainEvents: Array<UserFollowedEvent | UserUnfollowedEvent> = [];
+
+  private constructor(props: FollowEntityProps) {
+    this.validate(props);
+    this.props = props;
   }
 
+  /**
+   * Reconstruct from persistence
+   */
   static create(props: FollowEntityProps): FollowEntity {
     return new FollowEntity(props);
   }
 
+  /**
+   * Create a new follow relationship (factory method)
+   */
   static createNew(followerId: string, followingId: string): FollowEntity {
-    const now = new Date();
+    if (followerId === followingId) {
+      throw new SelfFollowException();
+    }
 
-    return new FollowEntity({
-      id: '', // Will be set by repository
+    const entity = new FollowEntity({
+      id: '', // Will be assigned by repository
       followerId,
       followingId,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
     });
+
+    return entity;
   }
 
-  private validateFollow(): void {
-    if (!this.props.followerId) {
+  private validate(props: FollowEntityProps): void {
+    if (!props.followerId) {
       throw new Error('Follower ID is required');
     }
-
-    if (!this.props.followingId) {
+    if (!props.followingId) {
       throw new Error('Following ID is required');
     }
-
-    if (this.props.followerId === this.props.followingId) {
-      throw new Error('Cannot follow yourself');
+    if (props.followerId === props.followingId) {
+      throw new SelfFollowException();
     }
   }
 
-  // Getters
+  // --- Domain Events ---
+
+  get domainEvents(): ReadonlyArray<UserFollowedEvent | UserUnfollowedEvent> {
+    return this._domainEvents;
+  }
+
+  addDomainEvent(event: UserFollowedEvent | UserUnfollowedEvent): void {
+    this._domainEvents.push(event);
+  }
+
+  clearDomainEvents(): void {
+    this._domainEvents = [];
+  }
+
+  // --- Getters ---
+
   get id(): string {
     return this.props.id;
   }
@@ -58,11 +93,8 @@ export class FollowEntity {
     return this.props.createdAt;
   }
 
-  get updatedAt(): Date {
-    return this.props.updatedAt;
-  }
+  // --- Business Methods ---
 
-  // Methods
   isFollowerOf(userId: string): boolean {
     return this.props.followerId === userId;
   }
