@@ -1,444 +1,191 @@
 import {
   Controller,
   Get,
-  Post,
-  Body,
   Patch,
   Param,
-  Delete,
   Query,
+  Sse,
+  Req,
+  UseGuards,
   HttpCode,
   HttpStatus,
-  ValidationPipe,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  MessageEvent,
+  Inject,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiParam,
-  ApiQuery,
-  ApiBody,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Request } from 'express';
+import { Observable, map } from 'rxjs';
+import { JwtAuthGuard } from '../../../../shared/guards/jwt.guard';
+import { CurrentUser } from '../../../../shared/decorators/currentUser.decorator';
 import { NotificationApplicationService } from '../../application/notification-application.service';
 import {
-  CreateNotificationRequestDto,
-  UpdateNotificationRequestDto,
-  NotificationResponseDto,
-  NotificationListResponseDto,
-  NotificationQueryRequestDto,
-  NotificationStatsResponseDto,
-  BulkNotificationActionRequestDto,
-  CleanupStatsResponseDto,
-  CleanupResultResponseDto,
+  INotificationStream,
+  NotificationSseEvent,
+} from '../../application/ports/i-notification-stream.port';
+import { NOTIFICATION_STREAM_TOKEN } from '../../notification.constants';
+import { INotificationRepository } from '../../domain/repositories/i-notification.repository';
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../notification.constants';
+import { NotificationMapper } from '../../application/services/notification.mapper';
+import {
+  NotificationNotFoundException,
+  UnauthorizedNotificationAccessException,
+} from '../../domain/exceptions/notification.exceptions';
+import {
+  GetNotificationsQueryDto,
+  NotificationIdParamDto,
 } from '../dto/notification-request.dto';
 
-/**
- * Presentation layer controller for notification operations
- * Maps HTTP requests to application services
- */
-@ApiTags('notifications')
+@ApiTags('Notifications')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationController {
+  private readonly logger = new Logger(NotificationController.name);
+
   constructor(
-    private readonly notificationApplicationService: NotificationApplicationService,
+    private readonly appService: NotificationApplicationService,
+    @Inject(NOTIFICATION_STREAM_TOKEN)
+    private readonly stream: INotificationStream,
+    @Inject(NOTIFICATION_REPOSITORY_TOKEN)
+    private readonly repo: INotificationRepository,
   ) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new notification' })
-  @ApiBody({ type: CreateNotificationRequestDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Notification created successfully',
-    type: NotificationResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async create(
-    @Body(ValidationPipe) createNotificationDto: CreateNotificationRequestDto,
-  ): Promise<NotificationResponseDto> {
-    return await this.notificationApplicationService.createNotification(
-      createNotificationDto,
+  // ────────────────────────────────────────────────────────
+  // SSE — single unified real-time stream
+  // ────────────────────────────────────────────────────────
+
+  /**
+   * `GET /notifications/stream`
+   *
+   * Opens an SSE connection.  The browser reconnects automatically with
+   * `Last-Event-ID` header — the server replays any missed notifications
+   * from the DB that were created after that ID's timestamp.
+   *
+   * Multiple tabs share the same underlying RxJS Subject; the adapter
+   * uses reference counting to clean up when the last tab disconnects.
+   */
+  @Sse('stream')
+  @ApiOperation({ summary: 'Open SSE notification stream' })
+  sseStream(
+    @CurrentUser('id') userId: string,
+    @Req() req: Request,
+  ): Observable<MessageEvent> {
+    this.logger.log(`SSE stream opened for user ${userId}`);
+
+    // Replay missed notifications on reconnect
+    const lastEventId = req.headers['last-event-id'] as string | undefined;
+    if (lastEventId) {
+      this.replayMissed(userId, lastEventId);
+    }
+
+    return this.stream.subscribe(userId).pipe(
+      map((event: NotificationSseEvent): MessageEvent => ({
+        id: event.id,
+        type: event.type,
+        data: event.data,
+      })),
     );
   }
+
+  // ────────────────────────────────────────────────────────
+  // REST endpoints
+  // ────────────────────────────────────────────────────────
 
   @Get()
-  @ApiOperation({
-    summary: 'Get user notifications with pagination and filtering',
-  })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiQuery({ name: 'isRead', required: false, type: Boolean })
-  @ApiQuery({
-    name: 'type',
-    required: false,
-    enum: ['like', 'comment', 'follow', 'message'],
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
-  @ApiQuery({ name: 'sortBy', required: false, enum: ['newest', 'oldest'] })
-  @ApiResponse({
-    status: 200,
-    description: 'Notifications retrieved successfully',
-    type: NotificationListResponseDto,
-  })
-  async findAll(
-    @Query('userId') userId: string,
-    @Query(ValidationPipe) query: NotificationQueryRequestDto,
-  ): Promise<NotificationListResponseDto> {
-    return await this.notificationApplicationService.getNotifications(
+  @ApiOperation({ summary: 'List paginated notifications' })
+  async list(
+    @CurrentUser('id') userId: string,
+    @Query() query: GetNotificationsQueryDto,
+  ) {
+    return this.appService.list({
       userId,
-      query,
-    );
+      page: query.page,
+      limit: query.limit,
+    });
   }
 
-  @Get('stats/:userId')
-  @ApiOperation({ summary: 'Get notification statistics for user' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Notification statistics retrieved successfully',
-    type: NotificationStatsResponseDto,
-  })
-  async getStats(
-    @Param('userId') userId: string,
-  ): Promise<NotificationStatsResponseDto> {
-    return await this.notificationApplicationService.getNotificationStats(
-      userId,
-    );
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Get unread notification count' })
+  async unreadCount(@CurrentUser('id') userId: string) {
+    return this.appService.unreadCount(userId);
   }
 
-  @Get('unread-count/:userId')
-  @ApiOperation({ summary: 'Get unread notifications count' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Unread count retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        count: { type: 'number', example: 5 },
-        userId: { type: 'string', example: 'user-123' },
-      },
-    },
-  })
-  async getUnreadCount(
-    @Param('userId') userId: string,
-  ): Promise<{ count: number; userId: string }> {
-    const count =
-      await this.notificationApplicationService.getUnreadCount(userId);
-    return { count, userId };
-  }
-
-  @Get('realtime/:userId')
-  @ApiOperation({ summary: 'Get real-time notifications since timestamp' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiQuery({
-    name: 'since',
-    required: true,
-    type: String,
-    description: 'ISO timestamp to get notifications since',
-    example: '2024-01-01T00:00:00.000Z',
-  })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 50 })
-  @ApiResponse({
-    status: 200,
-    description: 'Real-time notifications retrieved successfully',
-    type: [NotificationResponseDto],
-  })
-  async getRealtimeNotifications(
-    @Param('userId') userId: string,
-    @Query('since') sinceTimestamp: string,
-    @Query('limit') limit?: number,
-  ): Promise<NotificationResponseDto[]> {
-    const since = new Date(sinceTimestamp);
-    return await this.notificationApplicationService.getLatestNotifications(
-      userId,
-      since,
-      limit || 50,
-    );
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a specific notification by ID' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Notification retrieved successfully',
-    type: NotificationResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Notification not found' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
-  async findOne(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-  ): Promise<NotificationResponseDto> {
-    return await this.notificationApplicationService.getNotification(
-      id,
-      userId,
-    );
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a notification' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiBody({ type: UpdateNotificationRequestDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Notification updated successfully',
-    type: NotificationResponseDto,
-  })
-  @ApiResponse({ status: 404, description: 'Notification not found' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
-  async update(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-    @Body(ValidationPipe) updateNotificationDto: UpdateNotificationRequestDto,
-  ): Promise<NotificationResponseDto> {
-    return await this.notificationApplicationService.updateNotification(
-      id,
-      userId,
-      updateNotificationDto,
-    );
-  }
-
-  @Post(':id/read')
+  @Patch(':id/read')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark notification as read' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiResponse({ status: 204, description: 'Notification marked as read' })
-  @ApiResponse({ status: 404, description: 'Notification not found' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
+  @ApiOperation({ summary: 'Mark a single notification as read' })
   async markAsRead(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-  ): Promise<void> {
-    await this.notificationApplicationService.markAsRead(id, userId);
-  }
-
-  @Post(':id/unread')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark notification as unread' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiResponse({ status: 204, description: 'Notification marked as unread' })
-  @ApiResponse({ status: 404, description: 'Notification not found' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
-  async markAsUnread(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-  ): Promise<void> {
-    await this.notificationApplicationService.markAsUnread(id, userId);
-  }
-
-  @Post('mark-read-bulk')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark multiple notifications as read' })
-  @ApiBody({ type: BulkNotificationActionRequestDto })
-  @ApiResponse({ status: 204, description: 'Notifications marked as read' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async markAsReadBulk(
-    @Query('userId') userId: string,
-    @Body(ValidationPipe) dto: BulkNotificationActionRequestDto,
-  ): Promise<void> {
-    await this.notificationApplicationService.markAsReadBulk(
-      dto.notificationIds,
-      userId,
-    );
-  }
-
-  @Post('mark-unread-bulk')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark multiple notifications as unread' })
-  @ApiBody({ type: BulkNotificationActionRequestDto })
-  @ApiResponse({ status: 204, description: 'Notifications marked as unread' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async markAsUnreadBulk(
-    @Query('userId') userId: string,
-    @Body(ValidationPipe) dto: BulkNotificationActionRequestDto,
-  ): Promise<void> {
-    await this.notificationApplicationService.markAsUnreadBulk(
-      dto.notificationIds,
-      userId,
-    );
-  }
-
-  @Post('mark-all-read/:userId')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Mark all notifications as read' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiResponse({ status: 204, description: 'All notifications marked as read' })
-  async markAllAsRead(@Param('userId') userId: string): Promise<void> {
-    await this.notificationApplicationService.markAllAsRead(userId);
-  }
-
-  @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a notification' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
-  @ApiQuery({
-    name: 'userId',
-    required: true,
-    type: String,
-    description: 'User ID',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'Notification deleted successfully',
-  })
-  @ApiResponse({ status: 404, description: 'Notification not found' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
-  async remove(
-    @Param('id') id: string,
-    @Query('userId') userId: string,
-  ): Promise<void> {
-    await this.notificationApplicationService.deleteNotification(id, userId);
-  }
-
-  @Post('delete-bulk')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete multiple notifications' })
-  @ApiBody({ type: BulkNotificationActionRequestDto })
-  @ApiResponse({
-    status: 204,
-    description: 'Notifications deleted successfully',
-  })
-  @ApiResponse({ status: 400, description: 'Bad request' })
-  async deleteBulk(
-    @Query('userId') userId: string,
-    @Body(ValidationPipe) dto: BulkNotificationActionRequestDto,
-  ): Promise<void> {
-    await this.notificationApplicationService.deleteNotificationsBulk(
-      dto.notificationIds,
-      userId,
-    );
-  }
-
-  @Get('cleanup/stats/:userId')
-  @ApiOperation({ summary: 'Get cleanup statistics' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiQuery({
-    name: 'olderThanDays',
-    required: false,
-    type: Number,
-    example: 30,
-    description: 'Calculate stats for notifications older than specified days',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Cleanup statistics retrieved successfully',
-    type: CleanupStatsResponseDto,
-  })
-  async getCleanupStats(
-    @Param('userId') userId: string,
-    @Query('olderThanDays') olderThanDays?: number,
-  ): Promise<CleanupStatsResponseDto> {
-    const stats = await this.notificationApplicationService.getCleanupStats(
-      userId,
-      olderThanDays || 30,
-    );
-
-    return {
-      userId,
-      totalEligibleForCleanup: stats.estimatedCleanupCount,
-      readEligibleForCleanup: stats.readNotifications,
-      unreadEligibleForCleanup:
-        stats.totalNotifications - stats.readNotifications,
-      olderThanDays: olderThanDays || 30,
-      oldestEligibleDate: new Date(
-        Date.now() - (olderThanDays || 30) * 24 * 60 * 60 * 1000,
-      ),
-      generatedAt: new Date(),
-    };
-  }
-
-  @Post('cleanup/read/:userId')
-  @ApiOperation({ summary: 'Cleanup old read notifications' })
-  @ApiParam({ name: 'userId', description: 'User ID' })
-  @ApiQuery({
-    name: 'olderThanDays',
-    required: false,
-    type: Number,
-    example: 30,
-    description: 'Delete read notifications older than specified days',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Cleanup completed',
-    type: CleanupResultResponseDto,
-  })
-  async cleanupRead(
-    @Param('userId') userId: string,
-    @Query('olderThanDays') olderThanDays?: number,
-  ): Promise<CleanupResultResponseDto> {
-    const result =
-      await this.notificationApplicationService.cleanupUserReadNotifications(
+    @CurrentUser('id') userId: string,
+    @Param() params: NotificationIdParamDto,
+  ) {
+    try {
+      await this.appService.markAsRead({
+        notificationId: params.id,
         userId,
-        olderThanDays || 30,
-      );
-    return {
-      userId,
-      deletedCount: result.deletedCount,
-      olderThanDays: olderThanDays || 30,
-      cleanupDate: new Date(),
-      success: true,
-    };
+      });
+    } catch (error) {
+      this.mapDomainException(error);
+    }
   }
 
-  @Post('cleanup/system')
-  @ApiOperation({
-    summary: 'System-wide cleanup of old notifications (Admin only)',
-  })
-  @ApiQuery({
-    name: 'olderThanDays',
-    required: false,
-    type: Number,
-    example: 90,
-    description: 'Delete notifications older than specified days',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'System cleanup completed',
-    type: CleanupResultResponseDto,
-  })
-  async cleanupSystem(
-    @Query('olderThanDays') olderThanDays?: number,
-  ): Promise<CleanupResultResponseDto> {
-    const result =
-      await this.notificationApplicationService.cleanupSystemOldNotifications(
-        olderThanDays || 90,
+  @Patch('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark all notifications as read' })
+  async markAllAsRead(@CurrentUser('id') userId: string) {
+    const count = await this.appService.markAllAsRead({ userId });
+    return { updated: count };
+  }
+
+  // ────────────────────────────────────────────────────────
+  // Missed-notification replay (async, does not block SSE open)
+  // ────────────────────────────────────────────────────────
+
+  private async replayMissed(
+    userId: string,
+    lastEventId: string,
+  ): Promise<void> {
+    try {
+      // lastEventId is the notification UUID — look up its createdAt
+      const lastSeen = await this.repo.findById(lastEventId);
+      if (!lastSeen) return;
+
+      const missed = await this.repo.findAfterTimestamp(
+        userId,
+        lastSeen.createdAt,
       );
-    return {
-      userId: 'system',
-      deletedCount: result.deletedCount,
-      olderThanDays: olderThanDays || 90,
-      cleanupDate: new Date(),
-      success: true,
-    };
+
+      for (const n of missed) {
+        this.stream.push(userId, {
+          id: n.id,
+          type: n.type,
+          data: NotificationMapper.toResponse(n),
+        });
+      }
+
+      this.logger.debug(
+        `Replayed ${missed.length} missed notifications for user ${userId}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to replay missed notifications for user ${userId}`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+
+  // ────────────────────────────────────────────────────────
+  // Domain → HTTP exception mapping
+  // ────────────────────────────────────────────────────────
+
+  private mapDomainException(error: unknown): never {
+    if (error instanceof NotificationNotFoundException) {
+      throw new NotFoundException(error.message);
+    }
+    if (error instanceof UnauthorizedNotificationAccessException) {
+      throw new ForbiddenException(error.message);
+    }
+    throw error;
   }
 }

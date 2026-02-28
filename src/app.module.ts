@@ -14,6 +14,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { StoryModule } from './modules/story/story.module';
 import { WebSocketModule } from './infrastructure/websocket';
 import { MessageQueueModule } from './infrastructure/message-queue';
+import { NotificationModule } from './modules/notification/notification.module';
 
 import {
   CorsMiddleware,
@@ -57,6 +58,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     PostMediasModule,
     PostsModule,
     StoryModule,
+    NotificationModule,
 
     // 🧪 Test Module
     TestModule,

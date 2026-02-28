@@ -1,69 +1,33 @@
-import { Injectable, Inject } from '@nestjs/common';
-import { INotificationDomainRepository } from '../../domain/repositories/notification-domain-repository.interface';
-import { NotificationDomainService } from '../../domain/services/notification-domain.service';
+import { Inject, Injectable } from '@nestjs/common';
+import { NOTIFICATION_REPOSITORY_TOKEN } from '../../notification.constants';
+import { INotificationRepository } from '../../domain/repositories/i-notification.repository';
 import {
-  NotificationQueryDto,
+  GetNotificationsDto,
   NotificationListResponseDto,
-  NotificationResponseDto,
 } from '../dto/notification.dto';
-import { NOTIFICATION_REPOSITORY_TOKEN } from '../../constants';
+import { NotificationMapper } from '../services/notification.mapper';
 
-/**
- * Use case for getting user notifications with pagination and filtering
- */
 @Injectable()
 export class GetNotificationsUseCase {
   constructor(
-    private readonly notificationDomainService: NotificationDomainService,
     @Inject(NOTIFICATION_REPOSITORY_TOKEN)
-    private readonly notificationRepository: INotificationDomainRepository,
+    private readonly repo: INotificationRepository,
   ) {}
 
-  async execute(
-    userId: string,
-    query: NotificationQueryDto,
-  ): Promise<NotificationListResponseDto> {
-    // Get notifications from repository
-    const result = await this.notificationRepository.findByUserId(userId, {
-      ...query,
-      page: query.page || 1,
-      limit: Math.min(query.limit || 20, 100), // Max 100 items per page
-    });
+  async execute(dto: GetNotificationsDto): Promise<NotificationListResponseDto> {
+    const page = dto.page ?? 1;
+    const limit = Math.min(dto.limit ?? 20, 100);
 
-    // Convert entities to DTOs
-    const notifications = result.notifications.map((notification) =>
-      this.mapToResponseDto(notification),
-    );
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(result.total / (query.limit || 20));
+    const [items, total] = await Promise.all([
+      this.repo.findByUserId(dto.userId, { page, limit }),
+      this.repo.countUnread(dto.userId), // cheap count for badge
+    ]);
 
     return {
-      notifications,
-      total: result.total,
-      unreadCount: result.unreadCount,
-      page: query.page || 1,
-      limit: query.limit || 20,
-      totalPages,
-    };
-  }
-
-  private mapToResponseDto(notification: any): NotificationResponseDto {
-    const priority = this.notificationDomainService.getNotificationPriority(
-      notification.type,
-    );
-
-    return {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      content: notification.content,
-      userId: notification.userId,
-      isRead: notification.isRead,
-      entityId: notification.entityId,
-      entityType: notification.entityType,
-      createdAt: notification.createdAt,
-      priority,
+      items: items.map(NotificationMapper.toResponse),
+      total,
+      page,
+      limit,
     };
   }
 }

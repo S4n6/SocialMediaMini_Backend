@@ -1,51 +1,55 @@
-import { Injectable, Inject } from '@nestjs/common';
-
+import { Inject, Injectable } from '@nestjs/common';
 import {
   NOTIFICATION_REPOSITORY_TOKEN,
-  DOMAIN_EVENT_PUBLISHER_TOKEN,
-} from '../../constants';
-import { NotificationFactory } from '../../domain/factories/notification.factory';
-import { INotificationDomainRepository } from '../../domain/repositories/notification-domain-repository.interface';
-import { IDomainEventPublisher } from '../interfaces/domain-event-publisher.interface';
-import { NotificationMapper } from '../services/notification.mapper';
+  NOTIFICATION_STREAM_TOKEN,
+} from '../../notification.constants';
+import { INotificationRepository } from '../../domain/repositories/i-notification.repository';
+import { NotificationEntity } from '../../domain/entities/notification.entity';
+import { INotificationStream } from '../ports/i-notification-stream.port';
 import {
   CreateNotificationDto,
   NotificationResponseDto,
 } from '../dto/notification.dto';
+import { NotificationMapper } from '../services/notification.mapper';
 
 /**
- * Use case for creating a new notification
- * Single responsibility: Create and persist a notification, then publish domain events
+ * Persist-first, push-second.
+ *
+ * 1. Create the domain entity (validates, raises NotificationCreatedEvent).
+ * 2. Persist to DB — ensures offline users will see it.
+ * 3. Push to SSE stream — online users get it in real-time.
  */
 @Injectable()
 export class CreateNotificationUseCase {
   constructor(
-    private readonly notificationFactory: NotificationFactory,
     @Inject(NOTIFICATION_REPOSITORY_TOKEN)
-    private readonly notificationRepository: INotificationDomainRepository,
-    @Inject(DOMAIN_EVENT_PUBLISHER_TOKEN)
-    private readonly domainEventPublisher: IDomainEventPublisher,
+    private readonly repo: INotificationRepository,
+    @Inject(NOTIFICATION_STREAM_TOKEN)
+    private readonly stream: INotificationStream,
   ) {}
 
   async execute(dto: CreateNotificationDto): Promise<NotificationResponseDto> {
-    // 1. Create notification entity using factory
-    const notification = this.notificationFactory.createNotification({
+    // 1. Domain validation via constructor
+    const notification = new NotificationEntity({
       type: dto.type,
+      title: dto.title,
+      content: dto.content,
       userId: dto.userId,
       entityId: dto.entityId,
       entityType: dto.entityType,
-      customTitle: dto.title,
-      customContent: dto.content,
+      metadata: dto.metadata,
     });
 
-    // 2. Save to repository
-    const savedNotification =
-      await this.notificationRepository.save(notification);
+    // 2. Persist first (offline-safe)
+    await this.repo.save(notification);
 
-    // 3. Publish domain events
-    await this.domainEventPublisher.publishFromAggregate(savedNotification);
+    // 3. Push to SSE (real-time, no-op if user offline)
+    this.stream.push(notification.userId, {
+      id: notification.id,
+      type: notification.type,
+      data: NotificationMapper.toResponse(notification),
+    });
 
-    // 4. Convert to response DTO using centralized mapper
-    return NotificationMapper.toResponseDto(savedNotification);
+    return NotificationMapper.toResponse(notification);
   }
 }
