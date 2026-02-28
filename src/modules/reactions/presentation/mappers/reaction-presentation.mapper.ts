@@ -1,13 +1,16 @@
-import { ReactionType } from '../../constants';
+import { ReactionTypeValue } from '../../domain/value-objects/reaction-type.value-object';
 import {
   CreateReactionDto,
-  LegacyGetReactionsQuery,
+  GetReactionsQuery,
 } from '../../application/dto/reaction.dto';
 import {
   CreateReactionRequestDto,
   GetReactionsQueryDto,
 } from '../dto/reaction-request.dto';
 
+/**
+ * Maps presentation DTOs to application DTOs
+ */
 export class ReactionPresentationMapper {
   static toCreateReactionDto(
     request: CreateReactionRequestDto,
@@ -15,13 +18,11 @@ export class ReactionPresentationMapper {
     return {
       postId: request.postId,
       commentId: request.commentId,
-      type: request.type as ReactionType,
+      type: request.type as ReactionTypeValue,
     };
   }
 
-  static toGetReactionsQuery(
-    query: GetReactionsQueryDto,
-  ): LegacyGetReactionsQuery {
+  static toGetReactionsQuery(query: GetReactionsQueryDto): GetReactionsQuery {
     return {
       postId: query.postId,
       commentId: query.commentId,

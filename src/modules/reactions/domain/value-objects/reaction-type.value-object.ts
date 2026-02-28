@@ -1,17 +1,27 @@
-import {
-  VALID_REACTION_TYPES,
-  ReactionType as ReactionTypeEnum,
-} from '../../constants';
+export const VALID_REACTION_TYPES = [
+  'LIKE',
+  'LOVE',
+  'HAHA',
+  'WOW',
+  'SAD',
+  'ANGRY',
+] as const;
 
+export type ReactionTypeValue = (typeof VALID_REACTION_TYPES)[number];
+
+/**
+ * Value Object for reaction type
+ * Self-validating, immutable - pure TypeScript
+ */
 export class ReactionType {
-  private constructor(private readonly value: ReactionTypeEnum) {}
+  private constructor(private readonly value: ReactionTypeValue) {}
 
   static create(value: string): ReactionType {
-    const upperValue = value.toUpperCase() as ReactionTypeEnum;
+    const upperValue = value.toUpperCase() as ReactionTypeValue;
 
     if (!VALID_REACTION_TYPES.includes(upperValue)) {
       throw new Error(
-        `Invalid reaction type: '${value}'. Allowed types are: ${VALID_REACTION_TYPES.join(', ')}`,
+        `Invalid reaction type: '${value}'. Allowed: ${VALID_REACTION_TYPES.join(', ')}`,
       );
     }
 
@@ -42,7 +52,7 @@ export class ReactionType {
     return new ReactionType('ANGRY');
   }
 
-  getValue(): ReactionTypeEnum {
+  getValue(): ReactionTypeValue {
     return this.value;
   }
 
@@ -52,10 +62,6 @@ export class ReactionType {
 
   equals(other: ReactionType): boolean {
     return this.value === other.value;
-  }
-
-  isLike(): boolean {
-    return this.value === 'LIKE';
   }
 
   isPositive(): boolean {

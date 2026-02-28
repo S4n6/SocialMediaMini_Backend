@@ -1,3 +1,6 @@
+/**
+ * Application-layer response DTOs
+ */
 export interface ReactionResponseDto {
   id: string;
   type: string;
@@ -5,7 +8,6 @@ export interface ReactionResponseDto {
   postId?: string | null;
   commentId?: string | null;
   createdAt: Date;
-  updatedAt: Date;
   reactor?: {
     id: string;
     fullName: string;
