@@ -3,6 +3,10 @@ import { PrismaService } from '../../../../../database/prisma.service';
 import { PostEntity, PostPrivacy } from '../../../domain/entities/post.entity';
 import { IPostRepository } from '../../../domain/repositories/post.repository';
 import { PostMapper } from '../mappers/post.mapper';
+import {
+  PostPrivacy as PrismaPostPrivacy,
+  MediaType as PrismaMediaType,
+} from '../../../../../generated/prisma/enums';
 
 /**
  * Prisma implementation of Post repository
@@ -50,7 +54,7 @@ export class PostPrismaRepository implements IPostRepository {
           id: media.id,
           postId: post.id,
           url: media.url,
-          type: media.type,
+          type: media.type.toUpperCase() as PrismaMediaType,
           order: media.order,
         })),
       });
@@ -186,9 +190,9 @@ export class PostPrismaRepository implements IPostRepository {
           authorId: userId,
           privacy: {
             in: [
-              PostPrivacy.PUBLIC,
-              PostPrivacy.FOLLOWERS,
-              PostPrivacy.PRIVATE,
+              PrismaPostPrivacy.PUBLIC,
+              PrismaPostPrivacy.FOLLOWERS,
+              PrismaPostPrivacy.PRIVATE,
             ],
           },
         },
@@ -197,7 +201,9 @@ export class PostPrismaRepository implements IPostRepository {
             followers: { some: { followerId: userId } },
           },
           authorId: { not: userId },
-          privacy: { in: [PostPrivacy.PUBLIC, PostPrivacy.FOLLOWERS] },
+          privacy: {
+            in: [PrismaPostPrivacy.PUBLIC, PrismaPostPrivacy.FOLLOWERS],
+          },
         },
       ],
     };
@@ -227,7 +233,7 @@ export class PostPrismaRepository implements IPostRepository {
     oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     const trendingWhere = {
-      privacy: PostPrivacy.PUBLIC,
+      privacy: PrismaPostPrivacy.PUBLIC,
       createdAt: { gte: oneDayAgo },
     };
 
@@ -279,7 +285,7 @@ export class PostPrismaRepository implements IPostRepository {
   ): Promise<{ posts: PostEntity[]; total: number }> {
     const hashtagWhere = {
       hashtags: { some: { hashtag: { name: hashtag } } },
-      privacy: PostPrivacy.PUBLIC,
+      privacy: PrismaPostPrivacy.PUBLIC,
     };
 
     const [posts, total] = await Promise.all([

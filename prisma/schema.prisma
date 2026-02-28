@@ -394,7 +394,7 @@ enum UserStatus {
 
 enum PostPrivacy {
   PUBLIC
-  FRIENDS_ONLY
+  FOLLOWERS
   PRIVATE
   CLOSE_FRIENDS
 }
@@ -402,7 +402,7 @@ enum PostPrivacy {
 enum ReactionType {
   LIKE
   LOVE
-  HAHA
+  LAUGH
   WOW
   SAD
   ANGRY
@@ -428,7 +428,7 @@ enum MediaType {
 enum MediaStatus {
   PENDING
   PROCESSING
-  COMPLETED
+  READY
   FAILED
 }
 

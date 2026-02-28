@@ -7,6 +7,7 @@ import {
   UserId,
   ConversationType,
 } from '../../domain';
+import { ConversationRole as PrismaConversationRole } from '../../../../generated/prisma/enums';
 
 @Injectable()
 export class ConversationRepositoryImpl implements IConversationRepository {
@@ -27,7 +28,7 @@ export class ConversationRepositoryImpl implements IConversationRepository {
           createMany: {
             data: data.participants.map((p) => ({
               userId: p.userId,
-              role: p.role,
+              role: p.role.toUpperCase() as PrismaConversationRole,
               joinedAt: new Date(p.joinedAt),
               lastReadAt: null, // Will be updated later
             })),
@@ -144,7 +145,7 @@ export class ConversationRepositoryImpl implements IConversationRepository {
       data: data.participants.map((p) => ({
         conversationId: data.id,
         userId: p.userId,
-        role: p.role,
+        role: p.role.toUpperCase() as PrismaConversationRole,
         joinedAt: new Date(p.joinedAt),
         lastReadAt: null,
       })),

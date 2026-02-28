@@ -5,6 +5,10 @@ import {
   ReactionType,
 } from '../../../domain/entities/post.entity';
 import { PostFactory } from '../../../domain/factories/post.factory';
+import {
+  PostPrivacy as PrismaPostPrivacy,
+  MediaType as PrismaMediaType,
+} from '../../../../../generated/prisma/enums';
 
 /**
  * Mapper for converting between Prisma data models and Post domain entities.
@@ -104,7 +108,7 @@ export class PostMapper {
     return {
       id: post.id,
       content: post.content,
-      privacy: post.privacy,
+      privacy: post.privacy as string as PrismaPostPrivacy,
       authorId: post.authorId,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,

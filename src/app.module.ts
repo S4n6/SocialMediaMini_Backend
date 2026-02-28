@@ -26,6 +26,7 @@ import {
   FileUploadSecurityMiddleware,
 } from './shared/middlewares';
 import { ErrorMonitoringService } from './shared/services/error-monitoring.service';
+import { ReactionsModule } from './modules/reactions/reactions.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     PostsModule,
     StoryModule,
     NotificationModule,
+    ReactionsModule,
 
     // 🧪 Test Module
     TestModule,

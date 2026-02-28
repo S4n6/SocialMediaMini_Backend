@@ -5,6 +5,7 @@ import { Token } from '../../domain/value-objects/token.vo';
 import { PrismaService } from '../../../../database/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { JWT } from '../../../../config/jwt.config';
+import { ClientType } from '../../../../generated/prisma/enums';
 
 /**
  * Prisma Session Repository Implementation
@@ -79,7 +80,7 @@ export class SessionRepository implements ISessionRepository {
         userAgent: sessionData.userAgent,
         deviceName: sessionData.deviceName,
         deviceType: sessionData.deviceType,
-        clientType: sessionData.clientType,
+        clientType: sessionData.clientType as ClientType,
         isRevoked: sessionData.isRevoked,
         createdAt: sessionData.createdAt,
         expiresAt: sessionData.expiresAt,
@@ -107,7 +108,7 @@ export class SessionRepository implements ISessionRepository {
 
   async save(session: AuthSession): Promise<void> {
     const sessionData = session.toPlainObject();
-    
+
     await this.prisma.session.upsert({
       where: { id: sessionData.id },
       create: {
@@ -118,7 +119,7 @@ export class SessionRepository implements ISessionRepository {
         userAgent: sessionData.userAgent,
         deviceName: sessionData.deviceName,
         deviceType: sessionData.deviceType,
-        clientType: sessionData.clientType,
+        clientType: sessionData.clientType as ClientType,
         isRevoked: sessionData.isRevoked,
         createdAt: sessionData.createdAt,
         expiresAt: sessionData.expiresAt,
