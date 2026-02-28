@@ -17,6 +17,7 @@ import {
   PostResponseDto,
   PostDetailResponseDto,
   PostListResponseDto,
+  CursorPaginatedPostsResponseDto,
 } from './dto/post.dto';
 
 /**
@@ -122,32 +123,35 @@ export class PostApplicationService {
   async getTimelineFeed(
     userId: string,
     dto: GetTimelineFeedDto,
-  ): Promise<PostListResponseDto> {
-    // Generate cache key with user ID, pagination params, and algorithm
+  ): Promise<CursorPaginatedPostsResponseDto> {
+    const limit = dto.limit || 10;
+    const cursor = dto.cursor || null;
+    const algorithm = dto.algorithm || 'chronological';
+
+    // Generate cache key with cursor (deterministic per scroll position)
     const cacheKey = generateCacheKey(
       'TIMELINE_FEED',
-      `${userId}:page:${dto.page || 1}:limit:${dto.limit || 10}:algo:${dto.algorithm || 'chronological'}`,
+      `${userId}:cursor:${cursor ?? 'initial'}:limit:${limit}:algo:${algorithm}`,
     );
 
-    // Try to get from cache first
     const cachedResult = await this.cacheService.getOrSet(
       cacheKey,
       async () => {
         const result = await this.getTimelineFeedUseCase.execute(
           userId,
-          dto.page || 1,
-          dto.limit || 10,
-          dto.algorithm || 'chronological',
+          limit,
+          cursor,
+          algorithm,
         );
 
         // Enrich each post with user information
         const enrichedPosts = await this.postEnrichmentService.enrichPosts(
-          result.posts,
+          result.data,
         );
 
         return {
           ...result,
-          posts: enrichedPosts,
+          data: enrichedPosts,
         };
       },
       getCacheTTL('TIMELINE_FEED'), // 5 minutes as defined in cache config
@@ -159,25 +163,23 @@ export class PostApplicationService {
   // ===== CACHE MANAGEMENT =====
 
   /**
-   * Invalidate user's timeline feed cache when posts change
+   * Invalidate user's timeline feed cache when posts change.
+   * With cursor pagination we only need to bust the initial page
+   * (cursor=null) since subsequent pages are fetched on-demand
+   * and will naturally pick up changes.
    */
   private async invalidateTimelineFeedCache(userId: string): Promise<void> {
     try {
-      // Since we cache with pagination params, we need to invalidate multiple keys
-      // For simplicity, we'll use a pattern-based approach or clear specific common combinations
-      const commonPages = [1, 2, 3]; // Most common pages
-      const commonLimits = [10, 20]; // Common limits
+      const commonLimits = [10, 20];
       const algorithms = ['chronological', 'smart', 'diversified'];
 
-      for (const page of commonPages) {
-        for (const limit of commonLimits) {
-          for (const algo of algorithms) {
-            const cacheKey = generateCacheKey(
-              'TIMELINE_FEED',
-              `${userId}:page:${page}:limit:${limit}:algo:${algo}`,
-            );
-            await this.cacheService.del(cacheKey);
-          }
+      for (const limit of commonLimits) {
+        for (const algo of algorithms) {
+          const cacheKey = generateCacheKey(
+            'TIMELINE_FEED',
+            `${userId}:cursor:initial:limit:${limit}:algo:${algo}`,
+          );
+          await this.cacheService.del(cacheKey);
         }
       }
     } catch (error) {

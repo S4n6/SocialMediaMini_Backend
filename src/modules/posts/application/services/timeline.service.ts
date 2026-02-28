@@ -1,6 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PostEntity } from '../../domain/entities/post.entity';
-import { ITimelineRepository } from '../../domain/repositories/timeline.repository';
+import {
+  ITimelineRepository,
+  CursorPaginatedPosts,
+} from '../../domain/repositories/timeline.repository';
 import { TIMELINE_REPOSITORY_TOKEN } from '../../constants';
 
 export type TimelineAlgorithm = 'chronological' | 'smart' | 'diversified';
@@ -13,40 +16,38 @@ export class TimelineService {
   ) {}
 
   /**
-   * Get timeline feed using specified algorithm
+   * Get timeline feed using specified algorithm with cursor pagination
    */
   async getTimelineFeed(
     userId: string,
-    page: number,
     limit: number,
+    cursor?: string | null,
     algorithm: TimelineAlgorithm = 'chronological',
-  ): Promise<{ posts: PostEntity[]; total: number }> {
+  ): Promise<CursorPaginatedPosts> {
     switch (algorithm) {
       case 'smart':
         if (this.timelineRepository.getSmartTimelineFeed) {
           return this.timelineRepository.getSmartTimelineFeed(
             userId,
-            page,
             limit,
+            cursor,
           );
         }
-        // Fallback to chronological
-        return this.timelineRepository.getTimelineFeed(userId, page, limit);
+        return this.timelineRepository.getTimelineFeed(userId, limit, cursor);
 
       case 'diversified':
         if (this.timelineRepository.getDiversifiedTimelineFeed) {
           return this.timelineRepository.getDiversifiedTimelineFeed(
             userId,
-            page,
             limit,
+            cursor,
           );
         }
-        // Fallback to chronological
-        return this.timelineRepository.getTimelineFeed(userId, page, limit);
+        return this.timelineRepository.getTimelineFeed(userId, limit, cursor);
 
       case 'chronological':
       default:
-        return this.timelineRepository.getTimelineFeed(userId, page, limit);
+        return this.timelineRepository.getTimelineFeed(userId, limit, cursor);
     }
   }
 
