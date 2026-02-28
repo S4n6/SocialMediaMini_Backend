@@ -1,78 +1,42 @@
 import { Module } from '@nestjs/common';
-import { CacheModule } from '@nestjs/cache-manager';
 import { PrismaModule } from '../../database/prisma.module';
 
-// Presentation Layer
-import { ReactionsController } from './presentation';
-
-// Application Layer
+// Constants
 import {
-  ReactionApplicationService,
-  CreateReactionUseCase,
-  DeleteReactionUseCase,
-  GetReactionUseCase,
-  GetReactionsUseCase,
-  GetPostReactionsUseCase,
-  GetReactionStatusUseCase,
-  ReactionValidationService,
-  ReactionEnrichmentService,
-  ExternalPostService,
-  ExternalCommentService,
-  ExternalUserService,
-  NotificationService,
-} from './application';
-
-// Domain Layer
-import {
-  ReactionRepository,
-  ReactionFactory,
-  ReactionDomainService,
-  ReactionBusinessRulesService,
-  ReactionOperationService,
-  IReactionBaseRepository,
-  IReactionFinderRepository,
-  IReactionStatsRepository,
-} from './domain';
-
-// Infrastructure Layer
-import {
-  PrismaReactionRepository,
-  EnhancedPrismaReactionRepository,
-  PrismaPostService,
-  PrismaCommentService,
-  PrismaUserService,
-  DirectNotificationService,
-  CacheAdapter,
-  EventPublisherAdapter,
-  MetricsAdapter,
-} from './infrastructure';
-
-// Presentation Layer - Filters and Mappers
-import { ReactionExceptionFilter } from './presentation/filters/reaction-exception.filter';
-import { ReactionResponseMapper } from './presentation/mappers/reaction-response.mapper';
-
-// Constants and tokens
-import {
-  EXTERNAL_POST_SERVICE,
-  EXTERNAL_COMMENT_SERVICE,
-  EXTERNAL_USER_SERVICE,
-  NOTIFICATION_SERVICE,
-  REACTION_BASE_REPOSITORY,
-  REACTION_FINDER_REPOSITORY,
-  REACTION_STATS_REPOSITORY,
+  REACTION_REPOSITORY_TOKEN,
+  EXTERNAL_POST_SERVICE_TOKEN,
+  EXTERNAL_COMMENT_SERVICE_TOKEN,
+  EXTERNAL_USER_SERVICE_TOKEN,
+  NOTIFICATION_SERVICE_TOKEN,
 } from './constants';
 
+// Presentation Layer
+import { ReactionsController } from './presentation/reactions.controller';
+
+// Application Layer
+import { ReactionApplicationService } from './application/reaction-application.service';
+import { CreateReactionUseCase } from './application/use-cases/create-reaction.use-case';
+import { DeleteReactionUseCase } from './application/use-cases/delete-reaction.use-case';
+import { GetReactionUseCase } from './application/use-cases/get-reaction.use-case';
+import { GetReactionsUseCase } from './application/use-cases/get-reactions.use-case';
+import { GetPostReactionsUseCase } from './application/use-cases/get-post-reactions.use-case';
+import { GetReactionStatusUseCase } from './application/use-cases/get-reaction-status.use-case';
+
+// Infrastructure Layer - Persistence
+import { ReactionPrismaMapper } from './infrastructure/persistence/mappers/reaction-prisma.mapper';
+import { ReactionPrismaRepository } from './infrastructure/persistence/repositories/reaction-prisma.repository';
+
+// Infrastructure Layer - Adapters
+import { PrismaPostAdapter } from './infrastructure/adapters/prisma-post.adapter';
+import { PrismaCommentAdapter } from './infrastructure/adapters/prisma-comment.adapter';
+import { PrismaUserAdapter } from './infrastructure/adapters/prisma-user.adapter';
+import { DirectNotificationAdapter } from './infrastructure/adapters/direct-notification.adapter';
+
 @Module({
-  imports: [
-    PrismaModule,
-    CacheModule.register({
-      ttl: 300, // 5 minutes default TTL
-      max: 1000, // Maximum number of items in cache
-    }),
-  ],
+  imports: [PrismaModule],
   controllers: [ReactionsController],
   providers: [
-    // Application Layer - Enhanced Services
+    // Application Layer
     ReactionApplicationService,
     CreateReactionUseCase,
     DeleteReactionUseCase,
@@ -80,76 +44,32 @@ import {
     GetReactionsUseCase,
     GetPostReactionsUseCase,
     GetReactionStatusUseCase,
-    ReactionValidationService,
-    ReactionEnrichmentService,
 
-    // Domain Layer
-    ReactionFactory,
-    ReactionDomainService,
-    ReactionBusinessRulesService,
-    ReactionOperationService,
-
-    // Infrastructure Layer - Enhanced Repository
+    // Infrastructure - Persistence
+    ReactionPrismaMapper,
     {
-      provide: ReactionRepository,
-      useClass: EnhancedPrismaReactionRepository,
-    },
-    {
-      provide: REACTION_BASE_REPOSITORY,
-      useExisting: ReactionRepository,
-    },
-    {
-      provide: REACTION_FINDER_REPOSITORY,
-      useExisting: ReactionRepository,
-    },
-    {
-      provide: REACTION_STATS_REPOSITORY,
-      useExisting: ReactionRepository,
+      provide: REACTION_REPOSITORY_TOKEN,
+      useClass: ReactionPrismaRepository,
     },
 
-    // Infrastructure Layer - Adapters
+    // Infrastructure - Adapters
     {
-      provide: 'CACHE_ADAPTER',
-      useClass: CacheAdapter,
+      provide: EXTERNAL_POST_SERVICE_TOKEN,
+      useClass: PrismaPostAdapter,
     },
     {
-      provide: 'EVENT_PUBLISHER_ADAPTER',
-      useClass: EventPublisherAdapter,
+      provide: EXTERNAL_COMMENT_SERVICE_TOKEN,
+      useClass: PrismaCommentAdapter,
     },
     {
-      provide: 'METRICS_ADAPTER',
-      useClass: MetricsAdapter,
-    },
-
-    // Infrastructure Layer - External Services
-    {
-      provide: EXTERNAL_POST_SERVICE,
-      useClass: PrismaPostService,
+      provide: EXTERNAL_USER_SERVICE_TOKEN,
+      useClass: PrismaUserAdapter,
     },
     {
-      provide: EXTERNAL_COMMENT_SERVICE,
-      useClass: PrismaCommentService,
+      provide: NOTIFICATION_SERVICE_TOKEN,
+      useClass: DirectNotificationAdapter,
     },
-    {
-      provide: EXTERNAL_USER_SERVICE,
-      useClass: PrismaUserService,
-    },
-    {
-      provide: NOTIFICATION_SERVICE,
-      useClass: DirectNotificationService,
-    },
-
-    // Presentation Layer - Mappers and Filters
-    ReactionResponseMapper,
-    ReactionExceptionFilter,
   ],
-  exports: [
-    ReactionApplicationService,
-    ReactionRepository,
-    'CACHE_ADAPTER',
-    'EVENT_PUBLISHER_ADAPTER',
-    'METRICS_ADAPTER',
-    ReactionResponseMapper,
-  ],
+  exports: [ReactionApplicationService, REACTION_REPOSITORY_TOKEN],
 })
 export class ReactionsModule {}

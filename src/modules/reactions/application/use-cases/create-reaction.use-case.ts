@@ -1,257 +1,169 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import {
-  ReactionRepository,
-  ReactionFactory,
-  ReactionDomainService,
-  ReactionOperationService,
+  ReactionEntity,
+  IReactionRepository,
   ReactionType,
-  TargetType,
   InvalidReactionTargetException,
   PostNotFoundException,
   CommentNotFoundException,
-  ReactionCreatedEvent,
-  ReactionUpdatedEvent,
 } from '../../domain';
 import { CreateReactionDto } from '../dto/reaction.dto';
 import { CreateReactionResponseDto } from '../dto/reaction-response.dto';
-import { CreateReactionCommand } from '../dto/commands/reaction-commands.dto';
 import { ReactionMapper } from '../mappers/reaction.mapper';
 import {
-  ExternalPostService,
-  ExternalCommentService,
-  NotificationService,
-} from '../interfaces/external-services.interface';
+  IExternalPostService,
+  IExternalCommentService,
+  INotificationService,
+} from '../ports/i-external-services';
 import {
-  EXTERNAL_POST_SERVICE,
-  EXTERNAL_COMMENT_SERVICE,
-  NOTIFICATION_SERVICE,
+  REACTION_REPOSITORY_TOKEN,
+  EXTERNAL_POST_SERVICE_TOKEN,
+  EXTERNAL_COMMENT_SERVICE_TOKEN,
+  NOTIFICATION_SERVICE_TOKEN,
 } from '../../constants';
+import { ReactionTypeValue } from '../../domain/value-objects/reaction-type.value-object';
 
-export interface CreateReactionContext {
-  command: CreateReactionCommand;
-  targetInfo: {
-    id: string;
-    type: 'post' | 'comment';
-    authorId: string;
-    content: string;
-    exists: boolean;
-  };
-  reactorInfo: {
-    id: string;
-    canReact: boolean;
-    reason?: string;
-  };
-}
-
-/**
- * Enhanced Create Reaction Use Case with better error handling,
- * logging, and separation of concerns
- */
 @Injectable()
 export class CreateReactionUseCase {
   private readonly logger = new Logger(CreateReactionUseCase.name);
 
   constructor(
-    private readonly reactionRepository: ReactionRepository,
-    private readonly reactionFactory: ReactionFactory,
-    private readonly reactionDomainService: ReactionDomainService,
-    private readonly reactionOperationService: ReactionOperationService,
-    @Inject(EXTERNAL_POST_SERVICE)
-    private readonly postService: ExternalPostService,
-    @Inject(EXTERNAL_COMMENT_SERVICE)
-    private readonly commentService: ExternalCommentService,
-    @Inject(NOTIFICATION_SERVICE)
-    private readonly notificationService: NotificationService,
+    @Inject(REACTION_REPOSITORY_TOKEN)
+    private readonly reactionRepository: IReactionRepository,
+    @Inject(EXTERNAL_POST_SERVICE_TOKEN)
+    private readonly postService: IExternalPostService,
+    @Inject(EXTERNAL_COMMENT_SERVICE_TOKEN)
+    private readonly commentService: IExternalCommentService,
+    @Inject(NOTIFICATION_SERVICE_TOKEN)
+    private readonly notificationService: INotificationService,
   ) {}
 
-  /**
-   * Execute the create reaction use case with enhanced error handling
-   */
   async execute(
     dto: CreateReactionDto,
     userId: string,
   ): Promise<CreateReactionResponseDto> {
-    this.logger.debug(`Executing create reaction for user ${userId}`, { dto });
-
-    try {
-      // Build context from DTO
-      const context = await this.buildContext(dto, userId);
-
-      // Validate context
-      await this.validateContext(context);
-
-      // Execute business logic
-      const result = await this.executeBusinessLogic(context);
-
-      // Handle side effects
-      await this.handleSideEffects(result, context);
-
-      this.logger.debug(`Successfully created/updated reaction`, {
-        reactionId: result.reaction.id,
-        isNew: result.isNew,
-      });
-
-      return this.buildResponse(result, context);
-    } catch (error) {
-      this.logger.error(`Failed to create reaction for user ${userId}`, {
-        error: error.message,
-        dto,
-        stack: error.stack,
-      });
-      throw error;
-    }
-  }
-
-  /**
-   * Legacy execute method for backward compatibility
-   */
-  async executeLegacy(
-    dto: CreateReactionDto,
-    userId: string,
-  ): Promise<CreateReactionResponseDto> {
-    return this.execute(dto, userId);
-  }
-
-  private async buildContext(
-    dto: CreateReactionDto,
-    userId: string,
-  ): Promise<CreateReactionContext> {
     const { postId, commentId, type } = dto;
 
-    // Validate basic input
+    // 1. Determine target
     if (!postId && !commentId) {
       throw new InvalidReactionTargetException();
     }
 
-    // Build command
-    const command = ReactionMapper.toCreateReactionCommand(dto, userId);
+    const targetId = (postId || commentId)!;
+    const targetType = postId ? ('post' as const) : ('comment' as const);
 
-    // Get target info
-    const targetInfo = await this.getTargetInfo(postId, commentId);
+    // 2. Validate target exists
+    const targetInfo = await this.validateTargetExists(targetId, targetType);
 
-    // Build reactor info
-    const reactorInfo = {
-      id: userId,
-      canReact: true, // Could add more sophisticated logic
-    };
-
-    return {
-      command,
-      targetInfo,
-      reactorInfo,
-    };
-  }
-
-  private async validateContext(context: CreateReactionContext): Promise<void> {
-    // Validate target exists
-    if (!context.targetInfo.exists) {
-      const targetType = context.command.targetType;
-      const targetId = context.command.targetId;
-
-      if (targetType === 'post') {
-        throw new PostNotFoundException(targetId);
-      } else {
-        throw new CommentNotFoundException(targetId);
-      }
-    }
-
-    // Validate reactor can react
-    if (!context.reactorInfo.canReact) {
-      throw new Error(`User cannot react: ${context.reactorInfo.reason}`);
-    }
-
-    // Additional business rule validations could go here
-  }
-
-  private async executeBusinessLogic(context: CreateReactionContext) {
-    const { command } = context;
-
-    // Use the new operation service
-    const reactionType = ReactionType.create(command.reactionType);
-    const targetType = TargetType.create(command.targetType);
-
-    const result = await this.reactionOperationService.processReaction(
-      reactionType,
-      command.reactorId,
-      command.targetId,
+    // 3. Check for existing reaction (toggle/update behavior)
+    const existingReaction = await this.reactionRepository.findByUserAndTarget(
+      userId,
+      targetId,
       targetType,
     );
 
-    return result;
-  }
-
-  private async handleSideEffects(
-    result: any,
-    context: CreateReactionContext,
-  ): Promise<void> {
-    const { targetInfo, command } = context;
-
-    // Send notification if it's a new reaction and not self-reaction
-    if (result.isNew && targetInfo.authorId !== command.reactorId) {
-      try {
-        await this.notificationService.createReactionNotification({
-          reactorId: command.reactorId,
-          targetUserId: targetInfo.authorId,
-          entityId: targetInfo.id,
-          entityType: targetInfo.type,
-          content: targetInfo.content,
-        });
-
-        this.logger.debug(`Notification sent for new reaction`, {
-          reactionId: result.reaction.id,
-          targetAuthor: targetInfo.authorId,
-        });
-      } catch (error) {
-        this.logger.warn('Failed to create reaction notification', {
-          error: error.message,
-          reactionId: result.reaction.id,
-        });
-        // Don't fail the reaction creation for notification errors
-      }
+    if (existingReaction) {
+      return this.handleExistingReaction(existingReaction, type);
     }
 
-    // Could publish domain events here
-    // this.eventBus.publish(new ReactionCreatedEvent(...));
+    // 4. Create new reaction
+    return this.createNewReaction(
+      type,
+      userId,
+      targetId,
+      targetType,
+      targetInfo,
+    );
   }
 
-  private buildResponse(
-    result: any,
-    context: CreateReactionContext,
-  ): CreateReactionResponseDto {
+  private async handleExistingReaction(
+    existing: ReactionEntity,
+    newType: ReactionTypeValue,
+  ): Promise<CreateReactionResponseDto> {
+    const reactionType = ReactionType.create(newType);
+
+    if (existing.isSameType(reactionType.getValue())) {
+      // Toggle off: same type → remove
+      existing.markForRemoval();
+      await this.reactionRepository.delete(existing.id);
+      return {
+        message: 'Reaction removed',
+        reacted: false,
+        reaction: ReactionMapper.toResponseDto(existing),
+        isNew: false,
+      };
+    }
+
+    // Different type → update
+    existing.changeType(reactionType.getValue());
+    const updated = await this.reactionRepository.save(existing);
     return {
-      message: result.isNew
-        ? 'Reaction created successfully'
-        : 'Reaction updated successfully',
+      message: 'Reaction updated successfully',
       reacted: true,
-      reaction: ReactionMapper.toResponseDto(result.reaction),
-      isNew: result.isNew,
+      reaction: ReactionMapper.toResponseDto(updated),
+      isNew: false,
     };
   }
 
-  private async getTargetInfo(
-    postId?: string,
-    commentId?: string,
-  ): Promise<CreateReactionContext['targetInfo']> {
-    if (postId) {
-      const post = await this.postService.findById(postId);
-      return {
-        id: postId,
-        type: 'post',
-        authorId: post?.authorId || '',
-        content: post?.content || '',
-        exists: !!post,
-      };
-    } else if (commentId) {
-      const comment = await this.commentService.findById(commentId);
-      return {
-        id: commentId,
-        type: 'comment',
-        authorId: comment?.authorId || '',
-        content: comment?.content || '',
-        exists: !!comment,
-      };
+  private async createNewReaction(
+    type: ReactionTypeValue,
+    userId: string,
+    targetId: string,
+    targetType: 'post' | 'comment',
+    targetInfo: { authorId: string; content: string },
+  ): Promise<CreateReactionResponseDto> {
+    const reactionType = ReactionType.create(type);
+    const reaction = ReactionEntity.create(
+      reactionType.getValue(),
+      userId,
+      targetId,
+      targetType,
+    );
+
+    const saved = await this.reactionRepository.save(reaction);
+
+    // Side effect: send notification (non-blocking)
+    if (targetInfo.authorId !== userId) {
+      this.sendNotification(userId, targetInfo, targetId, targetType).catch(
+        (err) => this.logger.warn('Notification failed', err.message),
+      );
     }
 
-    throw new InvalidReactionTargetException();
+    return {
+      message: 'Reaction created successfully',
+      reacted: true,
+      reaction: ReactionMapper.toResponseDto(saved),
+      isNew: true,
+    };
+  }
+
+  private async validateTargetExists(
+    targetId: string,
+    targetType: 'post' | 'comment',
+  ): Promise<{ authorId: string; content: string }> {
+    if (targetType === 'post') {
+      const post = await this.postService.findById(targetId);
+      if (!post) throw new PostNotFoundException(targetId);
+      return { authorId: post.authorId, content: post.content };
+    }
+
+    const comment = await this.commentService.findById(targetId);
+    if (!comment) throw new CommentNotFoundException(targetId);
+    return { authorId: comment.authorId, content: comment.content };
+  }
+
+  private async sendNotification(
+    reactorId: string,
+    targetInfo: { authorId: string; content: string },
+    targetId: string,
+    targetType: 'post' | 'comment',
+  ): Promise<void> {
+    await this.notificationService.createReactionNotification({
+      reactorId,
+      targetUserId: targetInfo.authorId,
+      entityId: targetId,
+      entityType: targetType,
+      content: targetInfo.content,
+    });
   }
 }

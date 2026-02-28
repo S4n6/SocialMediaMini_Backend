@@ -1,17 +1,20 @@
-import {
-  REACTION_BUSINESS_RULES,
-  TargetType as TargetTypeEnum,
-} from '../../constants';
+export const VALID_TARGET_TYPES = ['post', 'comment'] as const;
 
+export type TargetTypeValue = (typeof VALID_TARGET_TYPES)[number];
+
+/**
+ * Value Object for target type (post or comment)
+ * Self-validating, immutable - pure TypeScript
+ */
 export class TargetType {
-  private constructor(private readonly value: TargetTypeEnum) {}
+  private constructor(private readonly value: TargetTypeValue) {}
 
   static create(value: string): TargetType {
-    const lowerValue = value.toLowerCase() as TargetTypeEnum;
+    const lowerValue = value.toLowerCase() as TargetTypeValue;
 
-    if (!REACTION_BUSINESS_RULES.ALLOWED_TARGET_TYPES.includes(lowerValue)) {
+    if (!VALID_TARGET_TYPES.includes(lowerValue)) {
       throw new Error(
-        `Invalid target type: '${value}'. Allowed types are: ${REACTION_BUSINESS_RULES.ALLOWED_TARGET_TYPES.join(', ')}`,
+        `Invalid target type: '${value}'. Allowed: ${VALID_TARGET_TYPES.join(', ')}`,
       );
     }
 
@@ -26,7 +29,7 @@ export class TargetType {
     return new TargetType('comment');
   }
 
-  getValue(): TargetTypeEnum {
+  getValue(): TargetTypeValue {
     return this.value;
   }
 

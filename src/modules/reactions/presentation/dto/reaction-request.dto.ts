@@ -1,5 +1,5 @@
 import { IsOptional, IsString, IsUUID, IsIn } from 'class-validator';
-import { VALID_REACTION_TYPES } from '../../constants';
+import { VALID_REACTION_TYPES } from '../../domain/value-objects/reaction-type.value-object';
 
 export class CreateReactionRequestDto {
   @IsOptional()
@@ -11,15 +11,7 @@ export class CreateReactionRequestDto {
   commentId?: string;
 
   @IsString()
-  @IsIn(VALID_REACTION_TYPES, {
-    message: `Type must be one of: ${VALID_REACTION_TYPES.join(', ')}`,
-  })
-  type: string;
-}
-
-export class UpdateReactionRequestDto {
-  @IsString()
-  @IsIn(VALID_REACTION_TYPES, {
+  @IsIn([...VALID_REACTION_TYPES], {
     message: `Type must be one of: ${VALID_REACTION_TYPES.join(', ')}`,
   })
   type: string;

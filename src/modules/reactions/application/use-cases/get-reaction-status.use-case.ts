@@ -1,23 +1,26 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ReactionRepository, PostNotFoundException } from '../../domain';
+import { IReactionRepository, PostNotFoundException } from '../../domain';
 import { ReactionStatusResponseDto } from '../dto/reaction-response.dto';
 import { ReactionMapper } from '../mappers/reaction.mapper';
-import { ExternalPostService } from '../interfaces/external-services.interface';
-import { EXTERNAL_POST_SERVICE } from '../../constants';
+import { IExternalPostService } from '../ports/i-external-services';
+import {
+  REACTION_REPOSITORY_TOKEN,
+  EXTERNAL_POST_SERVICE_TOKEN,
+} from '../../constants';
 
 @Injectable()
 export class GetReactionStatusUseCase {
   constructor(
-    private readonly reactionRepository: ReactionRepository,
-    @Inject(EXTERNAL_POST_SERVICE)
-    private readonly postService: ExternalPostService,
+    @Inject(REACTION_REPOSITORY_TOKEN)
+    private readonly reactionRepository: IReactionRepository,
+    @Inject(EXTERNAL_POST_SERVICE_TOKEN)
+    private readonly postService: IExternalPostService,
   ) {}
 
   async execute(
     postId: string,
     userId: string,
   ): Promise<ReactionStatusResponseDto> {
-    // Validate post exists
     const post = await this.postService.findById(postId);
     if (!post) {
       throw new PostNotFoundException(postId);

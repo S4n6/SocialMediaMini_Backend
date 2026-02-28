@@ -1,12 +1,9 @@
-// Repository implementations
-export * from './prisma-reaction.repository';
-export * from './enhanced-prisma-reaction.repository';
+// Persistence
+export * from './persistence/mappers/reaction-prisma.mapper';
+export * from './persistence/repositories/reaction-prisma.repository';
 
-// Infrastructure Adapters
-export * from './adapters';
-
-// External services
-export * from './external-services';
-
-// Queue services
-export * from './direct-notification.service';
+// Adapters
+export * from './adapters/prisma-post.adapter';
+export * from './adapters/prisma-comment.adapter';
+export * from './adapters/prisma-user.adapter';
+export * from './adapters/direct-notification.adapter';

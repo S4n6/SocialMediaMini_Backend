@@ -1,21 +1,20 @@
-import { ReactionType, TargetType } from '../../constants';
+import { ReactionTypeValue } from '../../domain/value-objects/reaction-type.value-object';
+import { TargetTypeValue } from '../../domain/value-objects/target-type.value-object';
 
-// Application layer DTOs for use cases - internal data structures
+/**
+ * Application-layer DTOs for use cases
+ */
 export interface CreateReactionDto {
   postId?: string;
   commentId?: string;
-  type: ReactionType;
+  type: ReactionTypeValue;
 }
 
-export interface UpdateReactionDto {
-  type: ReactionType;
-}
-
-export interface LegacyGetReactionsQuery {
+export interface GetReactionsQuery {
   postId?: string;
   commentId?: string;
   reactorId?: string;
-  targetType?: TargetType;
+  targetType?: TargetTypeValue;
   limit?: number;
   offset?: number;
 }

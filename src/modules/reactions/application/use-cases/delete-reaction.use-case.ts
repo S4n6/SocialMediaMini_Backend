@@ -1,15 +1,30 @@
-import { Injectable } from '@nestjs/common';
-import { ReactionRepository } from '../../domain/repositories/reaction.repository';
-import { ReactionDomainService } from '../../domain/services/reaction-domain.service';
+import { Injectable, Inject } from '@nestjs/common';
+import {
+  IReactionRepository,
+  ReactionNotFoundException,
+  UnauthorizedReactionException,
+} from '../../domain';
+import { REACTION_REPOSITORY_TOKEN } from '../../constants';
 
 @Injectable()
 export class DeleteReactionUseCase {
   constructor(
-    private readonly reactionRepository: ReactionRepository,
-    private readonly reactionDomainService: ReactionDomainService,
+    @Inject(REACTION_REPOSITORY_TOKEN)
+    private readonly reactionRepository: IReactionRepository,
   ) {}
 
   async execute(reactionId: string, userId: string): Promise<void> {
-    await this.reactionDomainService.deleteReaction(reactionId, userId);
+    const reaction = await this.reactionRepository.findById(reactionId);
+
+    if (!reaction) {
+      throw new ReactionNotFoundException(reactionId);
+    }
+
+    if (!reaction.isOwnedBy(userId)) {
+      throw new UnauthorizedReactionException();
+    }
+
+    reaction.markForRemoval();
+    await this.reactionRepository.delete(reactionId);
   }
 }
