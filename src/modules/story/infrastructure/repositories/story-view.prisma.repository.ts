@@ -2,33 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { IStoryViewRepository } from '../../domain/repositories';
 import { StoryViewEntity } from '../../domain/entities';
+import { StoryViewMapper } from '../mappers';
 
 @Injectable()
 export class StoryViewPrismaRepository implements IStoryViewRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  private mapToEntity(prismaStoryView: any): StoryViewEntity {
-    return new StoryViewEntity(
-      prismaStoryView.id,
-      prismaStoryView.storyId,
-      prismaStoryView.viewerId,
-      prismaStoryView.viewedAt,
-    );
-  }
+  async save(storyView: StoryViewEntity): Promise<void> {
+    const data = StoryViewMapper.toPrisma(storyView);
 
-  async create(storyView: StoryViewEntity): Promise<StoryViewEntity> {
-    const data = {
-      id: storyView.id,
-      storyId: storyView.storyId,
-      viewerId: storyView.viewerId,
-      viewedAt: storyView.viewedAt,
-    };
-
-    const savedStoryView = await this.prisma.storyView.create({
-      data,
+    await this.prisma.storyView.upsert({
+      where: {
+        storyId_viewerId: {
+          storyId: data.storyId,
+          viewerId: data.viewerId,
+        },
+      },
+      create: data,
+      update: data,
     });
-
-    return this.mapToEntity(savedStoryView);
   }
 
   async findByStoryAndViewer(
@@ -37,32 +29,20 @@ export class StoryViewPrismaRepository implements IStoryViewRepository {
   ): Promise<StoryViewEntity | null> {
     const storyView = await this.prisma.storyView.findUnique({
       where: {
-        storyId_viewerId: {
-          storyId,
-          viewerId,
-        },
+        storyId_viewerId: { storyId, viewerId },
       },
     });
 
-    return storyView ? this.mapToEntity(storyView) : null;
+    return storyView ? StoryViewMapper.toDomain(storyView) : null;
   }
 
   async findViewersByStoryId(storyId: string): Promise<StoryViewEntity[]> {
     const storyViews = await this.prisma.storyView.findMany({
       where: { storyId },
-      include: {
-        viewer: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
-          },
-        },
-      },
       orderBy: { viewedAt: 'desc' },
     });
 
-    return storyViews.map((storyView) => this.mapToEntity(storyView));
+    return storyViews.map(StoryViewMapper.toDomain);
   }
 
   async countViewsByStoryId(storyId: string): Promise<number> {
@@ -71,17 +51,36 @@ export class StoryViewPrismaRepository implements IStoryViewRepository {
     });
   }
 
-  async hasUserViewedStory(
-    storyId: string,
-    viewerId: string,
-  ): Promise<boolean> {
-    const count = await this.prisma.storyView.count({
-      where: {
-        storyId,
-        viewerId,
-      },
+  async countViewsByStoryIds(storyIds: string[]): Promise<Map<string, number>> {
+    if (storyIds.length === 0) return new Map();
+
+    const counts = await this.prisma.storyView.groupBy({
+      by: ['storyId'],
+      where: { storyId: { in: storyIds } },
+      _count: { storyId: true },
     });
 
-    return count > 0;
+    const map = new Map<string, number>();
+    for (const row of counts) {
+      map.set(row.storyId, row._count.storyId);
+    }
+    return map;
+  }
+
+  async findViewedStoryIds(
+    storyIds: string[],
+    viewerId: string,
+  ): Promise<Set<string>> {
+    if (storyIds.length === 0) return new Set();
+
+    const views = await this.prisma.storyView.findMany({
+      where: {
+        storyId: { in: storyIds },
+        viewerId,
+      },
+      select: { storyId: true },
+    });
+
+    return new Set(views.map((v) => v.storyId));
   }
 }

@@ -2,9 +2,9 @@ import { StoryEntity } from '../entities';
 
 export interface IStoryRepository {
   /**
-   * Create a new story
+   * Smart save — INSERT or UPDATE (upsert pattern)
    */
-  create(story: StoryEntity): Promise<StoryEntity>;
+  save(story: StoryEntity): Promise<void>;
 
   /**
    * Find story by ID
@@ -12,7 +12,7 @@ export interface IStoryRepository {
   findById(id: string): Promise<StoryEntity | null>;
 
   /**
-   * Find all active stories by user ID
+   * Find all active (non-expired) stories by user ID
    */
   findActiveByUserId(userId: string): Promise<StoryEntity[]>;
 
@@ -22,22 +22,12 @@ export interface IStoryRepository {
   findActiveFromFollowedUsers(currentUserId: string): Promise<StoryEntity[]>;
 
   /**
-   * Update story
-   */
-  update(id: string, updates: Partial<StoryEntity>): Promise<StoryEntity>;
-
-  /**
    * Delete story by ID
    */
   delete(id: string): Promise<void>;
 
   /**
-   * Find expired stories
+   * Find stories that are still marked active but have expired
    */
-  findExpiredStories(): Promise<StoryEntity[]>;
-
-  /**
-   * Deactivate expired stories
-   */
-  deactivateExpiredStories(): Promise<void>;
+  findExpiredActiveStories(): Promise<StoryEntity[]>;
 }

@@ -64,12 +64,3 @@ export interface ApiSuccessResponse<T = any> {
   data: T;
   timestamp?: Date;
 }
-
-export interface ApiErrorResponse {
-  statusCode: number;
-  message: string;
-  success: false;
-  error?: string;
-  details?: any;
-  timestamp?: Date;
-}

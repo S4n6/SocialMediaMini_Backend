@@ -2,43 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { IStoryRepository } from '../../domain/repositories';
 import { StoryEntity } from '../../domain/entities';
+import { StoryMapper } from '../mappers';
 
 @Injectable()
 export class StoryPrismaRepository implements IStoryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  private mapToEntity(prismaStory: any): StoryEntity {
-    return new StoryEntity(
-      prismaStory.id,
-      prismaStory.authorId,
-      prismaStory.content,
-      prismaStory.mediaUrl,
-      prismaStory.mediaType,
-      prismaStory.expiresAt,
-      prismaStory.isActive,
-      prismaStory.createdAt,
-      prismaStory.updatedAt,
-    );
-  }
+  async save(story: StoryEntity): Promise<void> {
+    const data = StoryMapper.toPrisma(story);
 
-  async create(story: StoryEntity): Promise<StoryEntity> {
-    const data = {
-      id: story.id,
-      authorId: story.authorId,
-      content: story.content,
-      mediaUrl: story.mediaUrl,
-      mediaType: story.mediaType,
-      expiresAt: story.expiresAt,
-      isActive: story.isActive,
-      createdAt: story.createdAt,
-      updatedAt: story.updatedAt,
-    };
-
-    const savedStory = await this.prisma.story.create({
-      data,
+    await this.prisma.story.upsert({
+      where: { id: data.id },
+      create: data,
+      update: data,
     });
-
-    return this.mapToEntity(savedStory);
   }
 
   async findById(id: string): Promise<StoryEntity | null> {
@@ -46,7 +23,7 @@ export class StoryPrismaRepository implements IStoryRepository {
       where: { id },
     });
 
-    return story ? this.mapToEntity(story) : null;
+    return story ? StoryMapper.toDomain(story) : null;
   }
 
   async findActiveByUserId(userId: string): Promise<StoryEntity[]> {
@@ -54,14 +31,12 @@ export class StoryPrismaRepository implements IStoryRepository {
       where: {
         authorId: userId,
         isActive: true,
-        expiresAt: {
-          gt: new Date(), // Not expired
-        },
+        expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return stories.map((story) => this.mapToEntity(story));
+    return stories.map(StoryMapper.toDomain);
   }
 
   async findActiveFromFollowedUsers(
@@ -70,45 +45,17 @@ export class StoryPrismaRepository implements IStoryRepository {
     const stories = await this.prisma.story.findMany({
       where: {
         isActive: true,
-        expiresAt: {
-          gt: new Date(), // Not expired
-        },
+        expiresAt: { gt: new Date() },
         author: {
           followers: {
-            some: {
-              followerId: currentUserId,
-            },
-          },
-        },
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
+            some: { followerId: currentUserId },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return stories.map((story) => this.mapToEntity(story));
-  }
-
-  async update(
-    id: string,
-    updates: Partial<StoryEntity>,
-  ): Promise<StoryEntity> {
-    const updatedStory = await this.prisma.story.update({
-      where: { id },
-      data: {
-        ...updates,
-        updatedAt: new Date(),
-      },
-    });
-
-    return this.mapToEntity(updatedStory);
+    return stories.map(StoryMapper.toDomain);
   }
 
   async delete(id: string): Promise<void> {
@@ -117,31 +64,14 @@ export class StoryPrismaRepository implements IStoryRepository {
     });
   }
 
-  async findExpiredStories(): Promise<StoryEntity[]> {
+  async findExpiredActiveStories(): Promise<StoryEntity[]> {
     const stories = await this.prisma.story.findMany({
       where: {
         isActive: true,
-        expiresAt: {
-          lt: new Date(), // Expired
-        },
+        expiresAt: { lt: new Date() },
       },
     });
 
-    return stories.map((story) => this.mapToEntity(story));
-  }
-
-  async deactivateExpiredStories(): Promise<void> {
-    await this.prisma.story.updateMany({
-      where: {
-        isActive: true,
-        expiresAt: {
-          lt: new Date(), // Expired
-        },
-      },
-      data: {
-        isActive: false,
-        updatedAt: new Date(),
-      },
-    });
+    return stories.map(StoryMapper.toDomain);
   }
 }

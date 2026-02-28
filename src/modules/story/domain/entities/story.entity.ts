@@ -12,7 +12,7 @@ export class StoryEntity {
   ) {}
 
   /**
-   * Check if the story has expired
+   * Check if the story has expired based on expiresAt timestamp
    */
   public isExpired(): boolean {
     return new Date() > this.expiresAt;
@@ -26,7 +26,29 @@ export class StoryEntity {
   }
 
   /**
-   * Get the story type based on content
+   * Mark the story as expired/inactive.
+   * Returns a new StoryEntity with isActive = false (immutable pattern).
+   */
+  public markExpired(): StoryEntity {
+    if (!this.isActive) {
+      return this;
+    }
+
+    return new StoryEntity(
+      this.id,
+      this.authorId,
+      this.content,
+      this.mediaUrl,
+      this.mediaType,
+      this.expiresAt,
+      false,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Get the story type based on content and media
    */
   public getStoryType(): 'text' | 'image' | 'mixed' {
     if (this.mediaUrl && this.content) {
@@ -39,7 +61,7 @@ export class StoryEntity {
   }
 
   /**
-   * Create a new story entity
+   * Factory method — create a new story entity
    */
   static create(
     id: string,
@@ -49,7 +71,7 @@ export class StoryEntity {
     mediaType: string | null,
   ): StoryEntity {
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours
 
     return new StoryEntity(
       id,
@@ -58,9 +80,9 @@ export class StoryEntity {
       mediaUrl,
       mediaType,
       expiresAt,
-      true, // isActive
-      now, // createdAt
-      now, // updatedAt
+      true,
+      now,
+      now,
     );
   }
 }

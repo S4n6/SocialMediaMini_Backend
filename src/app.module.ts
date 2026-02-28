@@ -11,6 +11,7 @@ import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { S3Module } from './modules/s3/s3.module';
 import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { PostsModule } from './modules/posts/posts.module';
+import { StoryModule } from './modules/story/story.module';
 import { WebSocketModule } from './infrastructure/websocket';
 import { MessageQueueModule } from './infrastructure/message-queue';
 
@@ -55,6 +56,7 @@ import { ErrorMonitoringService } from './shared/services/error-monitoring.servi
     UsersModule,
     PostMediasModule,
     PostsModule,
+    StoryModule,
 
     // 🧪 Test Module
     TestModule,

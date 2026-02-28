@@ -2,9 +2,9 @@ import { StoryViewEntity } from '../entities';
 
 export interface IStoryViewRepository {
   /**
-   * Create a new story view
+   * Smart save — INSERT or UPDATE (upsert pattern)
    */
-  create(storyView: StoryViewEntity): Promise<StoryViewEntity>;
+  save(storyView: StoryViewEntity): Promise<void>;
 
   /**
    * Find story view by story ID and viewer ID
@@ -25,7 +25,15 @@ export interface IStoryViewRepository {
   countViewsByStoryId(storyId: string): Promise<number>;
 
   /**
-   * Check if user has viewed a story
+   * Batch: count views for multiple stories at once
    */
-  hasUserViewedStory(storyId: string, viewerId: string): Promise<boolean>;
+  countViewsByStoryIds(storyIds: string[]): Promise<Map<string, number>>;
+
+  /**
+   * Batch: find which stories a user has already viewed
+   */
+  findViewedStoryIds(
+    storyIds: string[],
+    viewerId: string,
+  ): Promise<Set<string>>;
 }

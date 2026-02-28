@@ -2,12 +2,10 @@ import {
   Controller,
   Get,
   Post,
-  Delete,
   Body,
   Param,
   UseGuards,
   HttpStatus,
-  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt.guard';
 import { CurrentUser } from '../../../../shared/decorators/currentUser.decorator';
