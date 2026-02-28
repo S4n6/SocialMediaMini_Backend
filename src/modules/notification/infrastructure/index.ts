@@ -1,11 +1,3 @@
-// Repositories
-export * from './repositories/notification.repository';
-
-// External services
-export * from './services/email-notification.service';
-export * from './services/push-notification.service';
-export * from './services/realtime-notification.service';
-export * from './services/domain-event-publisher.service';
-
-// Adapters
-export * from './adapters/notification-channel.adapter';
+export { NotificationPrismaMapper } from './persistence/mappers/notification-prisma.mapper';
+export { NotificationPrismaRepository } from './persistence/repositories/notification-prisma.repository';
+export { NotificationStreamAdapter } from './adapters/notification-stream.adapter';

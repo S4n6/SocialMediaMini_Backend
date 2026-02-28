@@ -1,146 +1,60 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-
-// Presentation Layer
-import { NotificationController } from './presentation';
-
-// Constants
+import { PrismaModule } from '../../database/prisma.module';
 import {
   NOTIFICATION_REPOSITORY_TOKEN,
-  DOMAIN_EVENT_PUBLISHER_TOKEN,
-} from './constants';
+  NOTIFICATION_STREAM_TOKEN,
+} from './notification.constants';
 
-// Application Layer
+// Application
 import { NotificationApplicationService } from './application/notification-application.service';
-import {
-  CreateNotificationUseCase,
-  GetNotificationUseCase,
-  GetNotificationsUseCase,
-  UpdateNotificationUseCase,
-  MarkAsReadUseCase,
-  MarkAsUnreadUseCase,
-  DeleteNotificationUseCase,
-  GetNotificationStatsUseCase,
-  GetRealtimeNotificationsUseCase,
-  NotificationCleanupUseCase,
-} from './application';
+import { CreateNotificationUseCase } from './application/use-cases/create-notification.use-case';
+import { GetNotificationsUseCase } from './application/use-cases/get-notifications.use-case';
+import { MarkAsReadUseCase } from './application/use-cases/mark-as-read.use-case';
+import { GetUnreadCountUseCase } from './application/use-cases/get-unread-count.use-case';
 
-// Domain Layer
-import { NotificationDomainService, NotificationFactory } from './domain';
+// Subscribers (react to EventEmitter2 events from other modules)
+import { SocialEventSubscriber } from './application/subscribers/social-event.subscriber';
+import { MediaResultSubscriber } from './application/subscribers/media-result.subscriber';
 
-// Infrastructure Layer
-import {
-  NotificationRepository,
-  EmailNotificationService,
-  PushNotificationService,
-  RealtimeNotificationService,
-  DomainEventPublisher,
-  NotificationChannelAdapter,
-} from './infrastructure';
+// Infrastructure
+import { NotificationPrismaMapper } from './infrastructure/persistence/mappers/notification-prisma.mapper';
+import { NotificationPrismaRepository } from './infrastructure/persistence/repositories/notification-prisma.repository';
+import { NotificationStreamAdapter } from './infrastructure/adapters/notification-stream.adapter';
 
-// WebSocket Layer
-// import {
-//   NotificationWebSocketService,
-//   NotificationWebSocketRegistrationService,
-// } from './application/services'; // TODO: Refactor - WebSocket cũ
-// import {
-//   NotificationMarkReadHandler,
-//   NotificationMarkAllReadHandler,
-//   NotificationSubscribeHandler,
-//   NotificationUnsubscribeHandler,
-//   NotificationGetHistoryHandler,
-// } from './application/handlers'; // TODO: Refactor - WebSocket cũ
-
-// Import WebSocket module
-import { WebSocketModule } from '../../infrastructure/websocket';
-
-// Configuration
-import { JWT } from '../../config/jwt.config';
-import { PrismaModule } from '../../database/prisma.module';
+// Presentation
+import { NotificationController } from './presentation/controllers/notification.controller';
 
 @Module({
-  imports: [
-    JwtModule.register({
-      secret: JWT.SECRET,
-    }),
-    PrismaModule,
-    WebSocketModule, // Import WebSocket module for handlers registration
-  ],
+  imports: [PrismaModule],
   controllers: [NotificationController],
   providers: [
-    // Application Layer
+    // ── Application service ─────────────────────────────
     NotificationApplicationService,
 
-    // Use Cases
+    // ── Use cases ───────────────────────────────────────
     CreateNotificationUseCase,
-    GetNotificationUseCase,
     GetNotificationsUseCase,
-    UpdateNotificationUseCase,
     MarkAsReadUseCase,
-    MarkAsUnreadUseCase,
-    DeleteNotificationUseCase,
-    GetNotificationStatsUseCase,
-    GetRealtimeNotificationsUseCase,
-    NotificationCleanupUseCase,
+    GetUnreadCountUseCase,
 
-    // Domain Layer - Pure services (no @Injectable)
-    {
-      provide: NotificationDomainService,
-      useFactory: () => new NotificationDomainService(),
-    },
-    {
-      provide: NotificationFactory,
-      useFactory: () => new NotificationFactory(),
-    },
+    // ── Subscribers (EventEmitter2) ─────────────────────
+    SocialEventSubscriber,
+    MediaResultSubscriber,
 
-    // Infrastructure Layer - Repositories
-    NotificationRepository,
+    // ── Infrastructure → Domain interface bindings ───────
+    NotificationPrismaMapper,
     {
       provide: NOTIFICATION_REPOSITORY_TOKEN,
-      useClass: NotificationRepository,
+      useClass: NotificationPrismaRepository,
     },
-
-    // Infrastructure Layer - External Services
-    EmailNotificationService,
-    PushNotificationService,
-    RealtimeNotificationService,
-
-    // Infrastructure Layer - Adapters
-    NotificationChannelAdapter,
-
-    // Domain Event Publisher
     {
-      provide: DOMAIN_EVENT_PUBLISHER_TOKEN,
-      useClass: DomainEventPublisher,
+      provide: NOTIFICATION_STREAM_TOKEN,
+      useClass: NotificationStreamAdapter,
     },
-
-    // Queue Processor
-    // NotificationProcessor, // Removed worker functionality
-
-    // WebSocket Layer - TODO: Refactor - WebSocket cũ
-    // NotificationWebSocketService,
-    // NotificationWebSocketRegistrationService,
-
-    // WebSocket Handlers - TODO: Refactor - WebSocket cũ
-    // NotificationMarkReadHandler,
-    // NotificationMarkAllReadHandler,
-    // NotificationSubscribeHandler,
-    // NotificationUnsubscribeHandler,
-    // NotificationGetHistoryHandler,
   ],
   exports: [
-    // Export application service for other modules
+    // Other modules can inject this to create notifications programmatically
     NotificationApplicationService,
-
-    // Export external services for other modules
-    EmailNotificationService,
-    PushNotificationService,
-    RealtimeNotificationService,
-
-    // Export WebSocket services for other modules - TODO: Refactor - WebSocket cũ
-    // NotificationWebSocketService,
-
-    // Export presentation layer
   ],
 })
 export class NotificationModule {}
