@@ -48,3 +48,12 @@ export interface AuthenticatedUser {
   permissions?: string[];
   [key: string]: any;
 }
+
+/**
+ * Socket.IO Socket with authenticated user data attached.
+ * Set by MainGateway.handleConnection() after JWT verification.
+ */
+export interface AuthenticatedSocket extends Socket {
+  userId: string;
+  user: AuthenticatedUser;
+}

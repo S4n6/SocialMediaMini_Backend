@@ -10,6 +10,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConnectionManagerService } from './connection-manager.service';
 import { RoomManagerService } from './room-manager.service';
 import { WebSocketAuthService } from './websocket-auth.service';
+import { PresenceService } from './presence.service';
 import { WebSocketEventEmitter } from '../events';
 import { RoomType } from '../events/websocket-event.types';
 
@@ -40,6 +41,7 @@ export class MainGateway
     private readonly roomManager: RoomManagerService,
     private readonly authService: WebSocketAuthService,
     private readonly eventEmitter: WebSocketEventEmitter,
+    private readonly presenceService: PresenceService,
   ) {}
 
   /**
@@ -84,6 +86,9 @@ export class MainGateway
       await client.join(userRoom);
       await this.roomManager.joinRoom(userRoom, client.id, user.id);
 
+      // Track online presence (Redis-backed, survives across instances)
+      await this.presenceService.setOnline(user.id);
+
       // Emit connection success
       client.emit('connected', {
         socketId: client.id,
@@ -116,6 +121,13 @@ export class MainGateway
 
         // Leave all rooms
         await this.roomManager.leaveAllRooms(client.id);
+
+        // Only mark offline if this was the user's LAST connection
+        const isStillConnected =
+          await this.connectionManager.isUserConnected(userId);
+        if (!isStillConnected) {
+          await this.presenceService.setOffline(userId);
+        }
       }
 
       this.logger.log(`✅ Client ${client.id} disconnected`);

@@ -15,6 +15,7 @@ import { StoryModule } from './modules/story/story.module';
 import { WebSocketModule } from './infrastructure/websocket';
 import { MessageQueueModule } from './infrastructure/message-queue';
 import { NotificationModule } from './modules/notification/notification.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
 
 import {
   CorsMiddleware,
@@ -61,6 +62,7 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
     StoryModule,
     NotificationModule,
     ReactionsModule,
+    MessagingModule,
 
     // 🧪 Test Module
     TestModule,

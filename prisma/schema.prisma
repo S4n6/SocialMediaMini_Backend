@@ -146,18 +146,39 @@ model Conversation {
 }
 
 model Message {
-  id             String      @id @default(uuid()) @map("MessageId")
-  content        String      @map("Content")
-  messageType    MessageType @default(TEXT) @map("MessageType")
-  isRead         Boolean     @default(false) @map("IsRead")
-  createdAt      DateTime    @default(now()) @map("CreatedAt")
-  senderId       String      @map("SenderId")
-  conversationId String      @map("ConversationId")
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  id             String        @id @default(uuid()) @map("MessageId")
+  content        String        @map("Content")
+  messageType    MessageType   @default(TEXT) @map("MessageType")
+  status         MessageStatus @default(SENT) @map("Status")
+  isRead         Boolean       @default(false) @map("IsRead")
+  createdAt      DateTime      @default(now()) @map("CreatedAt")
+  editedAt       DateTime?     @map("EditedAt")
+  deletedAt      DateTime?     @map("DeletedAt")
+  senderId       String        @map("SenderId")
+  conversationId String        @map("ConversationId")
+  replyToId      String?       @map("ReplyToId")
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        Message[]     @relation("MessageReplies")
+  readReceipts   MessageReadReceipt[]
 
-  @@index([conversationId])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([senderId])
+  @@index([replyToId])
   @@map("Messages")
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(uuid()) @map("MessageReadReceiptId")
+  messageId String   @map("MessageId")
+  userId    String   @map("UserId")
+  readAt    DateTime @default(now()) @map("ReadAt")
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, messageId])
+  @@map("MessageReadReceipts")
 }
 
 model UserConversation {
@@ -418,6 +439,13 @@ enum MessageType {
 enum ConversationRole {
   MEMBER
   ADMIN
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+  DELETED
 }
 
 enum MediaType {
