@@ -12,16 +12,13 @@ import {
 import {
   STORY_REPOSITORY_TOKEN,
   STORY_VIEW_REPOSITORY_TOKEN,
-} from '../../tokens';
+} from '../../constants';
 import { StoryEntity } from '../../domain/entities';
 
 /**
  * Get Stories Use Case
  *
- * Responsibility: Retrieve stories based on different criteria
- * - Get stories from followed users (feed)
- * - Get stories from specific user
- * - Include view counts and user interaction data
+ * Uses batch view queries to avoid N+1 problems.
  */
 @Injectable()
 export class GetStoriesUseCase {
@@ -38,66 +35,47 @@ export class GetStoriesUseCase {
   async getFollowedUsersStories(
     query: GetFollowedUsersStoriesQuery,
   ): Promise<StoriesListResult> {
-    // Get stories from followed users
     const stories = await this.storyRepository.findActiveFromFollowedUsers(
       query.currentUserId,
     );
 
-    // Map to results with view counts and interaction data
-    const items = await Promise.all(
-      stories.map((story) =>
-        this.mapToResultWithViewData(story, query.currentUserId),
-      ),
-    );
+    const items = await this.enrichWithViewData(stories, query.currentUserId);
 
-    return {
-      items,
-      total: items.length,
-    };
+    return { items, total: items.length };
   }
 
   /**
    * Get stories from a specific user
    */
   async getUserStories(query: GetUserStoriesQuery): Promise<StoriesListResult> {
-    // Get user's stories
     const stories = await this.storyRepository.findActiveByUserId(query.userId);
 
-    // Map to results with view counts and interaction data
-    const items = await Promise.all(
-      stories.map((story) =>
-        this.mapToResultWithViewData(story, query.currentUserId),
-      ),
-    );
+    const items = await this.enrichWithViewData(stories, query.currentUserId);
 
-    return {
-      items,
-      total: items.length,
-    };
+    return { items, total: items.length };
   }
 
   /**
-   * Map story entity to result with view data
+   * Batch-enrich stories with view counts and viewed status.
+   * Uses two batch queries instead of 2×N individual queries.
    */
-  private async mapToResultWithViewData(
-    story: StoryEntity,
+  private async enrichWithViewData(
+    stories: StoryEntity[],
     currentUserId?: string,
-  ): Promise<StoryUseCaseResult> {
-    // Get view count
-    const viewCount = await this.storyViewRepository.countViewsByStoryId(
-      story.id,
-    );
+  ): Promise<StoryUseCaseResult[]> {
+    if (stories.length === 0) return [];
 
-    // Check if current user has viewed this story
-    let hasViewed = false;
-    if (currentUserId) {
-      hasViewed = await this.storyViewRepository.hasUserViewedStory(
-        story.id,
-        currentUserId,
-      );
-    }
+    const storyIds = stories.map((s) => s.id);
 
-    return {
+    // Two batch queries instead of N+1
+    const [viewCountsMap, viewedIdsSet] = await Promise.all([
+      this.storyViewRepository.countViewsByStoryIds(storyIds),
+      currentUserId
+        ? this.storyViewRepository.findViewedStoryIds(storyIds, currentUserId)
+        : Promise.resolve(new Set<string>()),
+    ]);
+
+    return stories.map((story) => ({
       id: story.id,
       authorId: story.authorId,
       content: story.content || undefined,
@@ -107,8 +85,8 @@ export class GetStoriesUseCase {
       isActive: story.isActive,
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
-      viewCount,
-      hasViewed,
-    };
+      viewCount: viewCountsMap.get(story.id) ?? 0,
+      hasViewed: viewedIdsSet.has(story.id),
+    }));
   }
 }

@@ -1,22 +1,26 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
 
-// Constants & Tokens
-import { STORY_REPOSITORY_TOKEN, STORY_VIEW_REPOSITORY_TOKEN } from './tokens';
+// Constants (DI Tokens)
+import {
+  STORY_REPOSITORY_TOKEN,
+  STORY_VIEW_REPOSITORY_TOKEN,
+} from './constants';
 
 // Infrastructure Layer
 import {
   StoryPrismaRepository,
   StoryViewPrismaRepository,
-} from './infrastructure/repositories';
+  StoryCleanupJob,
+} from './infrastructure';
 
 // Application Layer
 import {
   CreateStoryUseCase,
   GetStoriesUseCase,
   ViewStoryUseCase,
+  DeactivateExpiredStoriesUseCase,
   StoryApplicationService,
-  StoryCleanupJob,
 } from './application';
 
 // Presentation Layer
@@ -40,17 +44,14 @@ import { StoryController } from './presentation';
     CreateStoryUseCase,
     GetStoriesUseCase,
     ViewStoryUseCase,
+    DeactivateExpiredStoriesUseCase,
 
     // Application Service
     StoryApplicationService,
 
-    // Scheduled Jobs
+    // Infrastructure Jobs
     StoryCleanupJob,
   ],
-  exports: [
-    StoryApplicationService,
-    STORY_REPOSITORY_TOKEN,
-    STORY_VIEW_REPOSITORY_TOKEN,
-  ],
+  exports: [StoryApplicationService],
 })
 export class StoryModule {}

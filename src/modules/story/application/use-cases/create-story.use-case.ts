@@ -3,16 +3,18 @@ import { v4 as uuid } from 'uuid';
 import { IStoryRepository } from '../../domain/repositories';
 import { StoryEntity } from '../../domain/entities';
 import { CreateStoryCommand, StoryUseCaseResult } from '../dto';
-import { STORY_REPOSITORY_TOKEN } from '../../tokens';
+import { STORY_REPOSITORY_TOKEN } from '../../constants';
 
 /**
  * Create Story Use Case
  *
  * Responsibility: Orchestrate the creation of a new story
- * - Validate command input
- * - Create story entity with business rules
- * - Save to repository
+ * - Create story entity using domain factory
+ * - Persist via repository
  * - Return result
+ *
+ * NOTE: Input validation is handled by the presentation-layer DTO
+ * (class-validator). This use case trusts that the command is valid.
  */
 @Injectable()
 export class CreateStoryUseCase {
@@ -22,45 +24,17 @@ export class CreateStoryUseCase {
   ) {}
 
   async execute(command: CreateStoryCommand): Promise<StoryUseCaseResult> {
-    // Input validation
-    this.validateCommand(command);
-
-    // Create story entity using domain factory method
-    const storyId = uuid();
     const story = StoryEntity.create(
-      storyId,
+      uuid(),
       command.authorId,
       command.content || null,
       command.mediaUrl || null,
       command.mediaType || null,
     );
 
-    // Save to repository
-    const savedStory = await this.storyRepository.create(story);
+    await this.storyRepository.save(story);
 
-    // Return use case result
-    return this.mapToResult(savedStory);
-  }
-
-  private validateCommand(command: CreateStoryCommand): void {
-    if (!command.authorId?.trim()) {
-      throw new Error('Author ID is required');
-    }
-
-    // Must have either content or media
-    if (!command.content?.trim() && !command.mediaUrl?.trim()) {
-      throw new Error('Story must have either content or media');
-    }
-
-    // If media is provided, mediaType is required
-    if (command.mediaUrl && !command.mediaType) {
-      throw new Error('Media type is required when media URL is provided');
-    }
-
-    // Validate media type
-    if (command.mediaType && !['image', 'text'].includes(command.mediaType)) {
-      throw new Error('Media type must be either "image" or "text"');
-    }
+    return this.mapToResult(story);
   }
 
   private mapToResult(story: StoryEntity): StoryUseCaseResult {
@@ -74,8 +48,8 @@ export class CreateStoryUseCase {
       isActive: story.isActive,
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
-      viewCount: 0, // New story has no views
-      hasViewed: false, // Author hasn't viewed their own story
+      viewCount: 0,
+      hasViewed: false,
     };
   }
 }

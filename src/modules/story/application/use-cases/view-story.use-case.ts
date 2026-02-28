@@ -9,7 +9,7 @@ import { ViewStoryCommand, StoryUseCaseResult } from '../dto';
 import {
   STORY_REPOSITORY_TOKEN,
   STORY_VIEW_REPOSITORY_TOKEN,
-} from '../../tokens';
+} from '../../constants';
 import {
   StoryNotFoundException,
   StoryExpiredException,
@@ -18,10 +18,8 @@ import {
 /**
  * View Story Use Case
  *
- * Responsibility: Handle story viewing and track views
- * - Validate story exists and is viewable
- * - Track view (avoid duplicate views)
- * - Return story with updated view data
+ * Validates the story exists and is viewable, tracks unique views,
+ * and returns the story with updated view data.
  */
 @Injectable()
 export class ViewStoryUseCase {
@@ -33,21 +31,18 @@ export class ViewStoryUseCase {
   ) {}
 
   async execute(command: ViewStoryCommand): Promise<StoryUseCaseResult> {
-    // Input validation
-    this.validateCommand(command);
-
     // Find story
     const story = await this.storyRepository.findById(command.storyId);
     if (!story) {
       throw new StoryNotFoundException(command.storyId);
     }
 
-    // Check if story is viewable
+    // Check if story is viewable (domain logic)
     if (!story.isViewable()) {
       throw new StoryExpiredException(command.storyId);
     }
 
-    // Track view (only if not already viewed)
+    // Track view (idempotent — only creates if not already viewed)
     await this.trackView(command.storyId, command.viewerId);
 
     // Get updated view count
@@ -55,7 +50,6 @@ export class ViewStoryUseCase {
       command.storyId,
     );
 
-    // Return result
     return {
       id: story.id,
       authorId: story.authorId,
@@ -67,32 +61,19 @@ export class ViewStoryUseCase {
       createdAt: story.createdAt,
       updatedAt: story.updatedAt,
       viewCount,
-      hasViewed: true, // User has just viewed it
+      hasViewed: true,
     };
   }
 
-  private validateCommand(command: ViewStoryCommand): void {
-    if (!command.storyId?.trim()) {
-      throw new Error('Story ID is required');
-    }
-    if (!command.viewerId?.trim()) {
-      throw new Error('Viewer ID is required');
-    }
-  }
-
   private async trackView(storyId: string, viewerId: string): Promise<void> {
-    // Check if user has already viewed this story
     const existingView = await this.storyViewRepository.findByStoryAndViewer(
       storyId,
       viewerId,
     );
 
     if (!existingView) {
-      // Create new view record
-      const viewId = uuid();
-      const storyView = StoryViewEntity.create(viewId, storyId, viewerId);
-      await this.storyViewRepository.create(storyView);
+      const storyView = StoryViewEntity.create(uuid(), storyId, viewerId);
+      await this.storyViewRepository.save(storyView);
     }
-    // If already viewed, do nothing (avoid duplicate views)
   }
 }

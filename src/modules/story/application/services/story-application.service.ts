@@ -3,6 +3,7 @@ import {
   CreateStoryUseCase,
   GetStoriesUseCase,
   ViewStoryUseCase,
+  DeactivateExpiredStoriesUseCase,
 } from '../use-cases';
 import {
   CreateStoryCommand,
@@ -16,10 +17,7 @@ import {
 /**
  * Story Application Service
  *
- * Responsibility: Orchestrate story-related use cases
- * - Provide high-level API for story operations
- * - Handle cross-cutting concerns (logging, validation, events)
- * - Coordinate multiple use cases if needed
+ * Thin orchestrator — delegates to individual use cases.
  */
 @Injectable()
 export class StoryApplicationService {
@@ -27,35 +25,28 @@ export class StoryApplicationService {
     private readonly createStoryUseCase: CreateStoryUseCase,
     private readonly getStoriesUseCase: GetStoriesUseCase,
     private readonly viewStoryUseCase: ViewStoryUseCase,
+    private readonly deactivateExpiredStoriesUseCase: DeactivateExpiredStoriesUseCase,
   ) {}
 
-  /**
-   * Create a new story
-   */
   async createStory(command: CreateStoryCommand): Promise<StoryUseCaseResult> {
     return this.createStoryUseCase.execute(command);
   }
 
-  /**
-   * Get stories from followed users (main feed)
-   */
   async getFollowedUsersStories(
     query: GetFollowedUsersStoriesQuery,
   ): Promise<StoriesListResult> {
     return this.getStoriesUseCase.getFollowedUsersStories(query);
   }
 
-  /**
-   * Get stories from a specific user
-   */
   async getUserStories(query: GetUserStoriesQuery): Promise<StoriesListResult> {
     return this.getStoriesUseCase.getUserStories(query);
   }
 
-  /**
-   * View a story and track the view
-   */
   async viewStory(command: ViewStoryCommand): Promise<StoryUseCaseResult> {
     return this.viewStoryUseCase.execute(command);
+  }
+
+  async deactivateExpiredStories(): Promise<number> {
+    return this.deactivateExpiredStoriesUseCase.execute();
   }
 }
