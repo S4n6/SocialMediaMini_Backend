@@ -6,6 +6,7 @@ import { RedisCacheModule } from '../../modules/cache';
 import { ConnectionManagerService } from './core/connection-manager.service';
 import { RoomManagerService } from './core/room-manager.service';
 import { WebSocketAuthService } from './core/websocket-auth.service';
+import { PresenceService } from './core/presence.service';
 import { MainGateway } from './core/websocket.gateway';
 
 // Event system
@@ -39,6 +40,7 @@ import { WebSocketEventEmitter } from './events';
     ConnectionManagerService,
     RoomManagerService,
     WebSocketAuthService,
+    PresenceService,
 
     // Event system
     WebSocketEventEmitter,
@@ -51,6 +53,7 @@ import { WebSocketEventEmitter } from './events';
     ConnectionManagerService,
     RoomManagerService,
     WebSocketAuthService,
+    PresenceService,
     WebSocketEventEmitter,
     MainGateway,
   ],
