@@ -400,6 +400,8 @@ model CloseFriend {
   @@map("CloseFriends")
 }
 
+
+
 enum UserRole {
   USER
   ADMIN
@@ -488,3 +490,4 @@ enum NotificationEntity {
   FOLLOW
   MESSAGE
 }
+

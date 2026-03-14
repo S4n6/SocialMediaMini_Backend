@@ -2,14 +2,14 @@ import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { VerifyEmailRequest } from './auth.dtos';
 import { EmailVerificationResult } from '../../domain/entities';
+import { VerificationTokenType } from '../../domain/entities/verification-token.entity';
 import { UserApplicationService } from '../../../users/application/user-application.service';
-import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { VerificationTokenAppService } from '../services/verification-token-app.service';
 import { Password } from '../../domain/value-objects/password.vo';
 import { IPasswordHasher } from '../../domain/repositories/password-hasher.repository';
 import { PASSWORD_HASHER_TOKEN } from '../../auth.constants';
 import {
   UserNotFoundException,
-  InvalidTokenException,
   EmailAlreadyVerifiedException,
 } from '../../domain/exceptions/auth.exceptions';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -22,7 +22,7 @@ export class VerifyEmailUseCase extends BaseUseCase<
 > {
   constructor(
     private userApplicationService: UserApplicationService,
-    private verificationTokenService: VerificationTokenService,
+    private verificationTokenAppService: VerificationTokenAppService,
     @Inject(PASSWORD_HASHER_TOKEN)
     private passwordHasher: IPasswordHasher,
     private eventEmitter: EventEmitter2,
@@ -33,24 +33,20 @@ export class VerifyEmailUseCase extends BaseUseCase<
   async execute(request: VerifyEmailRequest): Promise<EmailVerificationResult> {
     const { token, password } = request;
 
-    // Verify the email verification token
-    const tokenPayload =
-      await this.verificationTokenService.verifyEmailVerificationToken(token);
-    if (!tokenPayload) {
-      throw new InvalidTokenException('email-verification');
-    }
+    // Verify the DB-backed email verification token
+    // Throws TokenExpiredException or InvalidTokenException automatically
+    const verificationToken =
+      await this.verificationTokenAppService.verifyToken(
+        token,
+        VerificationTokenType.EMAIL_VERIFICATION,
+      );
 
-    // Find user by ID from token payload
+    // Find user by ID from token entity
     const user = await this.userApplicationService.findUserEntityById(
-      tokenPayload.userId,
+      verificationToken.userId,
     );
     if (!user) {
-      throw new UserNotFoundException(tokenPayload.userId);
-    }
-
-    // Verify that the email in token matches user's email (security check)
-    if (user.email !== tokenPayload.email) {
-      throw new InvalidTokenException('email-verification');
+      throw new UserNotFoundException(verificationToken.userId);
     }
 
     // If user already verified
@@ -60,7 +56,6 @@ export class VerifyEmailUseCase extends BaseUseCase<
 
     // If password is provided, set it for the user
     if (password) {
-      // Validate password using Password value object
       const passwordVO = new Password(password);
       const hashedPassword = await this.passwordHasher.hash(passwordVO);
 
@@ -70,9 +65,11 @@ export class VerifyEmailUseCase extends BaseUseCase<
       );
       await this.userApplicationService.verifyEmail(user.id);
     } else {
-      // Just verify email without setting password
       await this.userApplicationService.verifyEmail(user.id);
     }
+
+    // Consume the token so it cannot be reused
+    await this.verificationTokenAppService.consumeToken(verificationToken);
 
     // Emit EmailVerifiedEvent for side effects (send welcome email)
     this.eventEmitter.emit(

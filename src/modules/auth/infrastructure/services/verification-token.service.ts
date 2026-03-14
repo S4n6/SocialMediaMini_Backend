@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { TokenExpiredError } from 'jsonwebtoken';
 import { JWT } from '../../../../config/jwt.config';
 // Legacy service - interface moved to application layer
+
+type TokenVerificationStatus = 'valid' | 'expired' | 'invalid';
+
+interface TokenVerificationResult<T> {
+  payload: T | null;
+  status: TokenVerificationStatus;
+}
 
 export interface EmailVerificationPayload {
   userId: string;
@@ -67,9 +75,9 @@ export class VerificationTokenService {
    * @param token JWT token
    * @returns Decoded payload or null if invalid/expired
    */
-  async verifyEmailVerificationToken(
+  async verifyEmailVerificationTokenWithStatus(
     token: string,
-  ): Promise<EmailVerificationPayload | null> {
+  ): Promise<TokenVerificationResult<EmailVerificationPayload>> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: JWT.SECRET,
@@ -77,14 +85,23 @@ export class VerificationTokenService {
 
       // Check if token is for email verification
       if (payload.purpose !== 'email-verification') {
-        return null;
+        return { payload: null, status: 'invalid' };
       }
 
-      return payload;
+      return { payload, status: 'valid' };
     } catch (error) {
-      // Token is invalid, expired, or malformed
-      return null;
+      return {
+        payload: null,
+        status: this.getTokenStatusFromError(error),
+      };
     }
+  }
+
+  async verifyEmailVerificationToken(
+    token: string,
+  ): Promise<EmailVerificationPayload | null> {
+    const result = await this.verifyEmailVerificationTokenWithStatus(token);
+    return result.payload;
   }
 
   /**
@@ -92,9 +109,9 @@ export class VerificationTokenService {
    * @param token JWT token
    * @returns Decoded payload or null if invalid/expired
    */
-  async verifyPasswordResetToken(
+  async verifyPasswordResetTokenWithStatus(
     token: string,
-  ): Promise<PasswordResetPayload | null> {
+  ): Promise<TokenVerificationResult<PasswordResetPayload>> {
     try {
       const payload = this.jwtService.verify(token, {
         secret: JWT.SECRET,
@@ -102,14 +119,23 @@ export class VerificationTokenService {
 
       // Check if token is for password reset
       if (payload.purpose !== 'password-reset') {
-        return null;
+        return { payload: null, status: 'invalid' };
       }
 
-      return payload;
+      return { payload, status: 'valid' };
     } catch (error) {
-      // Token is invalid, expired, or malformed
-      return null;
+      return {
+        payload: null,
+        status: this.getTokenStatusFromError(error),
+      };
     }
+  }
+
+  async verifyPasswordResetToken(
+    token: string,
+  ): Promise<PasswordResetPayload | null> {
+    const result = await this.verifyPasswordResetTokenWithStatus(token);
+    return result.payload;
   }
 
   /**
@@ -137,5 +163,22 @@ export class VerificationTokenService {
     } catch (error) {
       return null;
     }
+  }
+
+  private getTokenStatusFromError(error: unknown): TokenVerificationStatus {
+    if (error instanceof TokenExpiredError) {
+      return 'expired';
+    }
+
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'name' in error &&
+      (error as { name: string }).name === 'TokenExpiredError'
+    ) {
+      return 'expired';
+    }
+
+    return 'invalid';
   }
 }

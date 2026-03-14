@@ -2,8 +2,9 @@ import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ForgotPasswordRequest } from './auth.dtos';
 import { PasswordResetResult } from '../../domain/entities';
+import { VerificationTokenType } from '../../domain/entities/verification-token.entity';
 import { UserApplicationService } from '../../../users/application/user-application.service';
-import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
+import { VerificationTokenAppService } from '../services/verification-token-app.service';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
@@ -23,7 +24,7 @@ export class ForgotPasswordUseCase extends BaseUseCase<
 
   constructor(
     private userApplicationService: UserApplicationService,
-    private verificationTokenService: VerificationTokenService,
+    private verificationTokenAppService: VerificationTokenAppService,
     @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
@@ -57,10 +58,10 @@ export class ForgotPasswordUseCase extends BaseUseCase<
       );
     }
 
-    // Generate JWT reset token using VerificationTokenService
-    const resetToken = this.verificationTokenService.generatePasswordResetToken(
+    // Generate DB-backed reset token (invalidates previous ones)
+    const resetToken = await this.verificationTokenAppService.createToken(
       user.id,
-      user.email,
+      VerificationTokenType.PASSWORD_RESET,
     );
 
     // Send password reset email directly via email sender

@@ -5,7 +5,8 @@ import { Token } from '../../domain/value-objects/token.vo';
 
 /**
  * JWT Token Generator Implementation
- * Implements ITokenGenerator using JWT
+ * Handles access and refresh tokens only.
+ * Verification tokens are now managed by CryptoTokenGenerator + Redis.
  */
 @Injectable()
 export class JwtTokenGenerator implements ITokenGenerator {
@@ -50,39 +51,6 @@ export class JwtTokenGenerator implements ITokenGenerator {
     );
   }
 
-  async generateVerificationToken(
-    userId: string,
-    email: string,
-  ): Promise<Token> {
-    const payload = {
-      sub: userId,
-      email,
-      type: 'verification',
-    };
-
-    const tokenString = this.jwtService.sign(payload, {
-      expiresIn: '24h', // 24 hours
-    });
-
-    return new Token(tokenString, new Date(Date.now() + 24 * 60 * 60 * 1000));
-  }
-
-  async generatePasswordResetToken(
-    userId: string,
-    email: string,
-  ): Promise<Token> {
-    const payload = {
-      sub: userId,
-      email,
-      type: 'password-reset',
-    };
-
-    const tokenString = this.jwtService.sign(payload, {
-      expiresIn: '1h', // 1 hour
-    });
-
-    return new Token(tokenString, new Date(Date.now() + 60 * 60 * 1000));
-  }
 
   async verifyAccessToken(token: Token): Promise<{
     userId: string;
@@ -131,54 +99,6 @@ export class JwtTokenGenerator implements ITokenGenerator {
       };
     } catch (error) {
       throw new Error('Invalid refresh token');
-    }
-  }
-
-  async verifyVerificationToken(token: Token): Promise<{
-    userId: string;
-    email: string;
-    iat: number;
-    exp: number;
-  }> {
-    try {
-      const payload = this.jwtService.verify(token.value);
-
-      if (payload.type !== 'verification') {
-        throw new Error('Invalid token type');
-      }
-
-      return {
-        userId: payload.sub,
-        email: payload.email,
-        iat: payload.iat,
-        exp: payload.exp,
-      };
-    } catch (error) {
-      throw new Error('Invalid verification token');
-    }
-  }
-
-  async verifyPasswordResetToken(token: Token): Promise<{
-    userId: string;
-    email: string;
-    iat: number;
-    exp: number;
-  }> {
-    try {
-      const payload = this.jwtService.verify(token.value);
-
-      if (payload.type !== 'password-reset') {
-        throw new Error('Invalid token type');
-      }
-
-      return {
-        userId: payload.sub,
-        email: payload.email,
-        iat: payload.iat,
-        exp: payload.exp,
-      };
-    } catch (error) {
-      throw new Error('Invalid password reset token');
     }
   }
 

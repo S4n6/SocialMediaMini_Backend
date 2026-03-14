@@ -1,10 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { ResendVerificationRequest } from './auth.dtos';
+import { VerificationTokenType } from '../../domain/entities/verification-token.entity';
 import { UserApplicationService } from '../../../users/application/user-application.service';
-import { VerificationTokenService } from '../../infrastructure/services/verification-token.service';
-import { ITokenRepository } from '../../domain/repositories/token.repository';
-import { TOKEN_REPOSITORY_TOKEN } from '../../auth.constants';
+import { VerificationTokenAppService } from '../services/verification-token-app.service';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { Email } from '../../domain/value-objects/email.vo';
@@ -24,8 +23,7 @@ export class ResendVerificationUseCase extends BaseUseCase<
 
   constructor(
     private userApplicationService: UserApplicationService,
-    private verificationTokenService: VerificationTokenService,
-    @Inject(TOKEN_REPOSITORY_TOKEN) private tokenRepository: ITokenRepository,
+    private verificationTokenAppService: VerificationTokenAppService,
     @Inject(EMAIL_SENDER_TOKEN) private emailSender: IEmailSender,
   ) {
     super();
@@ -57,10 +55,10 @@ export class ResendVerificationUseCase extends BaseUseCase<
       );
     }
 
-    // Generate verification token using TokenRepository
-    const token = await this.tokenRepository.generateEmailVerificationToken(
+    // Generate DB-backed verification token (invalidates previous ones)
+    const token = await this.verificationTokenAppService.createToken(
       user.id,
-      user.email,
+      VerificationTokenType.EMAIL_VERIFICATION,
     );
 
     // Send email via injected email sender

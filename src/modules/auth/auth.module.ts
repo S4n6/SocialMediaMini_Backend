@@ -9,20 +9,26 @@ import {
   PASSWORD_HASHER_TOKEN,
   TOKEN_GENERATOR_TOKEN,
   EMAIL_SENDER_TOKEN,
+  VERIFICATION_TOKEN_REPOSITORY_TOKEN,
+  SECURE_TOKEN_GENERATOR_TOKEN,
 } from './auth.constants';
 
 // Application Layer
 import { AuthApplicationService } from './application/auth-application.service';
+import { VerificationTokenAppService } from './application/services/verification-token-app.service';
 
 // Infrastructure Layer - Repository Implementations
 import { SessionRepository } from './infrastructure/repositories/session.repository';
 import { TokenRepository } from './infrastructure/repositories/token.repository';
 import { AuthUserRepository } from './infrastructure/repositories/auth-user.repository';
+import { VerificationTokenRedisRepository } from './infrastructure/repositories/verification-token-redis.repository';
 
 // Infrastructure Layer - Service Implementations
 import { BcryptPasswordHasher } from './infrastructure/security/bcrypt-password-hasher';
 import { JwtTokenGenerator } from './infrastructure/security/jwt-token-generator';
+import { CryptoTokenGenerator } from './infrastructure/security/crypto-token-generator';
 import { MailerEmailSender } from './infrastructure/services/mailer-email.service';
+
 
 // Domain Services
 import { SessionDomainService } from './domain/services/session-domain.service';
@@ -88,6 +94,16 @@ import {
     },
     AuthUserRepository,
 
+    // Verification Token (Redis-backed)
+    {
+      provide: VERIFICATION_TOKEN_REPOSITORY_TOKEN,
+      useClass: VerificationTokenRedisRepository,
+    },
+    {
+      provide: SECURE_TOKEN_GENERATOR_TOKEN,
+      useClass: CryptoTokenGenerator,
+    },
+
     // Domain Services
     SessionDomainService,
 
@@ -120,6 +136,10 @@ import {
     // Infrastructure Services
     AuthenticationService,
     VerificationTokenService,
+
+
+    // Application Services
+    VerificationTokenAppService,
 
     // Presentation
     JwtStrategy,
