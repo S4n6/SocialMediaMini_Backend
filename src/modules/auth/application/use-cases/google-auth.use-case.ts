@@ -1,8 +1,7 @@
-import { Injectable, ConflictException, Inject } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { BaseUseCase } from './base.use-case';
 import { GoogleAuthRequest } from './auth.dtos';
 import { LoginResult } from '../../domain/entities';
-import { ROLES } from '../../../../shared/constants/roles.constant';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
 import { IUserRepository } from '../../../users/domain/repositories/user.repository';
 import { ITokenRepository } from '../../domain/repositories/token.repository';
@@ -10,15 +9,27 @@ import { ISessionRepository } from '../../domain/repositories/session.repository
 import {
   TOKEN_REPOSITORY_TOKEN,
   SESSION_REPOSITORY_TOKEN,
+  EMAIL_SENDER_TOKEN,
 } from '../../auth.constants';
-import {
-  UserEmail,
-  Username,
-  UserId,
-} from '../../../users/domain/value-objects';
 import { UserProfile } from '../../../users/domain/value-objects/user-profile.value-object';
 import { User, UserRole } from '../../../users/domain/entities/user.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { IEmailSender } from '../../domain/repositories/email-sender.repository';
+import { Email } from '../../domain/value-objects/email.vo';
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const prismaCode = (error as { code?: unknown }).code;
+  const message = (error as { message?: unknown }).message;
+
+  return (
+    prismaCode === 'P2002' ||
+    (typeof message === 'string' && message.includes('unique constraint'))
+  );
+}
 
 @Injectable()
 export class GoogleAuthUseCase extends BaseUseCase<
@@ -32,6 +43,8 @@ export class GoogleAuthUseCase extends BaseUseCase<
     private tokenRepository: ITokenRepository,
     @Inject(SESSION_REPOSITORY_TOKEN)
     private sessionRepository: ISessionRepository,
+    @Inject(EMAIL_SENDER_TOKEN)
+    private emailSender: IEmailSender,
   ) {
     super();
   }
@@ -120,10 +133,7 @@ export class GoogleAuthUseCase extends BaseUseCase<
           userCreated = true;
         } catch (error) {
           // Check if it's a unique constraint violation
-          if (
-            error.code === 'P2002' ||
-            error.message?.includes('unique constraint')
-          ) {
+          if (isUniqueConstraintError(error)) {
             attempts++;
             if (attempts >= maxAttempts) {
               // Last resort: use UUID suffix (guaranteed unique)
@@ -163,6 +173,14 @@ export class GoogleAuthUseCase extends BaseUseCase<
         user.email,
         user.role.toString(),
       );
+
+      try {
+        const emailVO = new Email(user.email);
+        await this.emailSender.sendWelcomeEmail(emailVO, user.profile.fullName);
+      } catch (error) {
+        // Login must still succeed even if the welcome email cannot be queued.
+        console.error('Failed to send Google welcome email:', error);
+      }
 
       // Extract actual sessionId from refresh token
       const sessionInfo =

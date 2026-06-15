@@ -52,7 +52,6 @@ import { VerificationTokenService } from './infrastructure/services/verification
 import { JwtStrategy } from './presentation/strategies/Jwt.strategy';
 import { GoogleStrategy } from './presentation/strategies/google.strategy';
 import { UsersModule } from '../users/users.module';
-import { JWT } from 'src/config/jwt.config';
 import { MailerModule } from '../mailer/mailer.module';
 // import { NotificationModule } from '../notification/notification.module'; // TODO: Refactor notification module
 import { RedisCacheModule } from '../cache/cache.module';
@@ -64,6 +63,7 @@ import {
   EmailVerifiedSubscriber,
   UserLoggedInSubscriber,
 } from './application/subscribers';
+import { JWT } from '../../config/jwt.config';
 
 @Module({
   imports: [

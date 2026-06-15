@@ -4,9 +4,7 @@ import { RegisterUserRequest } from './auth.dtos';
 import { RegisterResult } from '../../domain/entities';
 import { VerificationTokenType } from '../../domain/entities/verification-token.entity';
 import { USER_REPOSITORY_TOKEN } from '../../../users/users.constants';
-import { IUserRepository } from 'src/modules/users/domain/repositories/user.repository';
 import { UserFactory } from '../../../users/domain/factories/user.factory';
-import { UserRole } from 'src/modules/users/domain';
 import { VerificationTokenAppService } from '../services/verification-token-app.service';
 import { EMAIL_SENDER_TOKEN } from '../../auth.constants';
 import { IEmailSender } from '../../domain/repositories/email-sender.repository';
@@ -16,6 +14,7 @@ import {
   UsernameAlreadyTakenException,
   EmailNotVerifiedException,
 } from '../../domain/exceptions/auth.exceptions';
+import { IUserRepository, UserRole } from '../../../users/domain';
 
 @Injectable()
 export class RegisterUserUseCase extends BaseUseCase<

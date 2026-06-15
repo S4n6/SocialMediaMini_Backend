@@ -430,12 +430,12 @@ export class AuthController {
       }
 
       return res.redirect(
-        `${frontendUrl}/auth/success?message=Login successful`,
+        `${frontendUrl}/auth/success?message=login_successful`,
       );
     } catch (error) {
       console.error('Google auth callback error:', error);
       return res.redirect(
-        `${frontendUrl}/auth/error?message=Authentication failed`,
+        `${frontendUrl}/auth/error?message=authentication_failed`,
       );
     }
   }
