@@ -166,6 +166,13 @@ export class AuthenticationService {
     const sessionIds = sessions.map((session) => session.id);
     await this.sessionService.deleteSessions(userId, sessionIds);
 
+    // Invalidate older access tokens immediately.
+    await this.cacheService.set(
+      `auth:logout-all:${userId}`,
+      Math.floor(Date.now() / 1000),
+      7 * 24 * 60 * 60,
+    );
+
     return {
       message: currentSessionId
         ? 'Logged out from all other devices successfully'
@@ -209,10 +216,15 @@ export class AuthenticationService {
 
       return { user, payload };
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
+      const errorName =
+        error && typeof error === 'object' && 'name' in error
+          ? (error as { name?: string }).name
+          : undefined;
+
+      if (errorName === 'TokenExpiredError') {
         throw new UnauthorizedException('Access token expired');
       }
-      if (error.name === 'JsonWebTokenError') {
+      if (errorName === 'JsonWebTokenError') {
         throw new UnauthorizedException('Invalid access token');
       }
       throw error;

@@ -25,6 +25,7 @@ export interface LoginResult extends AuthResult {
     fullName: string;
     avatar?: string;
     role: string;
+    isEmailVerified: boolean;
   };
   accessToken: string;
   refreshToken: string;

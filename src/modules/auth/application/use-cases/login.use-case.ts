@@ -126,6 +126,7 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
         fullName: user.profile.fullName,
         avatar: user.profile.avatar,
         role: user.role,
+        isEmailVerified: user.isEmailVerified,
       },
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

@@ -138,7 +138,7 @@ export class AuthApplicationService {
         email: result.user.email,
         avatar: result.user.avatar,
         role: result.user.role,
-        isEmailVerified: googleAuthDto.emailVerified,
+        isEmailVerified: result.user.isEmailVerified,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

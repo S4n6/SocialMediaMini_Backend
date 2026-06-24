@@ -4,10 +4,14 @@ import { Injectable, UnauthorizedException, Inject } from '@nestjs/common';
 import { JWT } from '../../../../config/jwt.config';
 import { Request } from 'express';
 import { UserApplicationService } from '../../../users/application/user-application.service';
+import { RedisCacheService } from '../../../cache/cache.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private userApplicationService: UserApplicationService) {
+  constructor(
+    private userApplicationService: UserApplicationService,
+    private cacheService: RedisCacheService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         // 1. Try Bearer token from Authorization header (mobile/API clients)
@@ -25,6 +29,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     try {
+      const logoutAllAt = await this.cacheService.get<number>(
+        `auth:logout-all:${payload.sub}`,
+      );
+
+      if (
+        logoutAllAt !== null &&
+        (typeof payload.iat !== 'number' || payload.iat <= logoutAllAt)
+      ) {
+        throw new UnauthorizedException('Token has been revoked');
+      }
+
       const user = await this.userApplicationService.findUserEntityById(
         payload.sub,
       );

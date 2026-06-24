@@ -75,6 +75,24 @@ export class TokenRepository implements ITokenRepository {
     deviceName?: string,
     deviceType?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
+    const maxSessionsPerUser = 5;
+    const existingSessions = await this.prisma.session.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    while (existingSessions.length >= maxSessionsPerUser) {
+      const oldestSession = existingSessions.shift();
+
+      if (!oldestSession) {
+        break;
+      }
+
+      await this.prisma.session.delete({
+        where: { id: oldestSession.id },
+      });
+    }
+
     // Generate unique database ID for the session
     const databaseId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
@@ -148,11 +166,21 @@ export class TokenRepository implements ITokenRepository {
       throw new Error('Session not found or expired');
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: tokenData.userId,
+      },
+      select: {
+        email: true,
+        role: true,
+      },
+    });
+
     // Generate new tokens (keep same session database ID)
     const newAccessToken = this.generateAccessTokenWithRole(
       tokenData.userId,
-      tokenData.email,
-      'USER',
+      user?.email || tokenData.email,
+      user?.role?.toString() || 'USER',
     );
     const newRefreshToken = this.generateRefreshToken(
       tokenData.userId,
