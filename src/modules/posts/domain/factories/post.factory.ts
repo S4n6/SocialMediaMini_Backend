@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { v7 as uuidv7 } from 'uuid';
 import {
   PostEntity,
   PostPrivacy,
@@ -168,7 +168,7 @@ export class PostFactory {
   }
 
   private generateId(): string {
-    return randomUUID();
+    return uuidv7();
   }
 
   private detectMediaType(url: string): 'image' | 'video' {

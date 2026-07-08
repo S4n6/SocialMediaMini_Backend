@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { v7 as uuidv7 } from 'uuid';
 import { PostDomainService } from '../../domain/services/post-domain.service';
 import { IPostRepository } from '../../domain/repositories/post.repository';
 import { PostNotFoundException } from '../../domain/exceptions/post.exceptions';
@@ -50,7 +50,7 @@ export class UpdatePostUseCase {
       post.clearMedia();
       dto.media.forEach((mediaData) => {
         const media = {
-          id: randomUUID(),
+          id: uuidv7(),
           url: mediaData.url,
           type: mediaData.type,
           order: mediaData.order,

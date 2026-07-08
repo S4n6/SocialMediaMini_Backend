@@ -91,7 +91,7 @@ export class UpdatePostRequestDto {
 
   @ApiPropertyOptional({
     description: 'Updated privacy setting',
-    enum: ['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'],
+    enum: ['PUBLIC', 'PRIVATE', 'FOLLOWERS'],
   })
   @IsOptional()
   @Transform(({ value }) =>
@@ -152,11 +152,11 @@ export class GetPostsQueryRequestDto {
 
   @ApiPropertyOptional({
     description: 'Filter by privacy level',
-    enum: ['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'],
+    enum: ['PUBLIC', 'PRIVATE', 'FOLLOWERS'],
   })
   @IsOptional()
-  @IsEnum(['PUBLIC', 'PRIVATE', 'FRIENDS_ONLY'])
-  privacy?: 'PUBLIC' | 'PRIVATE' | 'FRIENDS_ONLY';
+  @IsEnum(['PUBLIC', 'PRIVATE', 'FOLLOWERS'])
+  privacy?: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
 
   @ApiPropertyOptional({ description: 'Filter by hashtag' })
   @IsOptional()

@@ -1,5 +1,5 @@
 import { Entity } from '../../../../shared/domain/entity.base';
-import { randomUUID } from 'crypto';
+import { v7 as uuidv7 } from 'uuid';
 import {
   PostCreatedEvent,
   PostUpdatedEvent,
@@ -89,7 +89,7 @@ export class PostEntity extends Entity<string> {
   private _updatedAt: Date;
 
   constructor(props: PostProps) {
-    super(props.id || randomUUID());
+    super(props.id || uuidv7());
     this._content = props.content;
     this._privacy = props.privacy;
     this._status = props.status || PostStatus.PUBLISHED;
@@ -350,7 +350,7 @@ export class PostEntity extends Entity<string> {
   }
 
   private generateId(): string {
-    return randomUUID();
+    return uuidv7();
   }
 
   // Static factory methods

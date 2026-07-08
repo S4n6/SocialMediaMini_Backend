@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreatePostUseCase } from './use-cases/create-post.use-case';
 import { UpdatePostUseCase } from './use-cases/update-post.use-case';
 import { DeletePostUseCase } from './use-cases/delete-post.use-case';
@@ -43,6 +43,8 @@ export class PostApplicationService {
     // Enrichment service
     private readonly postEnrichmentService: PostEnrichmentService,
   ) {}
+
+  private readonly logger = new Logger(PostApplicationService.name);
 
   // ===== POST MANAGEMENT =====
 
@@ -124,40 +126,34 @@ export class PostApplicationService {
     userId: string,
     dto: GetTimelineFeedDto,
   ): Promise<CursorPaginatedPostsResponseDto> {
-    const limit = dto.limit || 10;
-    const cursor = dto.cursor || null;
-    const algorithm = dto.algorithm || 'chronological';
+    const limit = dto.limit ?? 10;
+    const cursor = dto.cursor ?? null;
+    const algorithm = dto.algorithm ?? 'chronological';
 
-    // Generate cache key with cursor (deterministic per scroll position)
+    // Generate a deterministic cache key per scroll position.
     const cacheKey = generateCacheKey(
       'TIMELINE_FEED',
       `${userId}:cursor:${cursor ?? 'initial'}:limit:${limit}:algo:${algorithm}`,
     );
 
-    const cachedResult = await this.cacheService.getOrSet(
+    // Cache the *raw* (non-enriched) feed so that user-profile changes
+    // (avatar, username) are reflected on the next enrichment pass rather
+    // than being frozen for the full TTL window.
+    const rawResult = await this.cacheService.getOrSet(
       cacheKey,
-      async () => {
-        const result = await this.getTimelineFeedUseCase.execute(
-          userId,
-          limit,
-          cursor,
-          algorithm,
-        );
-
-        // Enrich each post with user information
-        const enrichedPosts = await this.postEnrichmentService.enrichPosts(
-          result.data,
-        );
-
-        return {
-          ...result,
-          data: enrichedPosts,
-        };
-      },
-      getCacheTTL('TIMELINE_FEED'), // 5 minutes as defined in cache config
+      () => this.getTimelineFeedUseCase.execute(userId, limit, cursor, algorithm),
+      getCacheTTL('TIMELINE_FEED'),
     );
 
-    return cachedResult;
+    // Enrich after cache retrieval — always reflects the latest user data.
+    const enrichedPosts = await this.postEnrichmentService.enrichPosts(
+      rawResult.data,
+    );
+
+    return {
+      ...rawResult,
+      data: enrichedPosts,
+    };
   }
 
   // ===== CACHE MANAGEMENT =====
@@ -173,18 +169,26 @@ export class PostApplicationService {
       const commonLimits = [10, 20];
       const algorithms = ['chronological', 'smart', 'diversified'];
 
-      for (const limit of commonLimits) {
-        for (const algo of algorithms) {
+      // Build all cache keys and delete them in parallel (single batch round-trip)
+      // rather than issuing serial DEL commands in a nested loop.
+      const deletePromises = commonLimits.flatMap((limit) =>
+        algorithms.map((algo) => {
           const cacheKey = generateCacheKey(
             'TIMELINE_FEED',
             `${userId}:cursor:initial:limit:${limit}:algo:${algo}`,
           );
-          await this.cacheService.del(cacheKey);
-        }
-      }
+          return this.cacheService.del(cacheKey);
+        }),
+      );
+
+      await Promise.all(deletePromises);
     } catch (error) {
-      // Log error but don't fail the operation
-      console.error('Failed to invalidate timeline feed cache:', error);
+      // Log but don't propagate — a cache invalidation failure must never
+      // fail the originating write operation.
+      this.logger.error(
+        `Failed to invalidate timeline feed cache for user ${userId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 }

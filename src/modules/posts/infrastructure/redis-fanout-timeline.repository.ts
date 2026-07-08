@@ -52,40 +52,46 @@ export class RedisFanoutTimelineRepository implements ITimelineRepository {
   ): Promise<CursorPaginatedPosts> {
     const offset = this.parseOffset(cursor);
 
-    // Over-fetch by 1 to detect whether a next page exists
-    const postIds = await this.feedCache.getFeedPostIds(
-      userId,
-      offset,
-      limit + 1,
-    );
+    // Over-fetch by 1 to detect whether a next page exists.
+    // We request `limit + 1` IDs; if we get more than `limit` back we know
+    // another page exists and we slice down to exactly `limit` for this page.
+    const rawIds = await this.feedCache.getFeedPostIds(userId, offset, limit + 1);
 
-    if (postIds.length === 0) {
+    if (rawIds.length === 0) {
       return { posts: [], nextCursor: null };
     }
 
-    const hasNextPage = postIds.length > limit;
-    const pageIds = hasNextPage ? postIds.slice(0, limit) : postIds;
+    const hasNextPage = rawIds.length > limit;
+    // Trim to the actual page window — `pageIds` is always ≤ `limit` elements.
+    const pageIds = hasNextPage ? rawIds.slice(0, limit) : rawIds;
 
-    // Batch-load full post entities from PostgreSQL
+    // Batch-load full post entities from PostgreSQL in a single query.
     const posts = await this.postRepository.findByIds(pageIds);
 
-    // ── Preserve Redis order ────────────────────────────────
-    // Build a Map<postId, PostEntity> for O(1) lookup, then
-    // iterate pageIds in Redis order. Posts that were deleted
-    // between the LRANGE and the DB query are silently skipped.
+    // ── Preserve Redis order ────────────────────────────────────────────────
+    // Prisma's `IN` clause does NOT guarantee order so we re-sort here.
+    // Build a Map<postId, PostEntity> for O(1) lookup, then iterate
+    // pageIds in their original Redis (chronological) order.
+    // Posts deleted between the LRANGE call and the DB query are silently
+    // skipped — the Go worker will clean stale IDs asynchronously.
     const postMap = new Map<string, PostEntity>(posts.map((p) => [p.id, p]));
     const ordered = pageIds
       .map((id) => postMap.get(id))
       .filter((p): p is PostEntity => p !== undefined);
 
-    // If some IDs were stale, log for observability
+    // Emit a warning so the Go worker can detect and prune stale entries.
     if (ordered.length < pageIds.length) {
       this.logger.warn(
-        `Feed for user ${userId}: ${pageIds.length - ordered.length} stale post IDs skipped`,
+        `Feed for user ${userId}: ${pageIds.length - ordered.length} stale post ID(s) skipped. ` +
+          `Consider triggering a feed-cleanup job.`,
       );
     }
 
-    const nextCursor = hasNextPage ? String(offset + pageIds.length) : null;
+    // ── Cursor calculation ──────────────────────────────────────────────────
+    // The next cursor is the Redis offset of the *first* item on the next
+    // page, which is always `offset + limit` regardless of how many stale
+    // IDs were skipped (we must advance by the full window we consumed).
+    const nextCursor = hasNextPage ? String(offset + limit) : null;
 
     return { posts: ordered, nextCursor };
   }
