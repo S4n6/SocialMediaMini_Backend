@@ -1,39 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { CloudinaryService } from '../../../cloudinary/cloudinary.service';
-import {
-  CloudinaryService as ICloudinaryService,
-  UploadedFile,
-} from '../../domain/services/cloudinary.service';
-
-@Injectable()
-export class CloudinaryAdapter implements ICloudinaryService {
-  constructor(private readonly cloudinaryService: CloudinaryService) {}
-
-  async uploadMultipleFiles(
-    files: Express.Multer.File[],
-    folder: string,
-  ): Promise<UploadedFile[]> {
-    const uploadedFiles = await this.cloudinaryService.uploadMultipleFiles(
-      files,
-      folder,
-    );
-
-    return uploadedFiles.map((file) => ({
-      url: file.secure_url,
-      type: file.resource_type,
-      resourceType: file.resource_type,
-    }));
-  }
-
-  async generateSignature(params: any): Promise<string> {
-    return await this.cloudinaryService.generateSignature(params);
-  }
-
-  async deleteFile(publicId: string): Promise<any> {
-    return await this.cloudinaryService.deleteFile(publicId);
-  }
-
-  async deleteMultipleFiles(publicIds: string[]): Promise<any> {
-    return await this.cloudinaryService.deleteMultipleFiles(publicIds);
-  }
-}
+/**
+ * @deprecated
+ * This adapter is no longer needed — StorageModule now provides IStorageService
+ * directly via the STORAGE_SERVICE token.
+ *
+ * postMedias.module.ts wires CLOUDINARY_SERVICE → STORAGE_SERVICE so all
+ * existing use-cases continue to work without changes.
+ *
+ * This file is kept for reference only and can be deleted once all use-cases
+ * are updated to inject STORAGE_SERVICE instead of CLOUDINARY_SERVICE.
+ */
+export {};

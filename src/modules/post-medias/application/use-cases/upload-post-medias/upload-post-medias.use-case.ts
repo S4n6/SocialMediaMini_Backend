@@ -74,7 +74,7 @@ export class UploadPostMediasUseCase {
         throw new PostMediaLimitExceededException(maxMediaPerPost);
       }
 
-      // Upload files to cloud storage
+      // Upload files to cloud media
       const uploadedFiles = await this.cloudinaryService.uploadMultipleFiles(
         command.files,
         `SocialMedia/posts/${command.postId}`,

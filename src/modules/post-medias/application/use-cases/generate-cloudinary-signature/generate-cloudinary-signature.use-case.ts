@@ -1,43 +1,35 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { CloudinaryService } from '../../../domain/services/cloudinary.service';
+import { IMediaService, UploadCredentials } from '../../../domain/services/cloudinary.service';
 import { CLOUDINARY_SERVICE } from '../../../tokens';
 
-export interface GenerateCloudinarySignatureCommand {
+export interface GetUploadCredentialsCommand {
   folder?: string;
 }
 
-export interface GenerateCloudinarySignatureResult {
-  signature: string;
-  timestamp: number;
-  folder: string;
-  apiKey: string;
-  cloudName: string;
-}
+/**
+ * @deprecated rename: use GetUploadCredentialsCommand
+ */
+export type GenerateCloudinarySignatureCommand = GetUploadCredentialsCommand;
 
+/**
+ * Returns provider-specific upload credentials for direct client uploads.
+ *
+ * Response shape depends on the active MEDIA_PROVIDER:
+ *   - cloudinary → { provider, signature, timestamp, apiKey, cloudName, folder }
+ *   - s3         → { provider, uploadUrl, key, expiresIn }
+ */
 @Injectable()
 export class GenerateCloudinarySignatureUseCase {
   constructor(
     @Inject(CLOUDINARY_SERVICE)
-    private readonly cloudinaryService: CloudinaryService,
+    private readonly mediaService: IMediaService,
   ) {}
 
   async execute(
-    command: GenerateCloudinarySignatureCommand,
-  ): Promise<GenerateCloudinarySignatureResult> {
-    const folder = command.folder || 'SocialMedia/posts';
-    const timestamp = Math.floor(Date.now() / 1000);
-
-    const signature = await this.cloudinaryService.generateSignature({
-      timestamp,
-      folder,
+    command: GetUploadCredentialsCommand,
+  ): Promise<UploadCredentials> {
+    return this.mediaService.getUploadCredentials({
+      folder: command.folder,
     });
-
-    return {
-      signature,
-      timestamp,
-      folder,
-      apiKey: process.env.CLOUDINARY_API_KEY || '',
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME || '',
-    };
   }
 }

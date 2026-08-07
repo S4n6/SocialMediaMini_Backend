@@ -117,11 +117,11 @@ export class PostMediaApplicationServiceImpl
     });
 
     return {
-      signature: result.signature,
-      timestamp: result.timestamp,
-      folder: result.folder,
-      apiKey: result.apiKey,
-      cloudName: result.cloudName,
+      signature: result.signature ?? '',
+      timestamp: result.timestamp ?? 0,
+      folder: result.folder ?? '',
+      apiKey: result.apiKey ?? '',
+      cloudName: result.cloudName ?? '',
     };
   }
 }

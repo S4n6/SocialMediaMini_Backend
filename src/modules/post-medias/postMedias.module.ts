@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../../database/prisma.module';
-import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { MediaModule } from '../media/media.module';
+import { MEDIA_SERVICE } from '../media/media.tokens';
 
 // Presentation Layer
 import {
@@ -37,7 +38,6 @@ import { MediaProcessingSubscriber } from './application/subscribers';
 // Infrastructure Layer
 import {
   PostMediaPrismaRepository,
-  CloudinaryAdapter,
   PostServiceAdapter,
   MediaSseService,
 } from './infrastructure';
@@ -53,7 +53,13 @@ import {
 } from './tokens';
 
 @Module({
-  imports: [PrismaModule, CloudinaryModule, ConfigModule],
+  imports: [
+    PrismaModule,
+    // MediaModule replaces CloudinaryModule — it provides the active
+    // media provider (Cloudinary or S3) based on MEDIA_PROVIDER env var.
+    MediaModule,
+    ConfigModule,
+  ],
   controllers: [
     PostMediasController,
     MediaCallbackController,
@@ -86,10 +92,13 @@ import {
     PostMediaApplicationServiceImpl,
     PostMediaMapperImpl,
 
-    // Service Implementations
+    // Wire CLOUDINARY_SERVICE → MEDIA_SERVICE so all existing use-cases
+    // that still inject CLOUDINARY_SERVICE continue to work unchanged.
+    // Once all use-cases are updated to use MEDIA_SERVICE directly this
+    // alias provider can be removed.
     {
       provide: CLOUDINARY_SERVICE,
-      useClass: CloudinaryAdapter,
+      useExisting: MEDIA_SERVICE,
     },
     {
       provide: POST_SERVICE,

@@ -13,19 +13,15 @@ describe('S3Service (Unit)', () => {
   let configService: ConfigService;
 
   const mockConfigService = {
-    getOrThrow: jest.fn((key: string) => {
+    get: jest.fn((key: string) => {
       const config: Record<string, string> = {
         AWS_S3_BUCKET_NAME: 'test-bucket',
         AWS_REGION: 'us-east-1',
         AWS_ACCESS_KEY_ID: 'test-access-key',
         AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+        AWS_CLOUDFRONT_URL: '',
       };
-      return config[key];
-    }),
-    get: jest.fn((key: string) => {
-      if (key === 'AWS_CLOUDFRONT_URL') return '';
-      if (key === 'AWS_REGION') return 'us-east-1';
-      return null;
+      return config[key] ?? null;
     }),
   };
 
@@ -54,16 +50,10 @@ describe('S3Service (Unit)', () => {
     });
 
     it('should initialize with AWS config from environment', () => {
-      expect(configService.getOrThrow).toHaveBeenCalledWith(
-        'AWS_S3_BUCKET_NAME',
-      );
-      expect(configService.getOrThrow).toHaveBeenCalledWith('AWS_REGION');
-      expect(configService.getOrThrow).toHaveBeenCalledWith(
-        'AWS_ACCESS_KEY_ID',
-      );
-      expect(configService.getOrThrow).toHaveBeenCalledWith(
-        'AWS_SECRET_ACCESS_KEY',
-      );
+      expect(configService.get).toHaveBeenCalledWith('AWS_S3_BUCKET_NAME');
+      expect(configService.get).toHaveBeenCalledWith('AWS_REGION');
+      expect(configService.get).toHaveBeenCalledWith('AWS_ACCESS_KEY_ID');
+      expect(configService.get).toHaveBeenCalledWith('AWS_SECRET_ACCESS_KEY');
     });
   });
 
@@ -148,20 +138,15 @@ describe('S3Service (Unit)', () => {
     it('should return CloudFront URL when CDN is configured', async () => {
       // Create a new mock with CDN URL
       const mockConfigWithCdn = {
-        getOrThrow: jest.fn((key: string) => {
+        get: jest.fn((key: string) => {
           const config: Record<string, string> = {
             AWS_S3_BUCKET_NAME: 'test-bucket',
             AWS_REGION: 'us-east-1',
             AWS_ACCESS_KEY_ID: 'test-access-key',
             AWS_SECRET_ACCESS_KEY: 'test-secret-key',
+            AWS_CLOUDFRONT_URL: 'https://d123.cloudfront.net',
           };
-          return config[key];
-        }),
-        get: jest.fn((key: string) => {
-          if (key === 'AWS_CLOUDFRONT_URL')
-            return 'https://d123.cloudfront.net';
-          if (key === 'AWS_REGION') return 'us-east-1';
-          return null;
+          return config[key] ?? null;
         }),
       };
 
