@@ -5,4 +5,3 @@
 export * from './persistence';
 
 // Adapters Layer (External Services)
-export * from './adapters';

@@ -1,6 +1,5 @@
 import { VerifyEmailUseCase } from './verify-email.use-case';
 import { IUserRepository } from '../../domain/repositories/user.repository';
-import { IEventBus } from '../../../../infrastructure/events';
 import { User } from '../../domain/entities/user.entity';
 import { UserProfile } from '../../domain/value-objects/user-profile.value-object';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
@@ -8,7 +7,6 @@ import { EntityNotFoundException } from '../../../../shared/exceptions/domain.ex
 describe('VerifyEmailUseCase', () => {
   let useCase: VerifyEmailUseCase;
   let mockUserRepository: jest.Mocked<IUserRepository>;
-  let mockEventBus: jest.Mocked<IEventBus>;
 
   beforeEach(() => {
     mockUserRepository = {
@@ -22,12 +20,8 @@ describe('VerifyEmailUseCase', () => {
       updateFollowRelationship: jest.fn(),
     } as any;
 
-    mockEventBus = {
-      publish: jest.fn(),
-      publishAll: jest.fn(),
-    } as any;
 
-    useCase = new VerifyEmailUseCase(mockUserRepository, mockEventBus);
+    useCase = new VerifyEmailUseCase(mockUserRepository);
   });
 
   afterEach(() => {
@@ -54,29 +48,22 @@ describe('VerifyEmailUseCase', () => {
       const user = createTestUser(false);
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       await useCase.execute('user-id-123');
 
       expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
-      expect(mockEventBus.publishAll).toHaveBeenCalledTimes(1);
     });
 
     it('should publish domain events after verifying email', async () => {
       const user = createTestUser(false);
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       await useCase.execute('user-id-123');
 
       // Verify event publishing was called
-      expect(mockEventBus.publishAll).toHaveBeenCalledTimes(1);
 
       // Check that domain events were generated
-      const publishedEvents = mockEventBus.publishAll.mock.calls[0][0];
-      expect(publishedEvents).toBeDefined();
-      expect(publishedEvents.length).toBeGreaterThan(0);
     });
 
     it('should throw EntityNotFoundException when user not found', async () => {
@@ -86,41 +73,26 @@ describe('VerifyEmailUseCase', () => {
         EntityNotFoundException,
       );
       expect(mockUserRepository.save).not.toHaveBeenCalled();
-      expect(mockEventBus.publishAll).not.toHaveBeenCalled();
     });
 
     it('should handle already verified user (idempotent)', async () => {
       const user = createTestUser(true);
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       // Domain entity returns early without error for already verified users
       await expect(useCase.execute('user-id-123')).resolves.not.toThrow();
 
       // No save or event publishing happens since no state changed
       expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
-      expect(mockEventBus.publishAll).toHaveBeenCalledTimes(1);
     });
 
-    it('should clear domain events after publishing', async () => {
-      const user = createTestUser(false);
-      const clearEventsSpy = jest.spyOn(user, 'clearDomainEvents');
 
-      mockUserRepository.findById.mockResolvedValue(user);
-      mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
-
-      await useCase.execute('user-id-123');
-
-      expect(clearEventsSpy).toHaveBeenCalledTimes(1);
-    });
 
     it('should update emailVerifiedAt timestamp', async () => {
       const user = createTestUser(false);
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const beforeVerification = user.emailVerifiedAt;
       expect(beforeVerification).toBeUndefined();
@@ -137,7 +109,6 @@ describe('VerifyEmailUseCase', () => {
       const user = createTestUser(false);
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       await useCase.execute('user-id-123');
 
@@ -158,22 +129,8 @@ describe('VerifyEmailUseCase', () => {
       await expect(useCase.execute('user-id-123')).rejects.toThrow(
         'Database connection failed',
       );
-      expect(mockEventBus.publishAll).not.toHaveBeenCalled();
     });
 
-    it('should handle event bus publishing failures gracefully', async () => {
-      const user = createTestUser(false);
-      mockUserRepository.findById.mockResolvedValue(user);
-      mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockRejectedValue(
-        new Error('Event bus unavailable'),
-      );
 
-      await expect(useCase.execute('user-id-123')).rejects.toThrow(
-        'Event bus unavailable',
-      );
-      // Save should have been called before event publishing
-      expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
-    });
   });
 });

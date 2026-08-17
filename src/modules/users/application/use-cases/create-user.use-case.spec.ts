@@ -1,13 +1,11 @@
 import { CreateUserUseCase } from './create-user.use-case';
 import { IUserRepository } from '../../domain/repositories/user.repository';
-import { IEventBus } from '../../../../infrastructure/events';
 import { User, UserRole } from '../../domain/entities/user.entity';
 import { UserProfile } from '../../domain/value-objects/user-profile.value-object';
 
 describe('CreateUserUseCase', () => {
   let useCase: CreateUserUseCase;
   let mockUserRepository: jest.Mocked<IUserRepository>;
-  let mockEventBus: jest.Mocked<IEventBus>;
 
   beforeEach(() => {
     // Create mocks
@@ -22,12 +20,8 @@ describe('CreateUserUseCase', () => {
       updateFollowRelationship: jest.fn(),
     } as any;
 
-    mockEventBus = {
-      publish: jest.fn(),
-      publishAll: jest.fn(),
-    } as any;
 
-    useCase = new CreateUserUseCase(mockUserRepository, mockEventBus);
+    useCase = new CreateUserUseCase(mockUserRepository);
   });
 
   afterEach(() => {
@@ -47,7 +41,6 @@ describe('CreateUserUseCase', () => {
       mockUserRepository.findByEmail.mockResolvedValue(null);
       mockUserRepository.findByUsername.mockResolvedValue(null);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publish.mockResolvedValue(undefined);
 
       const result = await useCase.execute(command);
 
@@ -57,7 +50,6 @@ describe('CreateUserUseCase', () => {
       expect(result.fullName).toBe('John Doe');
       expect(result.isEmailVerified).toBe(false);
       expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
-      expect(mockEventBus.publish).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error when email already exists', async () => {
@@ -82,7 +74,6 @@ describe('CreateUserUseCase', () => {
         "User email with identifier 'existing@example.com' already exists",
       );
       expect(mockUserRepository.save).not.toHaveBeenCalled();
-      expect(mockEventBus.publish).not.toHaveBeenCalled();
     });
 
     it('should throw error when username already exists', async () => {
@@ -157,35 +148,12 @@ describe('CreateUserUseCase', () => {
       mockUserRepository.findByEmail.mockResolvedValue(null);
       mockUserRepository.findByUsername.mockResolvedValue(null);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publish.mockResolvedValue(undefined);
 
       const result = await useCase.execute(command);
 
       expect(result.bio).toBe('Developer');
       expect(result.location).toBe('New York');
       expect(result.websiteUrl).toBe('https://johndoe.com');
-    });
-
-    it('should emit UserRegisteredEvent', async () => {
-      const command = {
-        username: 'johndoe',
-        email: 'john@example.com',
-        password: 'SecurePass123!',
-        fullName: 'John Doe',
-      };
-
-      mockUserRepository.findByEmail.mockResolvedValue(null);
-      mockUserRepository.findByUsername.mockResolvedValue(null);
-      mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publish.mockResolvedValue(undefined);
-
-      await useCase.execute(command);
-
-      expect(mockEventBus.publish).toHaveBeenCalledWith(
-        expect.objectContaining({
-          eventName: 'user.registered',
-        }),
-      );
     });
 
     it('should not expose password hash in response', async () => {
@@ -199,7 +167,6 @@ describe('CreateUserUseCase', () => {
       mockUserRepository.findByEmail.mockResolvedValue(null);
       mockUserRepository.findByUsername.mockResolvedValue(null);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publish.mockResolvedValue(undefined);
 
       const result = await useCase.execute(command);
 

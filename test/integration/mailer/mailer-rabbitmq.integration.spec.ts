@@ -21,6 +21,7 @@ import {
 } from 'amqplib';
 import { MailerService } from '../../../src/modules/mailer/mailer.service';
 import { MailerModule } from '../../../src/modules/mailer/mailer.module';
+import { MessageQueueModule } from '../../../src/infrastructure/message-queue/message-queue.module';
 import {
   EMAIL_TYPES,
   DEFAULT_SUBJECTS,
@@ -32,6 +33,8 @@ import {
 import { RabbitMQPublisher } from '../../../src/infrastructure/message-queue/adapters/rabbitmq-publisher';
 
 describe('MailerService Integration (RabbitMQ)', () => {
+  jest.setTimeout(30000);
+
   let module: TestingModule;
   let mailerService: MailerService;
   let rabbitmqPublisher: RabbitMQPublisher;
@@ -46,15 +49,22 @@ describe('MailerService Integration (RabbitMQ)', () => {
 
   beforeAll(async () => {
     try {
+      // Use an isolated queue name for tests to prevent live Go workers from consuming test messages
+      const testQueueName = `test_mailer_queue_${Date.now()}`;
+      process.env.RABBITMQ_QUEUE = testQueueName;
+
       module = await Test.createTestingModule({
         imports: [
           ConfigModule.forRoot({
             isGlobal: true,
             envFilePath: '.env',
           }),
+          MessageQueueModule,
           MailerModule,
         ],
       }).compile();
+
+      await module.init();
 
       mailerService = module.get<MailerService>(MailerService);
       configService = module.get<ConfigService>(ConfigService);
@@ -69,8 +79,7 @@ describe('MailerService Integration (RabbitMQ)', () => {
       RABBITMQ_URL =
         configService.get<string>('RABBITMQ_URL') ||
         'amqp://guest:guest@localhost:5672/';
-      QUEUE_NAME =
-        configService.get<string>('RABBITMQ_QUEUE') || 'worker_tasks';
+      QUEUE_NAME = testQueueName;
 
       // Create separate connection for consuming test messages
       console.log('Connecting to RabbitMQ:', RABBITMQ_URL);
@@ -85,9 +94,14 @@ describe('MailerService Integration (RabbitMQ)', () => {
   });
 
   afterAll(async () => {
-    await channel?.close();
-    await connection?.close();
-    await module?.close();
+    try {
+      await channel?.deleteQueue(QUEUE_NAME);
+      await channel?.close();
+      await connection?.close();
+      await module?.close();
+    } catch {
+      // Ignore cleanup errors
+    }
   });
 
   beforeEach(async () => {

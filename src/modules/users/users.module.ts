@@ -21,7 +21,6 @@
 
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../database/prisma.module';
-import { IEventBus, InMemoryEventBus } from '../../infrastructure/events';
 
 // Domain Layer
 import { UserFactory } from './domain/factories/user.factory';
@@ -58,7 +57,7 @@ import { UserPrismaRepository } from './infrastructure/persistence/repositories/
 import { UsersController } from './presentation/controllers/users.controller';
 
 // DI Tokens
-import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
+import { USER_REPOSITORY_TOKEN } from './users.constants';
 
 @Module({
   imports: [PrismaModule],
@@ -73,13 +72,7 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
       useClass: UserPrismaRepository,
     },
 
-    // Infrastructure - Event Bus
-    {
-      provide: EVENT_BUS_TOKEN,
-      useClass: InMemoryEventBus,
-    },
-
-    // Application Layer - Service
+// Application Layer - Service
     UserApplicationService,
 
     // Application Layer - Use Cases (User Management)
@@ -112,8 +105,6 @@ import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from './users.constants';
     // Domain Factory
     UserFactory,
 
-    // Event Bus
-    EVENT_BUS_TOKEN,
-  ],
+],
 })
 export class UsersModule {}

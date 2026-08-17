@@ -5,6 +5,7 @@ import {
   MinLength,
   MaxLength,
   Matches,
+  Length,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -12,16 +13,31 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class VerifyEmailRequestDto {
   @ApiProperty({
-    description: 'Email verification token',
+    description: 'The email address of the user being verified',
+    format: 'email',
+    example: 'user@example.com',
   })
-  @IsString()
-  @IsNotEmpty({ message: 'Verification token is required' })
-  token: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @IsNotEmpty({ message: 'Email is required' })
+  email: string;
 
   @ApiProperty({
-    description: 'Password to set upon verification',
+    description: 'The 6-digit OTP code sent to your email',
+    example: '123456',
+    minLength: 6,
+    maxLength: 6,
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Verification code is required' })
+  @Length(6, 6, { message: 'Verification code must be exactly 6 digits' })
+  @Matches(/^\d{6}$/, { message: 'Verification code must be 6 numeric digits' })
+  code: string;
+
+  @ApiProperty({
+    description: 'Password to set upon verification (required for email/password accounts)',
     minLength: 8,
     maxLength: 128,
+    required: false,
   })
   @IsString()
   @IsNotEmpty({ message: 'Password is required' })
@@ -36,8 +52,9 @@ export class VerifyEmailRequestDto {
 
 export class ResendVerificationRequestDto {
   @ApiProperty({
-    description: 'Email address',
+    description: 'Email address to resend the verification OTP to',
     format: 'email',
+    example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })

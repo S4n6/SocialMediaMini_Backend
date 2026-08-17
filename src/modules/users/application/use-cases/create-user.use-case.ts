@@ -8,10 +8,8 @@ import {
   EmailAlreadyExistsException,
   UsernameAlreadyExistsException,
 } from '../../domain';
-import { IEventBus } from '../../../../infrastructure/events';
 import { CreateUserCommand, UserDto } from '../dto/application.dto';
-import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
-import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
+import { USER_REPOSITORY_TOKEN } from '../../users.constants';
 
 /**
  * Use case for creating a new user account
@@ -24,8 +22,6 @@ export class CreateUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
-    @Inject(EVENT_BUS_TOKEN)
-    private readonly eventBus: IEventBus,
   ) {}
 
   async execute(command: CreateUserCommand): Promise<UserDto> {
@@ -72,14 +68,7 @@ export class CreateUserUseCase {
     // Save user
     await this.userRepository.save(user);
 
-    // Publish domain events
-    for (const event of user.getDomainEvents()) {
-      const adaptedEvent = DomainEventAdapter.adapt(event);
-      await this.eventBus.publish(adaptedEvent);
-    }
-    user.clearDomainEvents();
-
-    this.logger.log(`User created successfully with ID: ${user.id}`);
+this.logger.log(`User created successfully with ID: ${user.id}`);
 
     // Return response DTO
     return this.mapToDto(user);

@@ -7,12 +7,10 @@ import { UsersModule } from './modules/users/users.module';
 import { TestModule } from './modules/test/test.module';
 import { MailerModule } from './modules/mailer/mailer.module';
 import { RedisCacheModule } from './modules/cache/cache.module';
-import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
-import { S3Module } from './modules/s3/s3.module';
+import { MediaModule } from './modules/media/media.module';
 import { PostMediasModule } from './modules/post-medias/postMedias.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { StoryModule } from './modules/story/story.module';
-import { WebSocketModule } from './infrastructure/websocket';
 import { MessageQueueModule } from './infrastructure/message-queue';
 import { NotificationModule } from './modules/notification/notification.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
@@ -45,14 +43,13 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
 
     // Database & Infrastructure
     PrismaModule,
-    WebSocketModule,
     MessageQueueModule,
 
     // Shared Services
     MailerModule,
     RedisCacheModule,
-    CloudinaryModule,
-    S3Module,
+    // MediaModule: set MEDIA_PROVIDER=cloudinary (default) or s3
+    MediaModule,
 
     // ✅ Core Modules (Clean Architecture)
     AuthModule,
@@ -78,7 +75,7 @@ export class AppModule implements NestModule {
     consumer.apply(CookieParserMiddleware).forRoutes('*');
     // consumer.apply(RequestLoggerMiddleware).forRoutes('*'); // Enable when needed
     consumer.apply(SecurityLoggerMiddleware).forRoutes('*');
-    consumer.apply(RateLimitMiddleware).forRoutes('*');
+    // consumer.apply(RateLimitMiddleware).forRoutes('*');
     consumer.apply(FileUploadSecurityMiddleware).forRoutes('*');
   }
 }

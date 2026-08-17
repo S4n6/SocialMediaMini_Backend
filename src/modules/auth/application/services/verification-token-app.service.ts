@@ -17,22 +17,30 @@ import {
 
 /** TTL configuration per token type (milliseconds) */
 const TOKEN_TTL: Record<VerificationTokenType, number> = {
-  [VerificationTokenType.EMAIL_VERIFICATION]: 24 * 60 * 60 * 1000, // 24 h
+  // 6-digit OTP: short-lived for UX (10 minutes)
+  [VerificationTokenType.EMAIL_VERIFICATION]: 10 * 60 * 1000, // 10 min
+  // Password reset: opaque hex token sent by link (15 min)
   [VerificationTokenType.PASSWORD_RESET]: 15 * 60 * 1000, // 15 min
 };
 
 /**
  * Application-layer service for Redis-backed verification tokens.
  *
- * Responsibilities:
- * - Create tokens (invalidating previous ones = race-condition strategy)
- * - Verify & consume tokens
+ * Email Verification uses a **6-digit numeric OTP** stored in Redis with a 10-minute TTL.
+ * The OTP is looked up by `userId` (not by the code itself) to support attempt counting.
  *
- * Tokens are stored in Redis with TTL-based auto-expiry.
- * "Consumed" means the key is deleted from Redis — no usedAt timestamp.
+ * Password Reset uses an **opaque 64-char hex token** delivered via a URL link (15 min TTL).
+ *
+ * Responsibilities:
+ * - Create tokens (invalidating previous ones)
+ * - Verify & consume tokens
+ * - Enforce max-attempt policy for OTPs (max 5 attempts before invalidation)
  */
 @Injectable()
 export class VerificationTokenAppService {
+  /** Maximum failed attempts allowed before the OTP is invalidated */
+  private readonly MAX_OTP_ATTEMPTS = 5;
+
   constructor(
     @Inject(VERIFICATION_TOKEN_REPOSITORY_TOKEN)
     private readonly tokenRepo: IVerificationTokenRepository,
@@ -43,9 +51,10 @@ export class VerificationTokenAppService {
   /**
    * Create a new verification token for a user.
    *
-   * **Race-condition strategy**: all previous tokens of the same
-   * type for this user are deleted before inserting a new one. This means
-   * only the *latest* token is ever valid.
+   * - EMAIL_VERIFICATION → 6-digit OTP (tokenGenerator.generateOtp())
+   * - PASSWORD_RESET     → 64-char hex token (tokenGenerator.generate(32))
+   *
+   * Any previous tokens of the same type for this user are revoked first.
    */
   async createToken(
     userId: string,
@@ -54,7 +63,11 @@ export class VerificationTokenAppService {
     // Revoke any outstanding tokens of the same type
     await this.tokenRepo.revokeAllForUser(userId, type);
 
-    const raw = this.tokenGenerator.generate(32); // 64-char hex string
+    const raw =
+      type === VerificationTokenType.EMAIL_VERIFICATION
+        ? this.tokenGenerator.generateOtp() // 6-digit numeric OTP
+        : this.tokenGenerator.generate(32); // 64-char hex
+
     const now = new Date();
 
     const entity = new VerificationToken({
@@ -73,14 +86,10 @@ export class VerificationTokenAppService {
   }
 
   /**
-   * Verify a token string.
+   * Verify an opaque token string (used for PASSWORD_RESET).
    *
    * Returns the domain entity if valid.
    * Throws `TokenExpiredException` or `InvalidTokenException`.
-   *
-   * Note: In the Redis implementation, consumed tokens are *deleted*,
-   * so a consumed token simply won't be found (→ InvalidTokenException).
-   * The isExpired check is kept as a defence-in-depth safeguard.
    */
   async verifyToken(
     token: string,
@@ -92,9 +101,6 @@ export class VerificationTokenAppService {
       throw new InvalidTokenException(this.typeLabel(expectedType));
     }
 
-    // In Redis, consumed tokens are deleted, so isUsed will always
-    // be false for tokens that still exist. Keep the check for
-    // defence-in-depth in case of future storage changes.
     if (entity.isUsed) {
       throw new InvalidTokenException(this.typeLabel(expectedType));
     }
@@ -107,13 +113,58 @@ export class VerificationTokenAppService {
   }
 
   /**
-   * Consume (delete) a token after a successful business operation.
-   * Requires the full entity so the repository can locate the Redis
-   * key by token string, type, and userId.
+   * Verify a 6-digit OTP for email verification.
+   *
+   * Looks up the OTP by `userId` (not by code) to support attempt counting.
+   * Increments the attempt counter on each failed attempt.
+   * Invalidates the OTP after MAX_OTP_ATTEMPTS failed attempts.
+   *
+   * @param userId The user's ID
+   * @param code   The 6-digit code submitted by the user
+   * @returns The VerificationToken entity if the code is correct
+   * @throws InvalidTokenException if code is wrong or OTP not found / exhausted
+   * @throws TokenExpiredException if OTP has expired
    */
-  async consumeToken(
-    entity: VerificationToken,
-  ): Promise<void> {
+  async verifyOtp(
+    userId: string,
+    code: string,
+  ): Promise<VerificationToken> {
+    const type = VerificationTokenType.EMAIL_VERIFICATION;
+
+    // Find the OTP record for this user
+    const entity = await this.tokenRepo.findByUserId(userId, type);
+
+    if (!entity) {
+      throw new InvalidTokenException('email-verification OTP');
+    }
+
+    if (entity.isExpired) {
+      await this.tokenRepo.revokeAllForUser(userId, type);
+      throw new TokenExpiredException('email-verification OTP');
+    }
+
+    // Check attempt limit
+    const attempts = await this.tokenRepo.getAttemptCount(userId, type);
+    if (attempts >= this.MAX_OTP_ATTEMPTS) {
+      await this.tokenRepo.revokeAllForUser(userId, type);
+      throw new InvalidTokenException(
+        'email-verification OTP (max attempts exceeded)',
+      );
+    }
+
+    // Verify the code
+    if (entity.token !== code) {
+      await this.tokenRepo.incrementAttempts(userId, type);
+      throw new InvalidTokenException('email-verification OTP');
+    }
+
+    return entity;
+  }
+
+  /**
+   * Consume (delete) a token after a successful business operation.
+   */
+  async consumeToken(entity: VerificationToken): Promise<void> {
     await this.tokenRepo.consume(entity.token, entity.type, entity.userId);
   }
 

@@ -31,47 +31,39 @@ export class VerifyEmailUseCase extends BaseUseCase<
   }
 
   async execute(request: VerifyEmailRequest): Promise<EmailVerificationResult> {
-    const { token, password } = request;
+    const { email, code, password } = request;
 
-    // Verify the DB-backed email verification token
-    // Throws TokenExpiredException or InvalidTokenException automatically
-    const verificationToken =
-      await this.verificationTokenAppService.verifyToken(
-        token,
-        VerificationTokenType.EMAIL_VERIFICATION,
-      );
-
-    // Find user by ID from token entity
-    const user = await this.userApplicationService.findUserEntityById(
-      verificationToken.userId,
-    );
+    // 1. Find user by email to obtain their userId
+    const user = await this.userApplicationService.findUserEntityByEmail(email);
     if (!user) {
-      throw new UserNotFoundException(verificationToken.userId);
+      throw new UserNotFoundException(email);
     }
 
-    // If user already verified
+    // 2. If user already verified, bail early
     if (user.isEmailVerified) {
       throw new EmailAlreadyVerifiedException();
     }
 
-    // If password is provided, set it for the user
+    // 3. Verify the 6-digit OTP (looks up by userId, enforces attempt limit)
+    const verificationToken = await this.verificationTokenAppService.verifyOtp(
+      user.id,
+      code,
+    );
+
+    // 4. Optionally set password (first-time registration flow)
     if (password) {
       const passwordVO = new Password(password);
       const hashedPassword = await this.passwordHasher.hash(passwordVO);
-
-      await this.userApplicationService.updateUserPassword(
-        user.id,
-        hashedPassword,
-      );
-      await this.userApplicationService.verifyEmail(user.id);
-    } else {
-      await this.userApplicationService.verifyEmail(user.id);
+      await this.userApplicationService.updateUserPassword(user.id, hashedPassword);
     }
 
-    // Consume the token so it cannot be reused
+    // 5. Mark email as verified
+    await this.userApplicationService.verifyEmail(user.id);
+
+    // 6. Consume the OTP so it cannot be reused
     await this.verificationTokenAppService.consumeToken(verificationToken);
 
-    // Emit EmailVerifiedEvent for side effects (send welcome email)
+    // 7. Emit EmailVerifiedEvent for side effects (welcome email, audit, etc.)
     this.eventEmitter.emit(
       'auth.email.verified',
       new EmailVerifiedEvent(user.id, user.email, new Date()),

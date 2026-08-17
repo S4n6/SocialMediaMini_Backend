@@ -42,7 +42,11 @@ export interface ResetPasswordRequest {
 }
 
 export interface VerifyEmailRequest {
-  token: string;
+  /** The user's email address (used to look up the userId for OTP verification) */
+  email: string;
+  /** The 6-digit OTP sent to the user's email */
+  code: string;
+  /** Password to set upon first verification (optional for OAuth-registered users) */
   password?: string;
 }
 

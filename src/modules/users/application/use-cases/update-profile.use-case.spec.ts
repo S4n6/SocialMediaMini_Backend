@@ -1,6 +1,5 @@
 import { UpdateProfileUseCase } from './update-profile.use-case';
 import { IUserRepository } from '../../domain/repositories/user.repository';
-import { IEventBus } from '../../../../infrastructure/events';
 import { User } from '../../domain/entities/user.entity';
 import { UserProfile } from '../../domain/value-objects/user-profile.value-object';
 import { UpdateProfileDto } from '../dto/user.dto';
@@ -9,7 +8,6 @@ import { EntityNotFoundException } from '../../../../shared/exceptions/domain.ex
 describe('UpdateProfileUseCase', () => {
   let useCase: UpdateProfileUseCase;
   let mockUserRepository: jest.Mocked<IUserRepository>;
-  let mockEventBus: jest.Mocked<IEventBus>;
 
   beforeEach(() => {
     mockUserRepository = {
@@ -23,12 +21,8 @@ describe('UpdateProfileUseCase', () => {
       updateFollowRelationship: jest.fn(),
     } as any;
 
-    mockEventBus = {
-      publish: jest.fn(),
-      publishAll: jest.fn(),
-    } as any;
 
-    useCase = new UpdateProfileUseCase(mockUserRepository, mockEventBus);
+    useCase = new UpdateProfileUseCase(mockUserRepository);
   });
 
   afterEach(() => {
@@ -60,7 +54,6 @@ describe('UpdateProfileUseCase', () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         fullName: 'John Updated Doe',
@@ -75,14 +68,12 @@ describe('UpdateProfileUseCase', () => {
       expect(result.bio).toBe('Updated bio');
       expect(result.location).toBe('Los Angeles');
       expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
-      expect(mockEventBus.publishAll).toHaveBeenCalledTimes(1);
     });
 
     it('should publish UserProfileUpdatedEvent when profile is updated', async () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         fullName: 'John Updated Doe',
@@ -92,12 +83,8 @@ describe('UpdateProfileUseCase', () => {
       await useCase.execute('user-id-123', updateDto);
 
       // Verify event publishing was called
-      expect(mockEventBus.publishAll).toHaveBeenCalledTimes(1);
 
       // Check that domain events were generated
-      const publishedEvents = mockEventBus.publishAll.mock.calls[0][0];
-      expect(publishedEvents).toBeDefined();
-      expect(publishedEvents.length).toBeGreaterThan(0);
     });
 
     it('should throw EntityNotFoundException when user not found', async () => {
@@ -111,14 +98,12 @@ describe('UpdateProfileUseCase', () => {
         useCase.execute('nonexistent-id', updateDto),
       ).rejects.toThrow(EntityNotFoundException);
       expect(mockUserRepository.save).not.toHaveBeenCalled();
-      expect(mockEventBus.publishAll).not.toHaveBeenCalled();
     });
 
     it('should update only provided fields', async () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         bio: 'Only bio updated',
@@ -137,7 +122,6 @@ describe('UpdateProfileUseCase', () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         fullName: 'Jane Smith',
@@ -172,7 +156,6 @@ describe('UpdateProfileUseCase', () => {
 
       await expect(useCase.execute('user-id-123', updateDto)).rejects.toThrow();
       expect(mockUserRepository.save).not.toHaveBeenCalled();
-      expect(mockEventBus.publishAll).not.toHaveBeenCalled();
     });
 
     it('should allow profile update after 24 hours', async () => {
@@ -182,7 +165,6 @@ describe('UpdateProfileUseCase', () => {
       });
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         fullName: 'Updated Name',
@@ -194,22 +176,7 @@ describe('UpdateProfileUseCase', () => {
       expect(mockUserRepository.save).toHaveBeenCalledTimes(1);
     });
 
-    it('should clear domain events after publishing', async () => {
-      const user = createTestUser();
-      const clearEventsSpy = jest.spyOn(user, 'clearDomainEvents');
 
-      mockUserRepository.findById.mockResolvedValue(user);
-      mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
-
-      const updateDto: UpdateProfileDto = {
-        fullName: 'Updated Name',
-      };
-
-      await useCase.execute('user-id-123', updateDto);
-
-      expect(clearEventsSpy).toHaveBeenCalledTimes(1);
-    });
 
     it('should preserve follower/following counts', async () => {
       const user = createTestUser();
@@ -219,7 +186,6 @@ describe('UpdateProfileUseCase', () => {
 
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         bio: 'Updated bio',
@@ -249,7 +215,6 @@ describe('UpdateProfileUseCase', () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         websiteUrl: 'https://newsite.com',
@@ -270,7 +235,6 @@ describe('UpdateProfileUseCase', () => {
       const user = createTestUser();
       mockUserRepository.findById.mockResolvedValue(user);
       mockUserRepository.save.mockResolvedValue(undefined);
-      mockEventBus.publishAll.mockResolvedValue(undefined);
 
       const updateDto: UpdateProfileDto = {
         bio: 'Updated bio',

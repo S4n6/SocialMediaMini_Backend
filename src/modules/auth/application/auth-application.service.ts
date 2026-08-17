@@ -176,7 +176,8 @@ export class AuthApplicationService {
 
   async verifyEmail(verifyEmailDto: VerifyEmailDto): Promise<AuthUserDto> {
     const result = await this.verifyEmailUseCase.execute({
-      token: verifyEmailDto.token,
+      email: verifyEmailDto.email,
+      code: verifyEmailDto.code,
       password: verifyEmailDto.password,
     });
 

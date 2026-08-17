@@ -3,4 +3,10 @@ dist
 .env
 coverage
 .git
-npm-debug.log
+.github
+*.log
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.vscode
+.idea

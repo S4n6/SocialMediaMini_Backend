@@ -1,99 +1,291 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# SocialMediaMini — Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> **NestJS** · **PostgreSQL** · **Redis** · **RabbitMQ** · **Prisma ORM** · **TypeScript**
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+A production-ready social media backend built with Clean Architecture principles. Handles authentication, posts, real-time notifications (SSE), follow/unfollow, reactions, messaging, media processing, and more.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Table of Contents
 
-## Project setup
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Modules](#modules)
+- [Auth Flows](#auth-flows)
+- [Environment Variables](#environment-variables)
+- [Running Locally](#running-locally)
+- [Running with Docker](#running-with-docker)
+- [Running Tests](#running-tests)
+- [API Overview](#api-overview)
 
-```bash
-$ npm install
+---
+
+## Architecture
+
+This project follows **Clean Architecture** (also known as Hexagonal / Ports-and-Adapters):
+
+```
+src/
+├── modules/               # Feature modules (vertical slices)
+│   ├── auth/
+│   │   ├── domain/        # Entities, value objects, domain events, repository interfaces
+│   │   ├── application/   # Use cases, application services, ports
+│   │   ├── infrastructure/ # Repository implementations, security adapters
+│   │   └── presentation/  # Controllers, request/response DTOs
+│   ├── users/
+│   ├── posts/
+│   ├── notification/      # SSE-based real-time notifications
+│   ├── messaging/         # Conversations & messages (REST)
+│   ├── follow/
+│   ├── reactions/
+│   ├── comments/
+│   ├── story/
+│   ├── post-medias/
+│   ├── mailer/            # Publishes email tasks to RabbitMQ
+│   ├── cache/             # Redis cache service
+│   └── storage/           # Cloudinary / S3 adapter
+│
+├── infrastructure/
+│   └── message-queue/     # RabbitMQ publisher/consumer (amqplib)
+│
+├── shared/
+│   ├── guards/            # JwtAuthGuard, GoogleAuthGuard
+│   ├── filters/           # GlobalExceptionFilter
+│   ├── middlewares/       # CORS, rate-limit, security headers, etc.
+│   └── services/          # ErrorMonitoringService
+│
+├── database/
+│   └── prisma.module.ts   # PrismaClient singleton
+│
+└── config/                # JWT config, env helpers
 ```
 
-## Compile and run the project
+**In-process events** (side effects like session revocation after password change, or creating a notification on follow) are handled by **`@nestjs/event-emitter`** (EventEmitter2). This is separate from RabbitMQ, which is used for cross-process, durable tasks (email delivery, media processing).
 
-```bash
-# development
-$ npm run start
+---
 
-# watch mode
-$ npm run start:dev
+## Tech Stack
 
-# production mode
-$ npm run start:prod
+| Layer | Technology |
+|---|---|
+| Framework | [NestJS](https://nestjs.com) |
+| Language | TypeScript 5 |
+| Database | PostgreSQL (via [Prisma ORM](https://prisma.io)) |
+| Cache / OTP store | Redis (via `ioredis`) |
+| Message Queue | RabbitMQ (AMQP) |
+| Authentication | JWT (access + refresh tokens) + Google OAuth 2.0 |
+| Media Storage | Cloudinary (default) or AWS S3 |
+| Password Hashing | bcrypt |
+| Validation | `class-validator` / `class-transformer` |
+| Testing | Jest |
+
+---
+
+## Modules
+
+| Module | Description |
+|---|---|
+| **auth** | Registration, login, logout, token refresh, email OTP verification, password reset, Google OAuth |
+| **users** | User profiles, search, follow counts |
+| **posts** | Create / read / delete posts, feed |
+| **post-medias** | Media upload, processing callback from Go worker |
+| **comments** | Comment on posts, nested replies |
+| **reactions** | Like / react to posts and comments |
+| **follow** | Follow / unfollow users, follower/following lists |
+| **story** | 24-hour stories |
+| **notification** | Real-time notifications via SSE (Server-Sent Events) |
+| **messaging** | Private & group conversations, messages (REST) |
+| **mailer** | Publishes email jobs to RabbitMQ (rendered & sent by Go worker) |
+| **cache** | Redis-backed cache service (wrapper around `ioredis`) |
+| **storage** | Unified file upload (Cloudinary or S3, set via `STORAGE_PROVIDER`) |
+
+---
+
+## Auth Flows
+
+### Registration + Email OTP Verification
+
+```
+POST /auth/register   { fullName, email, username, ... }
+  → User created (unverified), 6-digit OTP sent to email (valid 10 min)
+
+POST /auth/verify-email   { email, code, password }
+  → Email marked verified, password set, user can now login
+
+POST /auth/resend-verification   { email }
+  → New OTP sent (rate-limited: 1 request per 60s, max 5 attempts before OTP invalidated)
 ```
 
-## Run tests
+> **Why 6-digit OTP?** Users can type `347821` trivially compared to copying a 64-character URL token from an email link. Security safeguards: 10-minute TTL, 5-attempt lockout before invalidation, CSPRNG generation via `crypto.randomInt`.
 
-```bash
-# unit tests
-$ npm run test
+### Login
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+POST /auth/login   { identifier (email or username), password }
+  → Sets httpOnly cookies (web) or returns tokens in body (mobile, x-client-type: mobile)
 ```
 
-## Deployment
+### Password Reset (opaque hex token, not OTP)
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```
+POST /auth/forgot-password   { email }
+  → Sends a secure reset link with 64-char hex token (valid 15 min)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g mau
-$ mau deploy
+POST /auth/reset-password   { token, newPassword, confirmPassword }
+  → Password updated, all sessions revoked
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Token Refresh
 
-## Resources
+```
+POST /auth/refresh
+  → Reads refresh token from cookie (web) or body (mobile)
+  → Returns new access + refresh tokens
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Google OAuth
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```
+GET /auth/google           → Redirects to Google consent screen
+GET /auth/google/callback  → Exchanges code, creates/updates user, sets cookies, redirects to frontend
+```
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## Environment Variables
 
-## Stay in touch
+Copy `.env.example` to `.env` and fill in your values:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```env
+# Server
+PORT=3000
+NODE_ENV=development
+
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/socialmedia
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+# RabbitMQ
+RABBITMQ_URL=amqp://user:password@localhost:5672
+RABBITMQ_QUEUE=tasks
+
+# JWT
+JWT_SECRET=your-very-long-random-secret
+JWT_EXPIRES_IN=24h
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+
+# Storage (cloudinary or s3)
+STORAGE_PROVIDER=cloudinary
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
+# AWS S3 (if STORAGE_PROVIDER=s3)
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_REGION=
+AWS_S3_BUCKET=
+
+# Frontend URL (used for OAuth redirects)
+FRONTEND_URL=http://localhost:3001
+```
+
+---
+
+## Running Locally
+
+**Prerequisites:** Node.js 20+, PostgreSQL, Redis, RabbitMQ.
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Copy environment variables
+cp .env.example .env
+# Edit .env with your credentials
+
+# 3. Run database migrations
+npx prisma migrate dev
+
+# 4. Generate Prisma client
+npx prisma generate
+
+# 5. Start in development (watch mode)
+npm run start:dev
+```
+
+The API will be available at `http://localhost:3000`.
+
+---
+
+## Running with Docker
+
+```bash
+# Start PostgreSQL, Redis, and RabbitMQ via Docker Compose
+docker-compose up -d
+
+# Then start the NestJS app locally (or in Docker)
+npm run start:dev
+```
+
+---
+
+## Running Tests
+
+```bash
+# Unit tests
+npm run test
+
+# Unit tests in watch mode
+npm run test:watch
+
+# Test coverage report
+npm run test:cov
+
+# E2E tests
+npm run test:e2e
+```
+
+---
+
+## API Overview
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/auth/register` | — | Register a new user |
+| `POST` | `/auth/verify-email` | — | Verify email with 6-digit OTP |
+| `POST` | `/auth/resend-verification` | — | Resend verification OTP |
+| `POST` | `/auth/login` | — | Login (email/username + password) |
+| `POST` | `/auth/logout` | — | Logout (revoke refresh token) |
+| `POST` | `/auth/logout-all` | JWT | Logout from all devices |
+| `POST` | `/auth/refresh` | — | Refresh access token |
+| `POST` | `/auth/forgot-password` | — | Request password reset email |
+| `POST` | `/auth/reset-password` | — | Reset password with token |
+| `GET` | `/auth/google` | — | Initiate Google OAuth |
+| `GET` | `/auth/google/callback` | — | Google OAuth callback |
+| `GET` | `/users/:id` | JWT | Get user profile |
+| `POST` | `/posts` | JWT | Create a post |
+| `GET` | `/posts/:id` | JWT | Get a post |
+| `POST` | `/follow/:userId` | JWT | Follow a user |
+| `DELETE` | `/follow/:userId` | JWT | Unfollow a user |
+| `POST` | `/reactions` | JWT | React to a post or comment |
+| `GET` | `/notifications` | JWT (SSE) | Real-time notification stream |
+| `GET` | `/notifications/unread-count` | JWT | Count unread notifications |
+| `POST` | `/messaging/conversations` | JWT | Create a conversation |
+| `GET` | `/messaging/conversations` | JWT | List user conversations |
+| `POST` | `/messaging/conversations/:id/messages` | JWT | Send a message |
+| `GET` | `/messaging/conversations/:id/messages` | JWT | Get messages |
+
+---
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+MIT

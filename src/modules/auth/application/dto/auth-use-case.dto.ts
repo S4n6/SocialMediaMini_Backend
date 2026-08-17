@@ -40,8 +40,12 @@ export class ResetPasswordDto {
 }
 
 export class VerifyEmailDto {
-  token!: string;
-  password!: string;
+  /** User's email address */
+  email!: string;
+  /** 6-digit OTP sent to the email */
+  code!: string;
+  /** Password to set upon verification */
+  password?: string;
 }
 
 export class RefreshTokenDto {

@@ -1,9 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
+import { USER_REPOSITORY_TOKEN } from '../../users.constants';
 import { User, UserProfile } from '../../domain';
 import { IUserRepository } from '../../domain/repositories';
-import { IEventBus } from '../../../../infrastructure/events';
-import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
 import { UpdateProfileDto, UserResponseDto } from '../dto/user.dto';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 
@@ -17,8 +15,6 @@ export class UpdateProfileUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
-    @Inject(EVENT_BUS_TOKEN)
-    private readonly eventBus: IEventBus,
   ) {}
 
   async execute(
@@ -55,12 +51,7 @@ export class UpdateProfileUseCase {
     // Save the updated user
     await this.userRepository.save(user);
 
-    // Publish domain events
-    const adaptedEvents = DomainEventAdapter.adaptAll(user.getDomainEvents());
-    await this.eventBus.publishAll(adaptedEvents);
-    user.clearDomainEvents();
-
-    this.logger.log(`Profile updated successfully for user: ${userId}`);
+this.logger.log(`Profile updated successfully for user: ${userId}`);
 
     // Return response DTO
     return new UserResponseDto({

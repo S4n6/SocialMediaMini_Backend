@@ -7,18 +7,31 @@ import {
 } from '../../domain/entities/verification-token.entity';
 
 /**
- * Key patterns:
- *   verification:{type}:{token}         → stores { id, userId, createdAt }
- *   verification:{type}:user:{userId}   → stores the token string (reverse-lookup for revoke-all)
+ * Redis key patterns:
+ *
+ * For EMAIL_VERIFICATION (OTP — keyed by userId):
+ *   otp:{type}:data:{userId}          → { id, code, createdAt }
+ *   otp:{type}:attempts:{userId}      → attempt count (integer string)
+ *
+ * For PASSWORD_RESET (opaque hex token — keyed by token string):
+ *   verification:{type}:{token}       → { id, userId, createdAt }
+ *   verification:{type}:user:{userId} → the token string (reverse-lookup for revoke-all)
  *
  * TTL is enforced directly by Redis — no manual expiry needed.
  */
 
 /** TTL per token type in **seconds** */
 const TOKEN_TTL_SECONDS: Record<VerificationTokenType, number> = {
-  [VerificationTokenType.EMAIL_VERIFICATION]: 24 * 60 * 60, // 24 h
-  [VerificationTokenType.PASSWORD_RESET]: 15 * 60, // 15 min
+  [VerificationTokenType.EMAIL_VERIFICATION]: 10 * 60,  // 10 min
+  [VerificationTokenType.PASSWORD_RESET]: 15 * 60,      // 15 min
 };
+
+interface RedisOtpPayload {
+  id: string;
+  code: string;
+  userId: string;
+  createdAt: string; // ISO-8601
+}
 
 interface RedisTokenPayload {
   id: string;
@@ -34,109 +47,186 @@ export class VerificationTokenRedisRepository
 
   constructor(private readonly cache: RedisCacheService) {}
 
-  // ── Key helpers ──────────────────────────────────────────────────────
+  // ── Key helpers ──────────────────────────────────────────────────────────
 
-  /** Primary key: look up payload by opaque token string */
+  /** OTP data key (EMAIL_VERIFICATION — keyed by userId) */
+  private otpDataKey(type: VerificationTokenType, userId: string): string {
+    return `otp:${type}:data:${userId}`;
+  }
+
+  /** OTP attempt counter key */
+  private otpAttemptsKey(type: VerificationTokenType, userId: string): string {
+    return `otp:${type}:attempts:${userId}`;
+  }
+
+  /** Password-reset primary key (keyed by opaque token string) */
   private tokenKey(type: VerificationTokenType, token: string): string {
     return `verification:${type}:${token}`;
   }
 
-  /** Reverse key: look up the current token string for a given user+type */
+  /** Password-reset reverse-lookup key (userId → token string) */
   private userKey(type: VerificationTokenType, userId: string): string {
     return `verification:${type}:user:${userId}`;
   }
 
-  // ── IVerificationTokenRepository ─────────────────────────────────────
+  // ── IVerificationTokenRepository ────────────────────────────────────────
 
   async save(token: VerificationToken): Promise<void> {
     const ttl = TOKEN_TTL_SECONDS[token.type];
 
-    const payload: RedisTokenPayload = {
-      id: token.id,
-      userId: token.userId,
-      createdAt: token.createdAt.toISOString(),
-    };
+    if (token.type === VerificationTokenType.EMAIL_VERIFICATION) {
+      // OTP: store by userId so we can look it up without knowing the code
+      const payload: RedisOtpPayload = {
+        id: token.id,
+        code: token.token,
+        userId: token.userId,
+        createdAt: token.createdAt.toISOString(),
+      };
+      await this.cache.set(this.otpDataKey(token.type, token.userId), payload, ttl);
+      // Reset attempt counter on new OTP issuance
+      await this.cache.set(this.otpAttemptsKey(token.type, token.userId), 0, ttl);
 
-    // Store token data (primary key)
-    await this.cache.set(
-      this.tokenKey(token.type, token.token),
-      payload,
-      ttl,
-    );
+      this.logger.debug(
+        `Saved OTP for user ${token.userId} (TTL: ${ttl}s)`,
+      );
+    } else {
+      // Password-reset: store by opaque token + reverse-lookup by userId
+      const payload: RedisTokenPayload = {
+        id: token.id,
+        userId: token.userId,
+        createdAt: token.createdAt.toISOString(),
+      };
+      await this.cache.set(this.tokenKey(token.type, token.token), payload, ttl);
+      await this.cache.set(this.userKey(token.type, token.userId), token.token, ttl);
 
-    // Store reverse-lookup (user → token string) with the same TTL
-    await this.cache.set(
-      this.userKey(token.type, token.userId),
-      token.token,
-      ttl,
-    );
-
-    this.logger.debug(
-      `Saved ${token.type} token for user ${token.userId} (TTL: ${ttl}s)`,
-    );
+      this.logger.debug(
+        `Saved ${token.type} token for user ${token.userId} (TTL: ${ttl}s)`,
+      );
+    }
   }
 
+  /**
+   * Find a token by its opaque string value.
+   * Only used for PASSWORD_RESET tokens (OTPs are looked up by userId).
+   */
   async findByToken(token: string): Promise<VerificationToken | null> {
-    // We don't know the type yet, so check both
-    for (const type of Object.values(VerificationTokenType)) {
-      const key = this.tokenKey(type, token);
-      const payload = await this.cache.get<RedisTokenPayload>(key);
+    // Only password-reset tokens use this lookup path
+    const type = VerificationTokenType.PASSWORD_RESET;
+    const key = this.tokenKey(type, token);
+    const payload = await this.cache.get<RedisTokenPayload>(key);
 
-      if (payload) {
-        // Compute expiresAt from the TTL config — the token is guaranteed
-        // not-expired if Redis still holds the key.
-        const createdAt = new Date(payload.createdAt);
-        const expiresAt = new Date(
-          createdAt.getTime() + TOKEN_TTL_SECONDS[type] * 1000,
-        );
+    if (!payload) return null;
 
-        return new VerificationToken({
-          id: payload.id,
-          token,
-          type,
-          userId: payload.userId,
-          expiresAt,
-          createdAt,
-          usedAt: null, // if it exists in Redis, it hasn't been consumed
-        });
-      }
+    const createdAt = new Date(payload.createdAt);
+    const expiresAt = new Date(
+      createdAt.getTime() + TOKEN_TTL_SECONDS[type] * 1000,
+    );
+
+    return new VerificationToken({
+      id: payload.id,
+      token,
+      type,
+      userId: payload.userId,
+      expiresAt,
+      createdAt,
+      usedAt: null,
+    });
+  }
+
+  /**
+   * Find the active OTP for a user (EMAIL_VERIFICATION only).
+   */
+  async findByUserId(
+    userId: string,
+    type: VerificationTokenType,
+  ): Promise<VerificationToken | null> {
+    if (type !== VerificationTokenType.EMAIL_VERIFICATION) {
+      // For password reset, there is no userId-keyed lookup — use findByToken
+      return null;
     }
-    return null;
+
+    const payload = await this.cache.get<RedisOtpPayload>(
+      this.otpDataKey(type, userId),
+    );
+    if (!payload) return null;
+
+    const createdAt = new Date(payload.createdAt);
+    const expiresAt = new Date(
+      createdAt.getTime() + TOKEN_TTL_SECONDS[type] * 1000,
+    );
+
+    return new VerificationToken({
+      id: payload.id,
+      token: payload.code,
+      type,
+      userId: payload.userId,
+      expiresAt,
+      createdAt,
+      usedAt: null,
+    });
   }
 
   /**
    * Consume (delete) a token after a successful business operation.
-   * Deletes both the primary key and the reverse user→token key.
    */
   async consume(
     token: string,
     type: VerificationTokenType,
     userId: string,
   ): Promise<void> {
-    await this.cache.del(this.tokenKey(type, token));
-    await this.cache.del(this.userKey(type, userId));
-    this.logger.debug(`Consumed ${type} token for user ${userId}`);
+    if (type === VerificationTokenType.EMAIL_VERIFICATION) {
+      await this.cache.del(this.otpDataKey(type, userId));
+      await this.cache.del(this.otpAttemptsKey(type, userId));
+      this.logger.debug(`Consumed OTP for user ${userId}`);
+    } else {
+      await this.cache.del(this.tokenKey(type, token));
+      await this.cache.del(this.userKey(type, userId));
+      this.logger.debug(`Consumed ${type} token for user ${userId}`);
+    }
   }
-
 
   async revokeAllForUser(
     userId: string,
     type: VerificationTokenType,
   ): Promise<void> {
-    // Look up the current token string from the reverse key
-    const existingToken = await this.cache.get<string>(
-      this.userKey(type, userId),
-    );
-
-    if (existingToken) {
-      // Delete primary token key
-      await this.cache.del(this.tokenKey(type, existingToken));
-      // Delete reverse user key
-      await this.cache.del(this.userKey(type, userId));
-      this.logger.debug(
-        `Revoked existing ${type} token for user ${userId}`,
+    if (type === VerificationTokenType.EMAIL_VERIFICATION) {
+      await this.cache.del(this.otpDataKey(type, userId));
+      await this.cache.del(this.otpAttemptsKey(type, userId));
+      this.logger.debug(`Revoked existing OTP for user ${userId}`);
+    } else {
+      // Look up the current token string from the reverse key
+      const existingToken = await this.cache.get<string>(
+        this.userKey(type, userId),
       );
+      if (existingToken) {
+        await this.cache.del(this.tokenKey(type, existingToken));
+        await this.cache.del(this.userKey(type, userId));
+        this.logger.debug(`Revoked existing ${type} token for user ${userId}`);
+      }
     }
+  }
+
+  async getAttemptCount(
+    userId: string,
+    type: VerificationTokenType,
+  ): Promise<number> {
+    const count = await this.cache.get<number>(
+      this.otpAttemptsKey(type, userId),
+    );
+    return count ?? 0;
+  }
+
+  async incrementAttempts(
+    userId: string,
+    type: VerificationTokenType,
+  ): Promise<void> {
+    const key = this.otpAttemptsKey(type, userId);
+    const current = await this.cache.get<number>(key);
+    const ttl = TOKEN_TTL_SECONDS[type];
+    await this.cache.set(key, (current ?? 0) + 1, ttl);
+    this.logger.debug(
+      `OTP attempt incremented for user ${userId}: ${(current ?? 0) + 1}`,
+    );
   }
 
   async deleteExpired(): Promise<number> {

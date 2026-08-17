@@ -3,15 +3,14 @@ import { MessagingApplicationModule } from '../application/messaging-application
 import { MessagingInfrastructureModule } from '../infrastructure/messaging-infrastructure.module';
 import { ConversationController } from './controllers/conversation.controller';
 import { MessageController } from './controllers/message.controller';
-import { MessagingGateway } from './gateways/messaging.gateway';
 
 @Module({
   imports: [
     MessagingApplicationModule,
-    MessagingInfrastructureModule, // For CONVERSATION_REPOSITORY token used by gateway
+    MessagingInfrastructureModule,
   ],
   controllers: [ConversationController, MessageController],
-  providers: [MessagingGateway],
+  providers: [],
   exports: [],
 })
 export class MessagingPresentationModule {}

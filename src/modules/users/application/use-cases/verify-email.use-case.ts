@@ -1,9 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
-import { USER_REPOSITORY_TOKEN, EVENT_BUS_TOKEN } from '../../users.constants';
+import { USER_REPOSITORY_TOKEN } from '../../users.constants';
 import { User } from '../../domain';
 import { IUserRepository } from '../../domain/repositories';
-import { IEventBus } from '../../../../infrastructure/events';
-import { DomainEventAdapter } from '../../infrastructure/adapters/event.adapter';
 import { EntityNotFoundException } from '../../../../shared/exceptions/domain.exception';
 
 /**
@@ -16,8 +14,6 @@ export class VerifyEmailUseCase {
   constructor(
     @Inject(USER_REPOSITORY_TOKEN)
     private readonly userRepository: IUserRepository,
-    @Inject(EVENT_BUS_TOKEN)
-    private readonly eventBus: IEventBus,
   ) {}
 
   async execute(userId: string): Promise<void> {
@@ -35,11 +31,6 @@ export class VerifyEmailUseCase {
     // Save the updated user
     await this.userRepository.save(user);
 
-    // Publish domain events
-    const adaptedEvents = DomainEventAdapter.adaptAll(user.getDomainEvents());
-    await this.eventBus.publishAll(adaptedEvents);
-    user.clearDomainEvents();
-
-    this.logger.log(`Email verified successfully for user: ${userId}`);
+this.logger.log(`Email verified successfully for user: ${userId}`);
   }
 }
