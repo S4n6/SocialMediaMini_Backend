@@ -12,8 +12,6 @@ import {
   PasswordMismatchException,
   UserNotFoundException,
 } from '../../domain/exceptions/auth.exceptions';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PasswordChangedEvent } from '../../domain/events';
 
 @Injectable()
 export class ResetPasswordUseCase extends BaseUseCase<
@@ -25,7 +23,6 @@ export class ResetPasswordUseCase extends BaseUseCase<
     private verificationTokenAppService: VerificationTokenAppService,
     @Inject(PASSWORD_HASHER_TOKEN)
     private passwordHasher: IPasswordHasher,
-    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -68,12 +65,6 @@ export class ResetPasswordUseCase extends BaseUseCase<
 
     // Consume the token so it cannot be reused
     await this.verificationTokenAppService.consumeToken(verificationToken);
-
-    // Emit PasswordChangedEvent for side effects (revoke sessions, send notification)
-    this.eventEmitter.emit(
-      'auth.password.changed',
-      new PasswordChangedEvent(user.id, user.email),
-    );
 
     return {
       success: true,

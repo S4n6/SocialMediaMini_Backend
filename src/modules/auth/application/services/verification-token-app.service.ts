@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { v7 as uuidv7 } from 'uuid';
 import { IVerificationTokenRepository } from '../../domain/repositories/verification-token.repository';
 import {
   VerificationToken,
@@ -71,7 +71,7 @@ export class VerificationTokenAppService {
     const now = new Date();
 
     const entity = new VerificationToken({
-      id: uuidv4(),
+      id: uuidv7(),
       token: raw,
       type,
       userId,

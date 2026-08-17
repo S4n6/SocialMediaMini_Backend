@@ -5,7 +5,7 @@ import { MailerService } from './mailer.service';
 /**
  * Mailer Module
  *
- * Uses the shared MESSAGE_PUBLISHER_TOKEN provided globally by MessagingModule.
+ * Uses the shared MESSAGE_PUBLISHER_TOKEN provided globally by MessageQueueModule.
  * No longer manages its own RabbitMQ connection.
  */
 @Module({

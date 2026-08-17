@@ -13,7 +13,6 @@ import { PostsModule } from './modules/posts/posts.module';
 import { StoryModule } from './modules/story/story.module';
 import { MessageQueueModule } from './infrastructure/message-queue';
 import { NotificationModule } from './modules/notification/notification.module';
-import { MessagingModule } from './modules/messaging/messaging.module';
 
 import {
   CorsMiddleware,
@@ -59,7 +58,6 @@ import { ReactionsModule } from './modules/reactions/reactions.module';
     StoryModule,
     NotificationModule,
     ReactionsModule,
-    MessagingModule,
 
     // 🧪 Test Module
     TestModule,
@@ -73,7 +71,7 @@ export class AppModule implements NestModule {
     consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
     consumer.apply(CorsMiddleware).forRoutes('*');
     consumer.apply(CookieParserMiddleware).forRoutes('*');
-    // consumer.apply(RequestLoggerMiddleware).forRoutes('*'); // Enable when needed
+    // consumer.apply(RequestLoggerMiddleware).forRoutes('*');
     consumer.apply(SecurityLoggerMiddleware).forRoutes('*');
     // consumer.apply(RateLimitMiddleware).forRoutes('*');
     consumer.apply(FileUploadSecurityMiddleware).forRoutes('*');

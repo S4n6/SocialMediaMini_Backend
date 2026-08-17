@@ -19,7 +19,7 @@ export class TokenRepository implements ITokenRepository {
     private readonly prisma: PrismaService,
     private readonly verificationTokenService: VerificationTokenService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   // NOTE: CRUD/lifecycle token methods removed - TokenRepository only exposes
   // high-level token operations used by the application (createTokensForUser,
@@ -252,7 +252,4 @@ export class TokenRepository implements ITokenRepository {
     );
     return Promise.resolve(token);
   }
-
-  // Note: refresh token verification is done via JwtService.verify in refreshAccessToken
-  // and revokeRefreshToken, so no separate manual parsing is required.
 }

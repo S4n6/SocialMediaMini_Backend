@@ -1,8 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FollowRepository } from '../../domain/repositories/follow.repository';
 import { FollowDomainService } from '../../domain/services/follow-domain.service';
-import { UserFollowedEvent } from '../../domain/events/follow.events';
 import { FollowUserDto } from '../dto/follow.dto';
 import { FollowUserResponseDto } from '../dto/follow-response.dto';
 import { FollowMapper } from '../mappers/follow.mapper';
@@ -16,8 +14,7 @@ export class FollowUserUseCase {
     @Inject(FOLLOW_REPOSITORY_TOKEN)
     private readonly followRepository: FollowRepository,
     private readonly followEnrichmentService: FollowEnrichmentService,
-    private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) { }
 
   async execute(
     dto: FollowUserDto,
@@ -58,18 +55,6 @@ export class FollowUserUseCase {
     // 5. Get follower info for event
     const followerUser =
       await this.followEnrichmentService.validateUserExists(followerId);
-
-    // 6. Emit domain event (side effects handled by subscribers)
-    this.eventEmitter.emit(
-      'follow.user.followed',
-      new UserFollowedEvent(
-        savedFollow.id,
-        followerId,
-        followingId,
-        followerUser.username,
-        followingUser.username,
-      ),
-    );
 
     return {
       message: 'User followed successfully',

@@ -19,21 +19,18 @@ import {
   InvalidCredentialsException,
   EmailNotVerifiedException,
 } from '../../domain/exceptions/auth.exceptions';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UserLoggedInEvent } from '../../domain/events';
 
 @Injectable()
 export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
   constructor(
     private userApplicationService: UserApplicationService,
     @Inject(SESSION_REPOSITORY_TOKEN)
-    private sessionService: ISessionRepository, // Use interface with DI token
+    private sessionService: ISessionRepository,
     @Inject(TOKEN_REPOSITORY_TOKEN)
-    private tokenService: ITokenRepository, // Use interface with DI token
+    private tokenService: ITokenRepository,
     @Inject(PASSWORD_HASHER_TOKEN)
     private passwordHasher: IPasswordHasher,
     private sessionDomainService: SessionDomainService,
-    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -108,12 +105,6 @@ export class LoginUseCase extends BaseUseCase<LoginRequest, LoginResult> {
     // Extract sessionId from refresh token for compatibility
     const sessionInfo = await this.sessionService.getSessionFromRefreshToken(
       tokens.refreshToken,
-    );
-
-    // Emit UserLoggedInEvent for side effects (audit logging, etc.)
-    this.eventEmitter.emit(
-      'auth.user.logged-in',
-      new UserLoggedInEvent(user.id, user.email, ipAddress, userAgent),
     );
 
     return {

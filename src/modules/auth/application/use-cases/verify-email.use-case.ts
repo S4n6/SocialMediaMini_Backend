@@ -12,8 +12,6 @@ import {
   UserNotFoundException,
   EmailAlreadyVerifiedException,
 } from '../../domain/exceptions/auth.exceptions';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EmailVerifiedEvent } from '../../domain/events';
 
 @Injectable()
 export class VerifyEmailUseCase extends BaseUseCase<
@@ -25,7 +23,6 @@ export class VerifyEmailUseCase extends BaseUseCase<
     private verificationTokenAppService: VerificationTokenAppService,
     @Inject(PASSWORD_HASHER_TOKEN)
     private passwordHasher: IPasswordHasher,
-    private eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -62,12 +59,6 @@ export class VerifyEmailUseCase extends BaseUseCase<
 
     // 6. Consume the OTP so it cannot be reused
     await this.verificationTokenAppService.consumeToken(verificationToken);
-
-    // 7. Emit EmailVerifiedEvent for side effects (welcome email, audit, etc.)
-    this.eventEmitter.emit(
-      'auth.email.verified',
-      new EmailVerifiedEvent(user.id, user.email, new Date()),
-    );
 
     return {
       success: true,
